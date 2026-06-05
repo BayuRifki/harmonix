@@ -1,0 +1,101 @@
+node_modules/
+dist/
+dist-electron/
+release/
+out/
+build/
+coverage/
+
+# Logs
+logs/
+*.log
+electron-stdout.log
+electron-stderr.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build outputs
+dist/
+dist-electron/
+build/
+out/
+release/
+*.tsbuildinfo
+
+# Environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+!.env.example
+
+# Editor / IDE
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Testing
+coverage/
+.nyc_output/
+*.lcov
+playwright-report/
+test-results/
+blob-report/
+playwright/.cache/
+
+# Electron
+out/
+*.exe
+*.dmg
+*.AppImage
+*.deb
+*.snap
+*.pkg
+*.zip
+
+# Cache
+.cache/
+.turbo/
+.parcel-cache/
+.eslintcache
+.eslintcache.*
+
+# OS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# Misc
+*.local
+*.pid
+*.seed
+*.pid.lock
+
+# Source maps
+*.js.map
+*.css.map
+*.d.ts.map

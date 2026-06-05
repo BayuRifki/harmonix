@@ -1,0 +1,4 @@
+# Will host Vitest + Playwright tests
+# - tests/unit/ for unit tests
+# - tests/e2e/ for end-to-end tests
+# - tests/setup.ts for test configuration

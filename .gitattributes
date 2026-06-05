@@ -1,0 +1,37 @@
+# Build artifacts
+node_modules/
+dist/
+dist-electron/
+release/
+out/
+build/
+coverage/
+
+# Generated files
+*.tsbuildinfo
+.eslintcache
+.cache/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Local environment
+.env
+.env.local
+
+# Editor
+.vscode/*
+.idea/
+*.swp
+.DS_Store
+
+# Testing
+playwright-report/
+test-results/
+
+# Electron
+*.exe
+*.dmg
+*.AppImage
+*.deb

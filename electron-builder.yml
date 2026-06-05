@@ -1,0 +1,87 @@
+appId: dev.harmonix.app
+productName: Harmonix
+copyright: Copyright © 2026 ${author}
+asar: true
+asarUnpack:
+  - resources/**
+
+publish:
+  provider: github
+  releaseType: release
+
+directories:
+  buildResources: resources
+  output: release/${version}
+  include:
+    - "**/*"
+    - "!**/.git"
+    - "!**/.github"
+    - "!**/docs"
+    - "!**/.vscode"
+    - "!**/.idea"
+
+extraResources:
+  - from: "resources/sql-wasm.wasm"
+    to: "sql-wasm.wasm"
+
+files:
+  - "dist/**/*"
+  - "dist-electron/**/*"
+  - "package.json"
+  - "LICENSE"
+  - "!**/*.{md,markdown}"
+  - "!**/{.eslintrc,.prettierrc,.editorconfig,.gitignore}"
+
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+    - target: portable
+      arch: [x64]
+  artifactName: ${productName}-${version}-${arch}.${ext}
+  icon: resources/icon.ico
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Harmonix
+  uninstallDisplayName: Harmonix ${version}
+
+mac:
+  target:
+    - target: dmg
+      arch: [x64, arm64]
+  artifactName: ${productName}-${version}-${arch}.${ext}
+  icon: resources/icon.png
+  category: public.app-category.music
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  darkModeSupport: true
+
+dmg:
+  contents:
+    - x: 130
+      y: 220
+    - x: 410
+      y: 220
+      type: link
+      path: /Applications
+
+linux:
+  target:
+    - target: AppImage
+      arch: [x64]
+    - target: deb
+      arch: [x64]
+  artifactName: ${productName}-${version}-${arch}.${ext}
+  icon: resources/icon.png
+  category: AudioVideo
+  desktop:
+    entry:
+      Name: Harmonix
+      Comment: Unified cross-source music player
+      Categories: AudioVideo;Audio;Player;
+      Keywords: music;player;spotify;youtube;

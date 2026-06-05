@@ -1,0 +1,51 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "noEmit": true,
+    "composite": false,
+    "types": ["node", "vitest/globals"]
+  },
+  "include": [
+    "src/**/*",
+    "tests/**/*",
+    "electron/main/sources/local/scanner.ts",
+    "electron/main/sources/demo/index.ts",
+    "electron/main/sources/spotify/client.ts",
+    "electron/main/sources/spotify/index.ts",
+    "electron/main/sources/ytmusic/index.ts",
+    "electron/main/sources/ytmusic/innertubeCache.ts",
+    "electron/main/sources/ytmusic/ytdlp.ts",
+    "electron/main/sources/deezer/client.ts",
+    "electron/main/sources/deezer/index.ts",
+    "electron/main/sources/jamendo/client.ts",
+    "electron/main/sources/jamendo/index.ts",
+    "electron/main/sources/audius/client.ts",
+    "electron/main/sources/audius/index.ts",
+    "electron/main/sources/soundcloud/client.ts",
+    "electron/main/sources/soundcloud/index.ts",
+    "electron/main/sources/rowToTrack.ts",
+    "electron/main/sources/presets.ts",
+    "electron/main/sources/adapter.ts",
+    "electron/main/sources/playlistResolver.ts",
+    "electron/main/sources/registry.ts",
+    "electron/main/sources/types.ts",
+    "electron/main/db/trackRepository.ts",
+    "electron/main/db/playlistRepository.ts",
+    "electron/main/db/eqRepository.ts",
+    "electron/main/db/folderRepository.ts",
+    "electron/main/db/database.ts",
+    "electron/main/db/migrations.ts",
+    "electron/main/db/settingsRepository.ts",
+    "electron/main/auth/pkce.ts",
+    "electron/main/auth/tokenStore.ts",
+    "electron/main/auth/callbackServer.ts",
+    "electron/main/auth/index.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "dist-electron"
+  ]
+}

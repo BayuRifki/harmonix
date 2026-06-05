@@ -1,0 +1,9 @@
+{
+  "name": "Harmonix",
+  "displayName": "Harmonix",
+  "description": "A unified cross-source music player for desktop",
+  "version": "0.0.1",
+  "publisher": "Harmonix Contributors",
+  "license": "MIT",
+  "icon": "resources/icon.png"
+}
