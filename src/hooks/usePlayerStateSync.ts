@@ -61,6 +61,7 @@ function handleMiniCommand(action: MiniPlayerAction): void {
 
 export function usePlayerStateSync(): void {
   const pushedRef = useRef<string>('');
+  const lastPushAtRef = useRef<number>(0);
 
   useEffect(() => {
     if (typeof window === 'undefined' || !window.api?.player) return undefined;
@@ -73,16 +74,22 @@ export function usePlayerStateSync(): void {
         s: snap.sourceId,
         p: snap.isPlaying,
         l: snap.loading,
-        pos: Math.round(snap.positionMs / 500),
-        dur: Math.round(snap.durationMs / 500),
+        pos: Math.round(snap.positionMs / 1500),
+        dur: Math.round(snap.durationMs / 1500),
         v: Math.round(snap.volume * 100),
         sh: snap.shuffle,
         rp: snap.repeat,
         hn: snap.hasNext,
         hp: snap.hasPrev,
       });
+      const now = Date.now();
       if (key === pushedRef.current) return;
+      if (now - lastPushAtRef.current < 1000) {
+        pushedRef.current = key;
+        return;
+      }
       pushedRef.current = key;
+      lastPushAtRef.current = now;
       void window.api.player.pushState(snap).catch(() => undefined);
     };
 

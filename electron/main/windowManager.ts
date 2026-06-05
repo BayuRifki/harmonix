@@ -1,4 +1,4 @@
-import { BrowserWindow, screen, app } from 'electron';
+import { BrowserWindow, screen, shell } from 'electron';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { clampToDisplayBounds } from './windowBounds';
@@ -11,6 +11,7 @@ const MINI_DEFAULT_WIDTH = 360;
 const MINI_DEFAULT_HEIGHT = 120;
 const MINI_MIN_HEIGHT = 80;
 const MINI_MAX_HEIGHT = 400;
+const MAIN_FALLBACK_SHOW_MS = 2000;
 
 function loadRendererInto(win: BrowserWindow, isMini: boolean): void {
   const devUrl = process.env.ELECTRON_RENDERER_URL;
@@ -55,6 +56,21 @@ export function createMainWindow(): BrowserWindow {
 
   mainWindow.on('ready-to-show', () => {
     mainWindow?.show();
+  });
+
+  const fallback = setTimeout(() => {
+    if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.isVisible()) {
+      console.warn('[main] ready-to-show did not fire, forcing show()');
+      mainWindow.show();
+    }
+  }, MAIN_FALLBACK_SHOW_MS);
+  mainWindow.once('closed', () => {
+    clearTimeout(fallback);
+  });
+
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    void shell.openExternal(url);
+    return { action: 'deny' };
   });
 
   mainWindow.on('closed', () => {
@@ -211,12 +227,5 @@ export function closeAllWindows(): void {
     if (win && !win.isDestroyed()) {
       win.close();
     }
-  }
-}
-
-export function ensureSingleInstance(): void {
-  const gotLock = app.requestSingleInstanceLock();
-  if (!gotLock) {
-    app.quit();
   }
 }

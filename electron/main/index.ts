@@ -22,15 +22,31 @@ import { registerPlayerHandlers } from './ipc/player';
 import { registerMiniPlayerHandlers } from './ipc/miniPlayer';
 import {
   createMainWindow,
-  ensureSingleInstance,
   closeAllWindows,
   getMainWindow,
   isMiniPlayerVisible,
   focusMainWindow,
   setQuitting,
 } from './windowManager';
-import { createTray, destroyTray, refreshTrayMenu } from './tray';
+import { createTray, destroyTray } from './tray';
 import { getSetting, setSetting } from './db/settingsRepository';
+
+const MAX_HEAP_MB = process.env.HARMONIX_MAX_HEAP_MB ?? '3072';
+const MAX_SEMI_MB = process.env.HARMONIX_MAX_SEMI_MB ?? '128';
+app.commandLine.appendSwitch(
+  'js-flags',
+  `--max-old-space-size=${MAX_HEAP_MB} --max-semi-space-size=${MAX_SEMI_MB} --no-incremental-marking`,
+);
+
+let mainMemLogInterval: NodeJS.Timeout | null = null;
+
+function logMemory(tag: string): void {
+  const mu = process.memoryUsage();
+  const rssMb = Math.round(mu.rss / 1024 / 1024);
+  const heapUsedMb = Math.round(mu.heapUsed / 1024 / 1024);
+  const heapTotalMb = Math.round(mu.heapTotal / 1024 / 1024);
+  console.info(`[mem] ${tag} rss=${rssMb}MB heapUsed=${heapUsedMb}MB heapTotal=${heapTotalMb}MB`);
+}
 
 process.on('unhandledRejection', (reason) => {
   console.error('[main] Unhandled promise rejection:', reason);
@@ -41,7 +57,6 @@ process.on('uncaughtException', (err) => {
 
 setElectronApp(app, safeStorage);
 setElectronAppForYtDlp(app);
-ensureSingleInstance();
 
 function registerBaseIpc(): void {
   ipcMain.handle('app:get-version', () => {
@@ -79,82 +94,95 @@ function setupAutoUpdater(): void {
     });
 }
 
-app.whenReady().then(async () => {
-  try {
-    await initDatabase();
-  } catch (err) {
-    console.error('[main] Failed to initialize database:', err);
-  }
+const gotLock = app.requestSingleInstanceLock();
+if (!gotLock) {
+  app.quit();
+} else {
+  app.whenReady().then(async () => {
+    logMemory('startup');
 
-  try {
-    registerSource(new LocalSource());
-    registerSource(new DemoSource());
-    const spotifyConfig = {
-      clientId: process.env.SPOTIFY_CLIENT_ID ?? '',
-      redirectUri: process.env.SPOTIFY_REDIRECT_URI ?? 'http://127.0.0.1:8888/callback',
-    };
-    registerSource(new SpotifySource(spotifyConfig));
-    const ytSource = new YouTubeMusicSource();
-    registerSource(ytSource);
-    registerSource(new DeezerSource());
-    registerSource(
-      new JamendoSource({
-        clientId: process.env.JAMENDO_CLIENT_ID ?? '709fa152',
-      }),
-    );
-    registerSource(
-      new AudiusSource({
-        host: process.env.AUDIUS_HOST,
-      }),
-    );
-    registerSource(
-      new SoundCloudSource({
-        clientId: process.env.SOUNDCLOUD_CLIENT_ID,
-        clientSecret: process.env.SOUNDCLOUD_CLIENT_SECRET,
-      }),
-    );
-    await initializeAllSources();
-  } catch (err) {
-    console.error('[main] Failed to initialize sources:', err);
-  }
-
-  try {
-    registerBaseIpc();
-    registerLibraryHandlers(getMainWindow);
-    registerSourceHandlers();
-    registerAuthHandlers(getMainWindow);
-    registerYtMusicHandlers();
-    registerPlaylistHandlers();
-    registerEqualizerHandlers();
-    registerMemoryHandlers();
-    registerPlayerHandlers();
-    registerMiniPlayerHandlers();
-  } catch (err) {
-    console.error('[main] Failed to register IPC handlers:', err);
-  }
-
-  createMainWindow();
-  setupAutoUpdater();
-  createTray();
-
-  setInterval(refreshTrayMenu, 1000);
-
-  app.on('second-instance', () => {
-    focusMainWindow();
-  });
-
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      createMainWindow();
-    } else {
-      focusMainWindow();
+    try {
+      await initDatabase();
+    } catch (err) {
+      console.error('[main] Failed to initialize database:', err);
     }
+
+    try {
+      registerSource(new LocalSource());
+      registerSource(new DemoSource());
+      const spotifyConfig = {
+        clientId: process.env.SPOTIFY_CLIENT_ID ?? '',
+        redirectUri: process.env.SPOTIFY_REDIRECT_URI ?? 'http://127.0.0.1:8888/callback',
+      };
+      registerSource(new SpotifySource(spotifyConfig));
+      const ytSource = new YouTubeMusicSource();
+      registerSource(ytSource);
+      registerSource(new DeezerSource());
+      registerSource(
+        new JamendoSource({
+          clientId: process.env.JAMENDO_CLIENT_ID ?? '709fa152',
+        }),
+      );
+      registerSource(
+        new AudiusSource({
+          host: process.env.AUDIUS_HOST,
+        }),
+      );
+      registerSource(
+        new SoundCloudSource({
+          clientId: process.env.SOUNDCLOUD_CLIENT_ID,
+          clientSecret: process.env.SOUNDCLOUD_CLIENT_SECRET,
+        }),
+      );
+      await initializeAllSources();
+    } catch (err) {
+      console.error('[main] Failed to initialize sources:', err);
+    }
+
+    try {
+      registerBaseIpc();
+      registerLibraryHandlers(getMainWindow);
+      registerSourceHandlers();
+      registerAuthHandlers(getMainWindow);
+      registerYtMusicHandlers();
+      registerPlaylistHandlers();
+      registerEqualizerHandlers();
+      registerMemoryHandlers();
+      registerPlayerHandlers();
+      registerMiniPlayerHandlers();
+    } catch (err) {
+      console.error('[main] Failed to register IPC handlers:', err);
+    }
+
+    createMainWindow();
+    setupAutoUpdater();
+    createTray();
+
+    logMemory('after-init');
+
+    mainMemLogInterval = setInterval(() => logMemory('tick'), 60_000);
+
+    app.on('second-instance', () => {
+      focusMainWindow();
+    });
+
+    app.on('activate', () => {
+      if (BrowserWindow.getAllWindows().length === 0) {
+        createMainWindow();
+      } else {
+        focusMainWindow();
+      }
+    });
   });
-});
+}
 
 app.on('before-quit', () => {
   setQuitting(true);
   setSetting('window.miniPlayer.alwaysOnTop', isMiniPlayerVisible() ? 'true' : 'false');
+  if (mainMemLogInterval) {
+    clearInterval(mainMemLogInterval);
+    mainMemLogInterval = null;
+  }
   destroyTray();
   void shutdownAllSources().finally(() => {
     closeDatabase();

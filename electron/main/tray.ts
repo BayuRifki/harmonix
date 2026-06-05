@@ -7,8 +7,10 @@ import {
   isMiniPlayerVisible,
   closeAllWindows,
 } from './windowManager';
+import { playerStateBus } from './playerState';
 
 let tray: Tray | null = null;
+let unsubscribe: (() => void) | null = null;
 
 function loadTrayIcon(): Electron.NativeImage {
   const candidates = [
@@ -71,6 +73,11 @@ export function createTray(): Tray | null {
     tray.setContextMenu(buildContextMenu());
     tray.on('click', () => focusMainWindow());
     tray.on('double-click', () => focusMainWindow());
+    unsubscribe = playerStateBus.subscribe(() => {
+      if (tray && !tray.isDestroyed()) {
+        tray.setContextMenu(buildContextMenu());
+      }
+    });
     return tray;
   } catch (err) {
     console.warn('[tray] Failed to create tray:', err);
@@ -84,6 +91,10 @@ export function refreshTrayMenu(): void {
 }
 
 export function destroyTray(): void {
+  if (unsubscribe) {
+    unsubscribe();
+    unsubscribe = null;
+  }
   if (tray && !tray.isDestroyed()) {
     tray.destroy();
   }
