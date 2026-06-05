@@ -232,6 +232,17 @@ export function PlayerBar(): JSX.Element {
             </span>
           )}
         </button>
+        <button
+          type="button"
+          onClick={() => {
+            void window.api.miniPlayer.show();
+          }}
+          className="px-2 py-1 text-xs text-zinc-400 hover:text-zinc-200 rounded"
+          aria-label="Open mini-player"
+          title="Open mini-player (Ctrl+Shift+M)"
+        >
+          ⊟
+        </button>
         <span className="text-xs text-zinc-500" aria-hidden>
           {volume === 0 ? '🔇' : volume < 0.5 ? '🔈' : '🔊'}
         </span>

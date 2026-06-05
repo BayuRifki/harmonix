@@ -75,8 +75,19 @@ export function useKeyboardShortcuts(): void {
 
     const handler = (e: KeyboardEvent): void => {
       if (e.defaultPrevented) return;
-      if (e.metaKey || e.ctrlKey || e.altKey) return;
       if (isEditableTarget(e.target)) return;
+
+      if (
+        (e.metaKey || e.ctrlKey) &&
+        e.shiftKey &&
+        (e.code === 'KeyM' || e.key.toLowerCase() === 'm')
+      ) {
+        e.preventDefault();
+        void window.api.miniPlayer.toggle();
+        return;
+      }
+
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
 
       const store = usePlayerStore.getState();
       const ctx: ShortcutContext = {

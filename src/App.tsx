@@ -10,12 +10,22 @@ import { SettingsView } from '@/features/settings/SettingsView';
 import { YtMusicDisclaimer } from '@/features/settings/YtMusicDisclaimer';
 import { EqualizerView } from '@/features/equalizer/EqualizerView';
 import { SourceView } from '@/features/source/SourceView';
+import { MiniPlayerView } from '@/features/miniPlayer/MiniPlayerView';
 import { useEqualizerStore } from '@/stores/equalizerStore';
 import { useThemeStore } from '@/stores/themeStore';
 import { useAdaptiveAccent } from '@/hooks/useAdaptiveAccent';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
+import { usePlayerStateSync } from '@/hooks/usePlayerStateSync';
+import { ToastContainer } from '@/components/ui/Toast';
 
 export default function App(): JSX.Element {
+  if (window.api?.miniPlayer?.isMini()) {
+    return <MiniPlayerView />;
+  }
+  return <MainApp />;
+}
+
+function MainApp(): JSX.Element {
   const navigate = useNavigate();
   const [selectedPlaylistId, setSelectedPlaylistId] = useState<number | null>(null);
   const eqLoad = useEqualizerStore((s) => s.load);
@@ -23,6 +33,7 @@ export default function App(): JSX.Element {
 
   useAdaptiveAccent();
   useKeyboardShortcuts();
+  usePlayerStateSync();
 
   useEffect(() => {
     themeLoad();
@@ -54,10 +65,12 @@ export default function App(): JSX.Element {
             <Route path="/equalizer" element={<EqualizerView />} />
             <Route path="/settings" element={<SettingsView />} />
             <Route path="/source/:id" element={<SourceView />} />
+            <Route path="/mini" element={<MiniPlayerView />} />
           </Routes>
         </main>
       </div>
       <PlayerBar />
+      <ToastContainer />
     </div>
   );
 }

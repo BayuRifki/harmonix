@@ -1,14 +1,8 @@
-import { app, BrowserWindow, shell, ipcMain, safeStorage } from 'electron';
-import { existsSync } from 'node:fs';
-import { join } from 'node:path';
+import { app, BrowserWindow, ipcMain, safeStorage } from 'electron';
 import { initDatabase, closeDatabase } from './db';
 import { setElectronApp } from './auth/tokenStore';
 import { setElectronAppForYtDlp } from './sources/ytmusic/ytdlp';
-import {
-  initializeAllSources,
-  shutdownAllSources,
-  registerSource,
-} from './sources/registry';
+import { initializeAllSources, shutdownAllSources, registerSource } from './sources/registry';
 import { LocalSource } from './sources/local';
 import { DemoSource } from './sources/demo';
 import { SpotifySource } from './sources/spotify';
@@ -24,6 +18,19 @@ import { registerYtMusicHandlers } from './ipc/ytmusic';
 import { registerPlaylistHandlers } from './ipc/playlists';
 import { registerEqualizerHandlers } from './ipc/equalizer';
 import { registerMemoryHandlers } from './ipc/memory';
+import { registerPlayerHandlers } from './ipc/player';
+import { registerMiniPlayerHandlers } from './ipc/miniPlayer';
+import {
+  createMainWindow,
+  ensureSingleInstance,
+  closeAllWindows,
+  getMainWindow,
+  isMiniPlayerVisible,
+  focusMainWindow,
+  setQuitting,
+} from './windowManager';
+import { createTray, destroyTray, refreshTrayMenu } from './tray';
+import { getSetting, setSetting } from './db/settingsRepository';
 
 process.on('unhandledRejection', (reason) => {
   console.error('[main] Unhandled promise rejection:', reason);
@@ -34,62 +41,7 @@ process.on('uncaughtException', (err) => {
 
 setElectronApp(app, safeStorage);
 setElectronAppForYtDlp(app);
-
-let mainWindow: BrowserWindow | null = null;
-
-function createMainWindow(): void {
-  mainWindow = new BrowserWindow({
-    width: 1280,
-    height: 800,
-    minWidth: 960,
-    minHeight: 600,
-    show: false,
-    frame: false,
-    titleBarStyle: 'hidden',
-    backgroundColor: '#0a0a0a',
-    webPreferences: {
-      preload: join(__dirname, '../preload/index.mjs'),
-      contextIsolation: true,
-      nodeIntegration: false,
-      sandbox: false,
-    },
-  });
-
-  mainWindow.on('ready-to-show', () => {
-    mainWindow?.show();
-  });
-
-  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url);
-    return { action: 'deny' };
-  });
-
-  if (process.env.ELECTRON_RENDERER_URL) {
-    mainWindow.loadURL(process.env.ELECTRON_RENDERER_URL);
-  } else {
-    const candidates = [
-      join(__dirname, '../../dist/index.html'),
-      join(__dirname, '../renderer/index.html'),
-      join(process.resourcesPath ?? '', 'app', 'dist', 'index.html'),
-    ];
-    const target = candidates.find((p) => existsSync(p));
-    if (target) {
-      mainWindow.loadFile(target);
-    } else {
-      console.error(
-        '[main] Renderer index.html not found. Tried:',
-        candidates,
-        '__dirname=',
-        __dirname,
-        'appPath=',
-        app.getAppPath(),
-        'resourcesPath=',
-        process.resourcesPath,
-      );
-      mainWindow.loadURL('data:text/html,<h1>Renderer not built. Run npm run build.</h1>');
-    }
-  }
-}
+ensureSingleInstance();
 
 function registerBaseIpc(): void {
   ipcMain.handle('app:get-version', () => {
@@ -168,38 +120,55 @@ app.whenReady().then(async () => {
 
   try {
     registerBaseIpc();
-    registerLibraryHandlers(() => mainWindow);
+    registerLibraryHandlers(getMainWindow);
     registerSourceHandlers();
-    registerAuthHandlers(() => mainWindow);
+    registerAuthHandlers(getMainWindow);
     registerYtMusicHandlers();
     registerPlaylistHandlers();
     registerEqualizerHandlers();
     registerMemoryHandlers();
+    registerPlayerHandlers();
+    registerMiniPlayerHandlers();
   } catch (err) {
     console.error('[main] Failed to register IPC handlers:', err);
   }
 
   createMainWindow();
   setupAutoUpdater();
+  createTray();
+
+  setInterval(refreshTrayMenu, 1000);
+
+  app.on('second-instance', () => {
+    focusMainWindow();
+  });
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createMainWindow();
+    } else {
+      focusMainWindow();
     }
   });
 });
 
-app.on('before-quit', async () => {
-  await shutdownAllSources();
-  closeDatabase();
+app.on('before-quit', () => {
+  setQuitting(true);
+  setSetting('window.miniPlayer.alwaysOnTop', isMiniPlayerVisible() ? 'true' : 'false');
+  destroyTray();
+  void shutdownAllSources().finally(() => {
+    closeDatabase();
+  });
 });
 
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
+  if (process.platform !== 'darwin' && getSetting('window.miniPlayer.alwaysOnTop') !== 'true') {
     app.quit();
   }
 });
 
-export function getMainWindow(): BrowserWindow | null {
-  return mainWindow;
-}
+process.on('exit', () => {
+  closeAllWindows();
+});
+
+export { getMainWindow };

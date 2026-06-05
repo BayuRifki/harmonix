@@ -141,12 +141,22 @@ export interface HarmonixApi {
   sources: {
     list(): Promise<SourceRegistration[]>;
     listEnabled(): Promise<string[]>;
-    setEnabled(payload: { id: string; enabled: boolean }): Promise<{ id: string; enabled: boolean }>;
+    setEnabled(payload: {
+      id: string;
+      enabled: boolean;
+    }): Promise<{ id: string; enabled: boolean }>;
     loadConfigs(): Promise<Record<string, SourceConfig>>;
-    saveConfig(payload: { id: string; settings: Record<string, unknown> }): Promise<{ id: string; settings: Record<string, unknown> }>;
+    saveConfig(payload: {
+      id: string;
+      settings: Record<string, unknown>;
+    }): Promise<{ id: string; settings: Record<string, unknown> }>;
     getConfig(payload: { id: string }): Promise<Record<string, unknown>>;
     getAuthStatuses(): Promise<AuthStatus[]>;
-    search(payload: { query: string; options?: SearchOptions; sourceIds?: string[] }): Promise<SourceSearchResult[]>;
+    search(payload: {
+      query: string;
+      options?: SearchOptions;
+      sourceIds?: string[];
+    }): Promise<SourceSearchResult[]>;
     playTrack(payload: { track: Track }): Promise<StreamInfo>;
     userPlaylists(payload: { id: string }): Promise<Playlist[]>;
     likedTracks(payload: { id: string }): Promise<Track[]>;
@@ -170,13 +180,20 @@ export interface HarmonixApi {
     create(payload: { name: string; description?: string }): Promise<{ id: number }>;
     rename(payload: { id: number; name: string; description?: string }): Promise<{ ok: true }>;
     delete(id: number): Promise<{ ok: true }>;
-    addTrack(payload: { playlistId: number; source: string; sourceId: string }): Promise<{ position: number }>;
+    addTrack(payload: {
+      playlistId: number;
+      source: string;
+      sourceId: string;
+    }): Promise<{ position: number }>;
     removeTrack(payload: { playlistId: number; position: number }): Promise<{ ok: true }>;
     reorder(payload: { playlistId: number; from: number; to: number }): Promise<{ ok: true }>;
   };
   eq: {
     getState(): Promise<{ activePreset: string | null; currentGains: number[] }>;
-    saveState(state: { activePreset: string | null; currentGains: number[] }): Promise<{ ok: true }>;
+    saveState(state: {
+      activePreset: string | null;
+      currentGains: number[];
+    }): Promise<{ ok: true }>;
     listAllPresets(): Promise<{ builtin: EqPreset[]; custom: EqCustomPreset[] }>;
     listCustomPresets(): Promise<EqCustomPreset[]>;
     saveCustomPreset(payload: { name: string; gains: number[] }): Promise<EqCustomPreset>;
@@ -186,6 +203,68 @@ export interface HarmonixApi {
     stats(): Promise<MemoryStats>;
     gc(): Promise<{ ok: true; before: MemoryStats; after: MemoryStats }>;
   };
+  player: {
+    getState(): Promise<MiniPlayerStateSnapshot>;
+    pushState(snapshot: Partial<MiniPlayerStateSnapshot>): Promise<{ ok: boolean }>;
+    command(action: MiniPlayerAction): Promise<{ ok: boolean; error?: string }>;
+    onStateChanged(handler: (snapshot: MiniPlayerStateSnapshot) => void): () => void;
+    onCommand(handler: (action: MiniPlayerAction) => void): () => void;
+  };
+  miniPlayer: {
+    isMini(): boolean;
+    show(): Promise<{ ok: boolean; visible: boolean }>;
+    hide(): Promise<{ ok: boolean; visible: boolean }>;
+    toggle(): Promise<{ ok: boolean; visible: boolean }>;
+    status(): Promise<MiniPlayerConfig>;
+    setAlwaysOnTop(value: boolean): Promise<{ ok: boolean; alwaysOnTop: boolean }>;
+    expand(): Promise<{ ok: boolean }>;
+    saveBounds(): Promise<{ ok: boolean; bounds: MiniPlayerBounds | null }>;
+  };
+}
+
+export interface MiniPlayerStateSnapshot {
+  currentTrack: unknown;
+  sourceId: string | null;
+  isPlaying: boolean;
+  loading: boolean;
+  positionMs: number;
+  durationMs: number;
+  volume: number;
+  shuffle: boolean;
+  repeat: 'off' | 'one' | 'all';
+  hasNext: boolean;
+  hasPrev: boolean;
+  artworkUrl: string | null;
+  title: string | null;
+  artistLine: string | null;
+  updatedAt: number;
+}
+
+export type MiniPlayerAction =
+  | { type: 'play' }
+  | { type: 'pause' }
+  | { type: 'toggle' }
+  | { type: 'next' }
+  | { type: 'prev' }
+  | { type: 'seek'; positionMs: number }
+  | { type: 'volume'; volume: number }
+  | { type: 'toggle-shuffle' }
+  | { type: 'cycle-repeat' };
+
+export interface MiniPlayerBounds {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface MiniPlayerConfig {
+  visible: boolean;
+  alwaysOnTop: boolean;
+  x: number | null;
+  y: number | null;
+  width: number | null;
+  height: number | null;
 }
 
 export interface MemoryStats {
@@ -245,7 +324,8 @@ const api: HarmonixApi = {
     list: (): Promise<SourceRegistration[]> => ipcRenderer.invoke('sources:list'),
     listEnabled: (): Promise<string[]> => ipcRenderer.invoke('sources:list-enabled'),
     setEnabled: (payload) => ipcRenderer.invoke('sources:set-enabled', payload),
-    loadConfigs: (): Promise<Record<string, SourceConfig>> => ipcRenderer.invoke('sources:load-configs'),
+    loadConfigs: (): Promise<Record<string, SourceConfig>> =>
+      ipcRenderer.invoke('sources:load-configs'),
     saveConfig: (payload) => ipcRenderer.invoke('sources:save-config', payload),
     getConfig: (payload) => ipcRenderer.invoke('sources:get-config', payload),
     getAuthStatuses: (): Promise<AuthStatus[]> => ipcRenderer.invoke('sources:get-auth-statuses'),
@@ -284,11 +364,14 @@ const api: HarmonixApi = {
   eq: {
     getState: (): Promise<{ activePreset: string | null; currentGains: number[] }> =>
       ipcRenderer.invoke('eq:get-state'),
-    saveState: (state: { activePreset: string | null; currentGains: number[] }): Promise<{ ok: true }> =>
-      ipcRenderer.invoke('eq:save-state', state),
+    saveState: (state: {
+      activePreset: string | null;
+      currentGains: number[];
+    }): Promise<{ ok: true }> => ipcRenderer.invoke('eq:save-state', state),
     listAllPresets: (): Promise<{ builtin: EqPreset[]; custom: EqCustomPreset[] }> =>
       ipcRenderer.invoke('eq:list-all-presets'),
-    listCustomPresets: (): Promise<EqCustomPreset[]> => ipcRenderer.invoke('eq:list-custom-presets'),
+    listCustomPresets: (): Promise<EqCustomPreset[]> =>
+      ipcRenderer.invoke('eq:list-custom-presets'),
     saveCustomPreset: (payload: { name: string; gains: number[] }): Promise<EqCustomPreset> =>
       ipcRenderer.invoke('eq:save-custom-preset', payload),
     deleteCustomPreset: (name: string): Promise<{ ok: boolean }> =>
@@ -298,6 +381,53 @@ const api: HarmonixApi = {
     stats: (): Promise<MemoryStats> => ipcRenderer.invoke('mem:stats'),
     gc: (): Promise<{ ok: true; before: MemoryStats; after: MemoryStats }> =>
       ipcRenderer.invoke('mem:gc'),
+  },
+  player: {
+    getState: (): Promise<MiniPlayerStateSnapshot> => ipcRenderer.invoke('player:get-state'),
+    pushState: (snapshot: Partial<MiniPlayerStateSnapshot>): Promise<{ ok: boolean }> =>
+      ipcRenderer.invoke('player:push-state', snapshot),
+    command: (action: MiniPlayerAction): Promise<{ ok: boolean; error?: string }> =>
+      ipcRenderer.invoke('player:command', action),
+    onStateChanged: (handler) => {
+      const listener = (_e: Electron.IpcRendererEvent, payload: MiniPlayerStateSnapshot): void => {
+        handler(payload);
+      };
+      ipcRenderer.on('player:state-changed', listener);
+      return () => {
+        ipcRenderer.removeListener('player:state-changed', listener);
+      };
+    },
+    onCommand: (handler) => {
+      const listener = (_e: Electron.IpcRendererEvent, payload: MiniPlayerAction): void => {
+        handler(payload);
+      };
+      ipcRenderer.on('player:command', listener);
+      return () => {
+        ipcRenderer.removeListener('player:command', listener);
+      };
+    },
+  },
+  miniPlayer: {
+    isMini: (): boolean => {
+      try {
+        const w = globalThis as { location?: { hash?: string; search?: string } };
+        const hash = w.location?.hash ?? '';
+        const search = w.location?.search ?? '';
+        return hash === '#/mini' || hash === '#mini' || search.includes('mini=1');
+      } catch {
+        return false;
+      }
+    },
+    show: (): Promise<{ ok: boolean; visible: boolean }> => ipcRenderer.invoke('mini-player:show'),
+    hide: (): Promise<{ ok: boolean; visible: boolean }> => ipcRenderer.invoke('mini-player:hide'),
+    toggle: (): Promise<{ ok: boolean; visible: boolean }> =>
+      ipcRenderer.invoke('mini-player:toggle'),
+    status: (): Promise<MiniPlayerConfig> => ipcRenderer.invoke('mini-player:status'),
+    setAlwaysOnTop: (value: boolean): Promise<{ ok: boolean; alwaysOnTop: boolean }> =>
+      ipcRenderer.invoke('mini-player:set-always-on-top', value),
+    expand: (): Promise<{ ok: boolean }> => ipcRenderer.invoke('mini-player:expand'),
+    saveBounds: (): Promise<{ ok: boolean; bounds: MiniPlayerBounds | null }> =>
+      ipcRenderer.invoke('mini-player:save-bounds'),
   },
 };
 

@@ -21,6 +21,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Release workflow** (`.github/workflows/release.yml`) — tag a `v*` push (or run `workflow_dispatch`) to build installers for Windows, Linux, and macOS in parallel and publish them as a GitHub Release.
 - **`.nvmrc`** pinning Node 20 for local + CI consistency.
 - **GitHub repo placeholders** in `package.json`, `CHANGELOG.md`, `CONTRIBUTING.md`, and the Settings/YT-Music status screens now point at the real `BayuRifki/harmonix` repo.
+- **Mini-player mode** — compact 360×120 frameless window with current track, transport controls, clickable progress bar, and right-click "always on top" toggle. Toggle from the player bar, system tray, or `Ctrl/Cmd+Shift+M`. Playback stays in the main renderer; the mini surface is read-only and drives the engine via IPC.
+- **State sync IPC bus** (`player:get-state` / `player:push-state` / `player:command` / `player:state-changed` broadcast) keeps the mini-player in sync with the main player's `usePlayerStore`.
+- **System tray** with a right-click menu (Show main, Show/Hide mini-player, Quit) and click-to-focus behavior.
+- **Window position persistence** for the mini-player (`window.miniPlayer.{x,y,width,height,alwaysOnTop}` in the existing `settings` table) with display-bounds clamping.
 
 ### Changed
 
@@ -40,6 +44,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Tests
 
 - 23 new unit tests for `colorExtractor` (RGB→HSL math, hue-bucket clustering edge cases, CORS/empty/gray inputs, saturation/lightness clamping, `hslToString` rounding) and `useKeyboardShortcuts` (input/textarea/select/contenteditable detection, all six shortcut mappings including mute toggle and 0.8-restore fallback). Total: **314 tests** across **26 files**, all passing.
+- 18 new unit tests for the mini-player: 11 for `PlayerStateBus` + `applyPlayerAction` reducer (play/pause/toggle/seek/next/prev/volume/shuffle/repeat, subscriber notifications, listener error isolation, singleton bus) and 7 for `clampToDisplayBounds` (right/bottom/left/top edge clamping, offset displays, minimum visibility guarantee). Total: **355 tests** across **29 files**, all passing.
 
 #### Phase 0 — Foundation
 
@@ -231,6 +236,43 @@ Brought the renderer's UI in sync with the 8 source capabilities. Most of Phase 
   - Added component tests: `tests/unit/sidebar.test.tsx` (6 tests), `tests/unit/sourcePicker.test.tsx` (8 tests), `tests/unit/sourceView.test.tsx` (7 tests) — 21 new component tests
 - **tsconfig.test.json**: expanded `include` to cover all 8 source directories (was missing deezer/jamendo/audius/soundcloud)
 - **Verified**: `npm run typecheck` (0 errors), `npm run lint` (0 warnings), `npm run test` (**284/284** pass across 24 test files), `npm run build` succeeds (renderer bundle grew from 395 kB to 428 kB)
+
+#### Phase 10 — Mini-Player Mode
+
+A compact, always-available floating player surface for power users. The full app stays open in the background; the mini-player is a separate frameless 360×120 window that drives the main renderer's audio engine through a state-sync IPC bus.
+
+- **State sync backbone** (`electron/main/playerState.ts`, `electron/main/ipc/player.ts`):
+  - `PlayerStateBus` — in-memory snapshot holder + pub-sub for state changes
+  - Pure reducer `applyPlayerAction(snapshot, action)` — unit-tested with 11 tests
+  - New IPC: `player:get-state`, `player:push-state`, `player:command`, broadcast `player:state-changed`
+- **Window manager** (`electron/main/windowManager.ts`):
+  - `createMainWindow()` extracted from the previous inline definition in `index.ts`
+  - `createMiniPlayerWindow({ x, y, alwaysOnTop })` — frameless, `skipTaskbar: true`, `minimizable/maximizable: false`, `resizable` vertically only (80–400 px)
+  - `showMiniPlayer / hideMiniPlayer / toggleMiniPlayer` — hide-on-close (do not destroy unless the user is actually quitting)
+  - Pure `clampToDisplayBounds(x, y, w, h, workArea)` extracted to `electron/main/windowBounds.ts` and unit-tested with 7 tests (handles disconnected-monitor case)
+- **Mini-player IPC** (`electron/main/ipc/miniPlayer.ts`):
+  - `mini-player:show / hide / toggle / status / set-always-on-top / expand / save-bounds / close-window`
+  - Persists `window.miniPlayer.{x, y, width, height, alwaysOnTop}` in the existing `settings` table
+- **System tray** (`electron/main/tray.ts`):
+  - Loads `resources/icon.png` (with fallbacks) at 16×16
+  - Right-click menu: Show main, Show/Hide mini-player, Quit
+  - Click on tray icon → focuses main window
+  - Menu is rebuilt every second so the Show/Hide label stays accurate
+- **Renderer side**:
+  - `src/hooks/usePlayerStateSync.ts` — subscribes to `usePlayerStore`, pushes a normalized `MiniPlayerStateSnapshot` to the main process, and routes incoming mini-commands back into the local store. Mounted in `<MainApp />` only.
+  - `src/features/miniPlayer/MiniPlayerView.tsx` — the mini UI: artwork (60×60), title/artist/source badge, transport buttons, clickable progress bar, "expand to full" + "hide" buttons, right-click context menu with "Always on top" toggle
+  - `src/App.tsx` — detects mini mode via `window.api.miniPlayer.isMini()` (checks `location.hash === '#/mini'`); renders only `<MiniPlayerView />` for the mini window
+  - `PlayerBar` — added a "minimize to mini-player" button (icon next to queue)
+  - `useKeyboardShortcuts` — `Ctrl/Cmd+Shift+M` toggles the mini-player
+- **Preload bridge** (`electron/preload/index.ts`):
+  - `window.api.player.{getState, pushState, command, onStateChanged, onCommand}`
+  - `window.api.miniPlayer.{isMini, show, hide, toggle, status, setAlwaysOnTop, expand, saveBounds}`
+  - New shared types: `MiniPlayerStateSnapshot`, `MiniPlayerAction`, `MiniPlayerConfig`, `MiniPlayerBounds`
+- **Audio ownership** — only the main renderer creates the `AudioContext`. The mini surface is purely visual; all playback decisions flow back to the main renderer.
+- **Tests**: 18 new unit tests (`tests/unit/playerState.test.ts` ×11, `tests/unit/windowBounds.test.ts` ×7). Total now **355/355 pass across 29 test files** with 6 GB heap + `maxForks: 2`. Typecheck clean, lint clean, build succeeds (main +12 kB, preload +1.5 kB, renderer +15 kB).
+- **Docs**: new "Mini-Player Window" section in `docs/ARCHITECTURE.md` with the state-sync flow diagram and the audio-ownership note. Phase 10 marked done in `docs/PLANNING.md`.
+
+_Deferred_: end-to-end Playwright test for the mini-player flow (see Phase 10 checklist in `docs/PLANNING.md`).
 
 ### Changed
 

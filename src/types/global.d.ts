@@ -144,12 +144,22 @@ export interface HarmonixApi {
   sources: {
     list(): Promise<SourceRegistration[]>;
     listEnabled(): Promise<string[]>;
-    setEnabled(payload: { id: string; enabled: boolean }): Promise<{ id: string; enabled: boolean }>;
+    setEnabled(payload: {
+      id: string;
+      enabled: boolean;
+    }): Promise<{ id: string; enabled: boolean }>;
     loadConfigs(): Promise<Record<string, SourceConfig>>;
-    saveConfig(payload: { id: string; settings: Record<string, unknown> }): Promise<{ id: string; settings: Record<string, unknown> }>;
+    saveConfig(payload: {
+      id: string;
+      settings: Record<string, unknown>;
+    }): Promise<{ id: string; settings: Record<string, unknown> }>;
     getConfig(payload: { id: string }): Promise<Record<string, unknown>>;
     getAuthStatuses(): Promise<AuthStatus[]>;
-    search(payload: { query: string; options?: SearchOptions; sourceIds?: string[] }): Promise<SourceSearchResult[]>;
+    search(payload: {
+      query: string;
+      options?: SearchOptions;
+      sourceIds?: string[];
+    }): Promise<SourceSearchResult[]>;
     playTrack(payload: { track: Track }): Promise<StreamInfo>;
     userPlaylists(payload: { id: string }): Promise<Playlist[]>;
     likedTracks(payload: { id: string }): Promise<Track[]>;
@@ -173,13 +183,20 @@ export interface HarmonixApi {
     create(payload: { name: string; description?: string }): Promise<{ id: number }>;
     rename(payload: { id: number; name: string; description?: string }): Promise<{ ok: true }>;
     delete(id: number): Promise<{ ok: true }>;
-    addTrack(payload: { playlistId: number; source: string; sourceId: string }): Promise<{ position: number }>;
+    addTrack(payload: {
+      playlistId: number;
+      source: string;
+      sourceId: string;
+    }): Promise<{ position: number }>;
     removeTrack(payload: { playlistId: number; position: number }): Promise<{ ok: true }>;
     reorder(payload: { playlistId: number; from: number; to: number }): Promise<{ ok: true }>;
   };
   eq: {
     getState(): Promise<{ activePreset: string | null; currentGains: number[] }>;
-    saveState(state: { activePreset: string | null; currentGains: number[] }): Promise<{ ok: true }>;
+    saveState(state: {
+      activePreset: string | null;
+      currentGains: number[];
+    }): Promise<{ ok: true }>;
     listAllPresets(): Promise<{ builtin: EqPreset[]; custom: EqCustomPreset[] }>;
     listCustomPresets(): Promise<EqCustomPreset[]>;
     saveCustomPreset(payload: { name: string; gains: number[] }): Promise<EqCustomPreset>;
@@ -189,6 +206,68 @@ export interface HarmonixApi {
     stats(): Promise<MemoryStats>;
     gc(): Promise<{ ok: true; before: MemoryStats; after: MemoryStats }>;
   };
+  player: {
+    getState(): Promise<MiniPlayerStateSnapshot>;
+    pushState(snapshot: Partial<MiniPlayerStateSnapshot>): Promise<{ ok: boolean }>;
+    command(action: MiniPlayerAction): Promise<{ ok: boolean; error?: string }>;
+    onStateChanged(handler: (snapshot: MiniPlayerStateSnapshot) => void): () => void;
+    onCommand(handler: (action: MiniPlayerAction) => void): () => void;
+  };
+  miniPlayer: {
+    isMini(): boolean;
+    show(): Promise<{ ok: boolean; visible: boolean }>;
+    hide(): Promise<{ ok: boolean; visible: boolean }>;
+    toggle(): Promise<{ ok: boolean; visible: boolean }>;
+    status(): Promise<MiniPlayerConfig>;
+    setAlwaysOnTop(value: boolean): Promise<{ ok: boolean; alwaysOnTop: boolean }>;
+    expand(): Promise<{ ok: boolean }>;
+    saveBounds(): Promise<{ ok: boolean; bounds: MiniPlayerBounds | null }>;
+  };
+}
+
+export interface MiniPlayerStateSnapshot {
+  currentTrack: unknown;
+  sourceId: string | null;
+  isPlaying: boolean;
+  loading: boolean;
+  positionMs: number;
+  durationMs: number;
+  volume: number;
+  shuffle: boolean;
+  repeat: 'off' | 'one' | 'all';
+  hasNext: boolean;
+  hasPrev: boolean;
+  artworkUrl: string | null;
+  title: string | null;
+  artistLine: string | null;
+  updatedAt: number;
+}
+
+export type MiniPlayerAction =
+  | { type: 'play' }
+  | { type: 'pause' }
+  | { type: 'toggle' }
+  | { type: 'next' }
+  | { type: 'prev' }
+  | { type: 'seek'; positionMs: number }
+  | { type: 'volume'; volume: number }
+  | { type: 'toggle-shuffle' }
+  | { type: 'cycle-repeat' };
+
+export interface MiniPlayerBounds {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface MiniPlayerConfig {
+  visible: boolean;
+  alwaysOnTop: boolean;
+  x: number | null;
+  y: number | null;
+  width: number | null;
+  height: number | null;
 }
 
 export interface MemoryStats {

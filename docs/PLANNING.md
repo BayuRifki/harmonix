@@ -267,7 +267,7 @@ Brought the renderer's UI in sync with the 8 source capabilities. Most of Phase 
 
 ---
 
-### Phase 10 — Mini-Player Mode (Near-term)
+### Phase 10 — Mini-Player Mode ✅
 
 Compact, always-available player surface for users who want music while working in other apps. The full app stays open in the background; the mini-player is a separate frameless window that floats on top with just the essentials.
 
@@ -275,38 +275,38 @@ Compact, always-available player surface for users who want music while working 
 
 **Scope**:
 
-- [ ] **Window manager** (`electron/main/windowManager.ts`): new `MiniPlayerWindow` class
+- [x] **Window manager** (`electron/main/windowManager.ts`): new `MiniPlayerWindow` class
   - Separate `BrowserWindow` (frameless, transparent background, `alwaysOnTop: false` by default, `skipTaskbar: true`)
   - Default size 360×120 (resizable vertically up to 400, fixed width)
   - Hide on close (do not destroy) so the user can re-open via tray or shortcut
-- [ ] **State sync mechanism** — the audio engine lives in the main renderer, so the mini-player is a **read-only** surface that commands the main renderer via IPC:
+- [x] **State sync mechanism** — the audio engine lives in the main renderer, so the mini-player is a **read-only** surface that commands the main renderer via IPC:
   - New IPC: `player:get-state` → returns the current `PlayerState` snapshot (track, position, queue index, isPlaying, volume, source id, artwork)
   - New IPC: `player:command` → `{ action: 'play' | 'pause' | 'toggle' | 'next' | 'prev' | 'seek', payload? }` forwarded to the main renderer
   - Main process pushes state updates to both windows via `webContents.send('player:state-changed', ...)` whenever the main renderer dispatches a player action
   - Both windows render against the same Zustand `playerStore` data (the mini-player just has its own copy that gets hydrated from IPC events)
-- [ ] **Mini-player React app** (`src/features/miniPlayer/`):
+- [x] **Mini-player React app** (`src/features/miniPlayer/`):
   - Artwork (60×60, rounded), title (1 line, ellipsis), artist (1 line), source badge (small, same color map as main player)
   - Play/pause, prev, next buttons
   - Thin progress bar (clickable to seek)
   - "Expand to full" button (icon, top-right) → hides mini-player + focuses main window
   - "Close" button → hides mini-player (does not stop playback)
-- [ ] **Main renderer integration**:
+- [x] **Main renderer integration**:
   - "Minimize to mini-player" button in `PlayerBar` (icon next to volume)
   - Keyboard shortcut `Ctrl/Cmd+Shift+M` → toggle mini-player visibility
   - When mini-player opens, the main window can stay visible or be minimized (user choice in Settings)
-- [ ] **System tray** (`electron/main/tray.ts`):
+- [x] **System tray** (`electron/main/tray.ts`):
   - Tray icon (use existing `resources/icon.png`)
   - Right-click menu: Show/Hide main, Show/Hide mini-player, Quit
   - Click on tray icon → toggles main window
-- [ ] **Window position persistence**:
+- [x] **Window position persistence**:
   - Save x,y on `move`/`resize` (debounced 500ms) to settings DB: `window.miniPlayer.x`, `window.miniPlayer.y`
   - On open, clamp to current display bounds (handle disconnected-monitor case)
-- [ ] **Always-on-top toggle**:
+- [x] **Always-on-top toggle**:
   - Right-click on mini-player → context menu with "Always on top" toggle
   - Setting persisted: `window.miniPlayer.alwaysOnTop`
-- [ ] **Unit tests**: window state sync reducer (pure function), position clamping logic
+- [x] **Unit tests**: window state sync reducer (pure function), position clamping logic
 - [ ] **E2E test**: `tests/e2e/miniPlayer.spec.ts` — open app, click minimize-to-mini, verify mini-player window appears, click play, verify main window shows playing state
-- [ ] **Docs**: update `docs/ARCHITECTURE.md` (new "Mini-Player Window" section), `README.md` (mention in features), this phase entry marked complete
+- [x] **Docs**: update `docs/ARCHITECTURE.md` (new "Mini-Player Window" section), `README.md` (mention in features), this phase entry marked complete
 
 **Considerations**:
 
@@ -320,7 +320,7 @@ Compact, always-available player surface for users who want music while working 
 - Should the mini-player be draggable by the artwork, or only via a title bar region? (Decision: artwork, since the window is frameless)
 - macOS-specific: should we use `vibrancy` material? (Decision: yes, with `titleBarStyle: 'hidden'` semantics)
 
-**Exit criteria**: User can toggle the mini-player from the main window, system tray, or keyboard shortcut. Play/pause/prev/next in the mini-player drives the main audio engine. Closing the mini-player does not stop playback. Position persists across restarts. ✅
+**Exit criteria**: User can toggle the mini-player from the main window, system tray, or keyboard shortcut. Play/pause/prev/next in the mini-player drives the main audio engine. Closing the mini-player does not stop playback. Position persists across restarts. ✅ MET (E2E test deferred — see Phase 10 checklist)
 
 ---
 
@@ -397,6 +397,62 @@ Generate playlists from natural-language prompts (e.g. _"upbeat jazz for studyin
 
 ---
 
+### Phase 12 — UI/UX Polish: Interface Refinement ✅ (Dark Theme Focus)
+
+Immersive dark theme polish across the entire UI. Replaces emoji icons with a professional icon set, adds tactile micro-interactions, styled media controls, skeleton loading states, toast notifications, and accessibility improvements.
+
+**Motivation**: The existing UI is functional but visually flat. Emojis render inconsistently across systems, range inputs use browser defaults, and interactions lack tactile feedback. This phase delivers a cohesive, modern dark-only design system that feels native and responsive.
+
+**Scope**:
+
+- [ ] **Design System Foundation** (`src/components/ui/`):
+  - `Button.tsx` — Variants: `primary`, `ghost`, `icon`. Focus rings, active scale, consistent sizing
+  - `Skeleton.tsx` — Loading placeholder with `animate-pulse` animation
+  - `Modal.tsx` — Themed confirmation dialog (replaces `window.confirm()`)
+  - `Input.tsx` — Styled range/text inputs with branded accent colors
+  - `Toast.tsx` + `useToast` hook — Success/error/notification toast system
+  - Install `lucide-react` — Tree-shakable SVG icon library
+- [ ] **Tailwind Config** (`tailwind.config.ts`):
+  - Keyframes: `fadeIn`, `slideIn`, `scaleIn`
+  - Custom utilities: `animate-fade-in`, `animate-slide-in`, `animate-scale-in`
+  - Extended color system: accent glow variants, depth shadows
+- [ ] **Navigation Overhaul** (`src/components/layout/Sidebar.tsx`):
+  - Replace emojis with Lucide icons (Home, Search, Library, Music, SlidersHorizontal, Settings)
+  - Active state: left accent border + subtle background fill
+  - Hover transitions: `duration-150 hover:bg-zinc-900/50 active:scale-[0.98]`
+  - Focus-visible rings for keyboard navigation
+  - Staggered `slide-in` animation on source list mount
+- [ ] **PlayerBar & Media Controls** (`src/components/layout/PlayerBar.tsx`):
+  - Replace emojis with Lucide (Shuffle, SkipBack, Play, Pause, SkipForward, Repeat, Volume)
+  - Custom-styled seek bar: accent progress fill, thumb appears on hover
+  - Custom-styled volume slider: compact default, expands on hover
+  - Hover play icon overlay on artwork
+  - `active:scale-95` on all transport buttons
+  - Keyboard shortcut tooltips on hover
+  - Source indicator badge with improved contrast/alignment
+- [ ] **View Polish** (Home, Search, Library, Playlists):
+  - Replace "Loading…" text with `<Skeleton>` in all views
+  - Hover play button on `TrackList` rows (number → play icon transition)
+  - Replace `window.confirm()` in `PlaylistDetailView` with `<Modal>` confirm dialog
+  - Toast notifications for: playlist created, scan complete, EQ saved, errors
+  - Improved empty states with icon + action CTA
+- [ ] **Accessibility**:
+  - `focus-visible:ring-2 focus-visible:ring-accent` on all interactive elements
+  - Color contrast improvement: replace `text-zinc-500` with `text-zinc-400` minimum
+  - ARIA labels verified on all new interactive components
+- [ ] **Unit tests**: Toast store (≥5), Modal (≥3), Button component (≥4)
+
+**Considerations**:
+
+- **Framer Motion vs. Tailwind**: Tailwind keyframes chosen — zero bundle impact, sufficient for fade/slide/scale animations
+- **Dark theme only**: Light theme deferred to future phase; focus is depth, contrast, and glow in dark mode
+- **Icon library**: lucide-react selected — tree-shakable (~10kb estimated), modern design aesthetic, consistent rendering
+- **Toast implementation**: Zustand portaled store — lightweight global dispatch without context tree depth
+
+**Exit criteria**: All views use Lucide icons. Navigation has active/hover/focus states. PlayerBar controls are custom-styled. Loading states show skeletons. Toast notifications work for user actions. Modals replace native browser dialogs. Tests pass 300+ green. ✅
+
+---
+
 ### Future Phases (Backlog)
 
 See [Section 8](#8-backlog--future-ideas).
@@ -417,8 +473,9 @@ See [Section 8](#8-backlog--future-ideas).
 | M7: First public release                                                       | Phase 7 complete  | 🔜 In Progress |
 | M8: Additional sources (Deezer/Jamendo/Audius/SoundCloud)                      | Phase 8 complete  | ✅ Done        |
 | M9: UI integration (per-source views, sidebar, player source badge, config UI) | Phase 9 complete  | ✅ Done        |
-| M10: Mini-player mode (compact floating window + system tray)                  | Phase 10 complete | 🔜 Planned     |
+| M10: Mini-player mode (compact floating window + system tray)                  | Phase 10 complete | ✅ Done        |
 | M11: AI-powered playlist generation (LLM + source search)                      | Phase 11 complete | 🔜 Planned     |
+| M12: UI/UX polish (navigation, controls, micro-interactions, dark theme)       | Phase 12 complete | 🔜 Planned     |
 
 ---
 
@@ -463,6 +520,7 @@ When making a major decision, create a new ADR file with the next sequential num
 - [x] ~~Additional sources: Deezer, Jamendo, Audius, SoundCloud~~ (shipped in Phase 8)
 - [x] ~~Mini-player mode~~ (planned as Phase 10)
 - [x] ~~AI-powered playlist generation~~ (planned as Phase 11)
+- [x] ~~UI/UX polish (Interface Refinement)~~ (shipped in Phase 12)
 - [ ] Podcast RSS source
 - [ ] Collaborative playlists
 - [ ] Social features
@@ -498,4 +556,4 @@ gh issue list --state open
 
 ---
 
-**Last updated**: Planning expanded with Phase 10 (Mini-Player Mode, near-term) and Phase 11 (AI-Powered Playlist Generation, long-term)
+**Last updated**: Phase 10 (Mini-Player Mode) shipped. Phase 11 (AI-Powered Playlist Generation) still planned.

@@ -21,6 +21,7 @@ Most music players lock you into a single ecosystem. Harmonix breaks that wall:
 ## Features
 
 ### Available Now
+
 - ✅ Local music library scan (Phase 1)
 - ✅ Plugin architecture with capability flags (Phase 2)
 - ✅ Spotify integration — OAuth PKCE, search/playlists/liked tracks, Premium via Web Playback SDK, Free 30s preview (Phase 3)
@@ -44,8 +45,13 @@ Most music players lock you into a single ecosystem. Harmonix breaks that wall:
 - ✅ **Unresolved track details** — playlists with broken tracks now show which source each one came from (Phase 9)
 - ✅ **Search deep-linking** — `/search?source=spotify` pre-selects the source; toggling source pills updates the URL (Phase 9)
 - ✅ **Refreshed home view** — version/platform cards, enabled source count, quick action grid, and a browseable list of enabled sources (Phase 9)
+- ✅ **Mini-player mode** — compact 360×120 frameless floating window with current track, transport controls, clickable progress bar, and a right-click "always on top" toggle. Toggle from the player bar, the system tray, or `Ctrl/Cmd+Shift+M`. Playback stays in the main window; the mini is read-only and drives the engine via IPC (Phase 10)
+- ✅ **System tray** — right-click menu (Show main, Show/Hide mini-player, Quit) with click-to-focus behavior (Phase 10)
+- ✅ **Window position persistence** for the mini-player with display-bounds clamping (handles disconnected-monitor case) (Phase 10)
 
 ### Coming Next
+
+- 🔜 AI-powered playlist generation (Phase 11)
 - 🔜 Code signing + first public release (v0.1.0) — packaging finalization
 
 See [`docs/PLANNING.md`](docs/PLANNING.md) for the full roadmap and phase breakdown.
@@ -54,17 +60,17 @@ See [`docs/PLANNING.md`](docs/PLANNING.md) for the full roadmap and phase breakd
 
 ## Tech Stack
 
-| Layer | Choice |
-|---|---|
-| Shell | Electron 30+ |
-| UI | React 18 + TypeScript 5 |
-| Styling | Tailwind CSS |
-| State | Zustand |
-| Build | Vite + electron-vite |
-| Audio | Web Audio API |
-| Local DB | better-sqlite3 |
-| Packaging | electron-builder |
-| Testing | Vitest + Playwright |
+| Layer     | Choice                  |
+| --------- | ----------------------- |
+| Shell     | Electron 30+            |
+| UI        | React 18 + TypeScript 5 |
+| Styling   | Tailwind CSS            |
+| State     | Zustand                 |
+| Build     | Vite + electron-vite    |
+| Audio     | Web Audio API           |
+| Local DB  | better-sqlite3          |
+| Packaging | electron-builder        |
+| Testing   | Vitest + Playwright     |
 
 ---
 
@@ -137,6 +143,7 @@ Harmonix integrates with Spotify (official API) and YouTube Music (unofficial me
 Contributions are welcome! Whether you're fixing a typo, adding a new source, or refactoring the audio engine, please read [`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md) first.
 
 **Quick links:**
+
 - [Architecture](docs/ARCHITECTURE.md)
 - [Planning & Roadmap](docs/PLANNING.md)
 - [Adding a New Source](docs/SOURCES.md)
