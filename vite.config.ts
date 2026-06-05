@@ -29,7 +29,7 @@ export default defineConfig({
         singleFork: false,
         isolate: true,
         minForks: 1,
-        maxForks: 4,
+        maxForks: 2,
       },
     },
     sequence: {

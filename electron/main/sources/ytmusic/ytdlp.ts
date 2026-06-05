@@ -1,7 +1,9 @@
 import { spawn } from 'node:child_process';
+import { promises as dns } from 'node:dns';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import type { App } from 'electron';
+import { classifyYtDlpError, YtMusicError } from './errors';
 
 export interface YtDlpInfo {
   path: string;
@@ -101,14 +103,53 @@ export interface ResolvedStream {
   contentLength?: number;
 }
 
+const PREFLIGHT_HOST = 'music.youtube.com';
+const RAW_SNIPPET_MAX = 200;
+
+export type LookupFn = (host: string) => Promise<{ address: string; family: number }>;
+
+export async function preflightWith(lookup: LookupFn): Promise<void> {
+  try {
+    await lookup(PREFLIGHT_HOST);
+  } catch (err) {
+    const code = (err as NodeJS.ErrnoException).code ?? '';
+    const reason =
+      code === 'ENOTFOUND' || /getaddrinfo|ENOTFOUND/i.test((err as Error).message)
+        ? 'DNS lookup failed'
+        : code === 'ETIMEDOUT'
+          ? 'DNS timed out'
+          : 'DNS error';
+    throw new YtMusicError({
+      code: 'NETWORK_DNS',
+      message: `Can't reach YouTube Music — ${reason}.`,
+      hint: 'Check your internet connection. If DNS keeps failing, try a public resolver (1.1.1.1, 8.8.8.8) or set HTTPS_PROXY if you are behind a firewall.',
+      retryable: true,
+      raw: (err as Error).message.slice(0, RAW_SNIPPET_MAX),
+    });
+  }
+}
+
+export async function preflightYtMusicNetwork(): Promise<void> {
+  return preflightWith((host) => dns.lookup(host));
+}
+
 export async function resolveStreamUrl(
   videoId: string,
   options: StreamOptions = {},
 ): Promise<ResolvedStream> {
   const ytDlp = await findYtDlp();
   if (!ytDlp.available) {
-    throw new Error(ytDlp.error ?? 'yt-dlp not available');
+    throw new YtMusicError({
+      code: 'YTDLP_MISSING',
+      message: 'yt-dlp is not installed.',
+      hint: 'Install it from https://github.com/yt-dlp/yt-dlp and restart, or set the YT_DLP_PATH environment variable.',
+      retryable: false,
+      raw: ytDlp.error ?? '',
+    });
   }
+
+  await preflightYtMusicNetwork();
+
   const videoUrl = `https://music.youtube.com/watch?v=${videoId}`;
   const args = [
     '-g',
@@ -124,7 +165,15 @@ export async function resolveStreamUrl(
     let stderr = '';
     const timer = setTimeout(() => {
       proc.kill();
-      reject(new Error('yt-dlp timed out (30s)'));
+      reject(
+        new YtMusicError({
+          code: 'NETWORK_TIMEOUT',
+          message: 'yt-dlp timed out after 30s.',
+          hint: 'Network is slow or blocked. Try again, or configure HTTPS_PROXY if you are behind a corporate firewall.',
+          retryable: true,
+          raw: stderr.slice(0, 500),
+        }),
+      );
     }, 30_000);
     proc.stdout.on('data', (chunk) => {
       stdout += chunk.toString('utf8');
@@ -134,17 +183,34 @@ export async function resolveStreamUrl(
     });
     proc.on('error', (err) => {
       clearTimeout(timer);
-      reject(new Error(`yt-dlp spawn failed: ${err.message}`));
+      reject(
+        new YtMusicError({
+          code: 'YTDLP_SPAWN',
+          message: 'Failed to start yt-dlp.',
+          hint: 'Check that yt-dlp is executable and not blocked by antivirus.',
+          retryable: true,
+          raw: err.message,
+        }),
+      );
     });
     proc.on('close', (code) => {
       clearTimeout(timer);
       if (code !== 0) {
-        reject(new Error(`yt-dlp exited with code ${code}: ${stderr.slice(0, 500)}`));
+        const parts = classifyYtDlpError(stderr, code);
+        reject(new YtMusicError(parts));
         return;
       }
       const url = stdout.trim().split('\n').filter(Boolean).pop() ?? '';
       if (!url) {
-        reject(new Error(`yt-dlp returned no URL. stderr: ${stderr.slice(0, 500)}`));
+        reject(
+          new YtMusicError({
+            code: 'YTDLP_NO_OUTPUT',
+            message: 'yt-dlp returned no playable URL.',
+            hint: 'Update yt-dlp to the latest release and try again.',
+            retryable: true,
+            raw: stderr.slice(0, 500),
+          }),
+        );
         return;
       }
       const protocol: ResolvedStream['protocol'] = url.includes('.m3u8')
