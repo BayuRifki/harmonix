@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useLibraryStore } from '@/stores/libraryStore';
 import { useSourcesStore } from '@/stores/sourcesStore';
@@ -34,6 +34,7 @@ export function Sidebar(): JSX.Element {
   const refreshLibrary = useLibraryStore((s) => s.refresh);
   const registrations = useSourcesStore((s) => s.registrations);
   const refreshSources = useSourcesStore((s) => s.refresh);
+  const navRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     void refreshLibrary();
@@ -52,14 +53,23 @@ export function Sidebar(): JSX.Element {
     [registrations],
   );
 
+  useEffect(() => {
+    const nav = navRef.current;
+    if (!nav) return;
+    const active = nav.querySelector<HTMLElement>('[aria-current="page"]');
+    if (active) {
+      active.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+  });
+
   return (
-    <aside className="w-56 bg-zinc-950 border-r border-zinc-800 flex flex-col">
+    <aside className="w-56 bg-black border-r border-zinc-800 flex flex-col">
       <div className="p-4 border-b border-zinc-800">
-        <h1 className="text-xl font-bold text-brand-400">Harmonix</h1>
+        <h1 className="text-xl font-bold text-accent">Harmonix</h1>
         <p className="text-xs text-zinc-500 mt-0.5">Unified music player</p>
       </div>
 
-      <nav className="flex-1 p-2 overflow-y-auto">
+      <nav ref={navRef} className="flex-1 p-2 overflow-y-auto">
         {STATIC_NAV.map((item) => (
           <NavLink
             key={item.to}
@@ -114,7 +124,9 @@ export function Sidebar(): JSX.Element {
 
       <div className="p-3 border-t border-zinc-800 text-xs text-zinc-500">
         <p>v0.1.0 — Phase 9</p>
-        <p className="mt-1 text-zinc-600">{registrations.filter((r) => r.enabled).length} sources enabled</p>
+        <p className="mt-1 text-zinc-600">
+          {registrations.filter((r) => r.enabled).length} sources enabled
+        </p>
       </div>
     </aside>
   );

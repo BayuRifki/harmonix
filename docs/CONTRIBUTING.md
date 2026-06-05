@@ -52,7 +52,7 @@ There are many ways to contribute, and not all of them require writing code:
 
 ```bash
 # 1. Fork and clone the repository
-git clone https://github.com/your-username/harmonix.git
+git clone https://github.com/BayuRifki/harmonix.git
 cd harmonix
 
 # 2. Install dependencies
@@ -129,6 +129,7 @@ See [`ARCHITECTURE.md`](ARCHITECTURE.md) for the full breakdown. Key directories
 > **Note**: The project follows a no-comments policy by default. Code should be self-documenting through clear naming. Only add comments when the code is genuinely complex or non-obvious.
 
 If you must add a comment:
+
 - Use **JSDoc** for public APIs.
 - Use `// TODO:` for incomplete work.
 - Use `// FIXME:` for known bugs.
@@ -139,6 +140,7 @@ If you must add a comment:
 - **Relative imports** only within the same module.
 
 Example:
+
 ```typescript
 // ✅ Good
 import { Track } from '@/types';
@@ -166,20 +168,21 @@ We use [Conventional Commits](https://www.conventionalcommits.org/). This enable
 
 ### Types
 
-| Type | Description | Example |
-|---|---|---|
-| `feat` | New feature | `feat(player): add shuffle mode` |
-| `fix` | Bug fix | `fix(search): handle empty query gracefully` |
-| `docs` | Documentation only | `docs(readme): update install instructions` |
-| `style` | Code style (formatting, missing semicolons) | `style(player): fix indentation` |
+| Type       | Description                                             | Example                                           |
+| ---------- | ------------------------------------------------------- | ------------------------------------------------- |
+| `feat`     | New feature                                             | `feat(player): add shuffle mode`                  |
+| `fix`      | Bug fix                                                 | `fix(search): handle empty query gracefully`      |
+| `docs`     | Documentation only                                      | `docs(readme): update install instructions`       |
+| `style`    | Code style (formatting, missing semicolons)             | `style(player): fix indentation`                  |
 | `refactor` | Code change that neither fixes a bug nor adds a feature | `refactor(sources): extract common adapter logic` |
-| `test` | Add or update tests | `test(player): add unit tests for queue` |
-| `chore` | Build process, dependencies, or auxiliary tools | `chore(deps): bump electron to 30.1` |
-| `perf` | Performance improvement | `perf(audio): cache EQ filter coefficients` |
+| `test`     | Add or update tests                                     | `test(player): add unit tests for queue`          |
+| `chore`    | Build process, dependencies, or auxiliary tools         | `chore(deps): bump electron to 30.1`              |
+| `perf`     | Performance improvement                                 | `perf(audio): cache EQ filter coefficients`       |
 
 ### Scope
 
 The scope should be the module or feature affected:
+
 - `player`, `library`, `search`, `playlist`, `eq`, `sources`, `spotify`, `ytmusic`, `local`, `ui`, `docs`, `ci`, `deps`
 
 ### Examples

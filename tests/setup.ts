@@ -5,15 +5,13 @@ import '@testing-library/jest-dom';
 if (typeof globalThis !== 'undefined' && typeof window !== 'undefined') {
   const w = window as unknown as Record<string, unknown>;
   const g = globalThis as unknown as Record<string, unknown>;
-  for (const key of [
-    'Node',
-    'Element',
-    'HTMLElement',
-    'HTMLIFrameElement',
-    'Document',
-    'Window',
-  ]) {
+  for (const key of ['Node', 'Element', 'HTMLElement', 'HTMLIFrameElement', 'Document', 'Window']) {
     if (w[key] && !g[key]) g[key] = w[key];
+  }
+
+  const proto = HTMLElement.prototype as unknown as Record<string, unknown>;
+  if (typeof proto['scrollIntoView'] !== 'function') {
+    proto['scrollIntoView'] = function scrollIntoView(): void {};
   }
 }
 
@@ -52,7 +50,8 @@ export function installMockWindowApi(opts: MockWindowApiOptions = {}): {
       getConfig: opts.sources?.getConfig ?? (async () => ({})),
       getAuthStatuses: async () => [],
       search: opts.sources?.search ?? (async () => []),
-      playTrack: opts.sources?.playTrack ?? (async () => ({ url: 'http://test', protocol: 'http' })),
+      playTrack:
+        opts.sources?.playTrack ?? (async () => ({ url: 'http://test', protocol: 'http' })),
       userPlaylists: opts.sources?.userPlaylists ?? (async () => []),
       likedTracks: opts.sources?.likedTracks ?? (async () => []),
       playlistTracks: opts.sources?.playlistTracks ?? (async () => []),

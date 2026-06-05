@@ -21,11 +21,10 @@ export function HomeView(): JSX.Element {
   return (
     <div className="p-8 max-w-4xl">
       <header className="mb-8">
-        <h1 className="text-4xl font-bold text-white">Welcome to Harmonix</h1>
+        <h1 className="text-3xl font-bold text-white">Welcome to Harmonix</h1>
         <p className="text-zinc-400 mt-2">
-          A unified cross-source music player.{' '}
-          <span className="text-brand-400">{enabled.length}</span> of {registrations.length} sources
-          enabled.
+          A unified cross-source music player. <span className="text-accent">{enabled.length}</span>{' '}
+          of {registrations.length} sources enabled.
         </p>
       </header>
 

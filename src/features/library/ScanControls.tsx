@@ -1,5 +1,4 @@
 import { useLibraryStore } from '@/stores/libraryStore';
-import { usePlayerStore } from '@/stores/playerStore';
 
 export function ScanControls(): JSX.Element {
   const pickAndScan = useLibraryStore((s) => s.pickAndScan);
@@ -9,15 +8,13 @@ export function ScanControls(): JSX.Element {
   const scanning = useLibraryStore((s) => s.scanning);
   const scanProgress = useLibraryStore((s) => s.scanProgress);
 
-  const play = usePlayerStore.getState;
-
   return (
     <div className="flex flex-col items-end gap-2">
       <button
         type="button"
         onClick={() => void pickAndScan()}
         disabled={scanning}
-        className="px-4 py-2 bg-brand-500 hover:bg-brand-600 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded transition"
+        className="px-4 py-2 bg-accent hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded transition"
       >
         {scanning ? 'Scanning…' : '+ Add Folder'}
       </button>
@@ -44,7 +41,7 @@ export function ScanControls(): JSX.Element {
                   type="button"
                   onClick={() => void scanFolder(folder.path)}
                   disabled={scanning}
-                  className="text-brand-400 hover:text-brand-300 px-1"
+                  className="text-accent hover:text-accent-hover px-1"
                   aria-label="Rescan"
                   title="Rescan"
                 >
@@ -65,7 +62,6 @@ export function ScanControls(): JSX.Element {
           ))}
         </div>
       )}
-      {void play}
     </div>
   );
 }

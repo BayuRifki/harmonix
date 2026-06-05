@@ -11,7 +11,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Adaptive theme** — UI accent (text, buttons, sliders, queue badge) subtly shifts to the dominant color of the currently playing album art. Driven by a new `colorExtractor` (canvas-based hue clustering) and a `useAdaptiveAccent` hook that sets CSS vars. Falls back to the theme default when no artwork is available.
+- **Global keyboard shortcuts** — `Space` (play/pause), `←`/`→` (prev/next), `↑`/`↓` (volume), `M` (mute). Skipped automatically when typing in inputs. A new `KeyboardShortcutsPanel` in Settings lists them.
+- **OLED-friendly chrome** — sidebar, player bar, and main body background switched to pure `#000000` so colorful artwork pops and OLED pixels are off.
+- **Track-change animation** in the player bar (subtle fade + slide) via a new `harmonix-track-in` keyframe; respects `motion-reduce`.
+- **Album artwork** is now actually displayed in the player bar (was a static `🎵` placeholder), with graceful fallback.
+- **Volume icon** reflects mute / low / normal level.
+- **Sidebar** auto-scrolls the active nav item into view on route change.
+- **Release workflow** (`.github/workflows/release.yml`) — tag a `v*` push (or run `workflow_dispatch`) to build installers for Windows, Linux, and macOS in parallel and publish them as a GitHub Release.
+- **`.nvmrc`** pinning Node 20 for local + CI consistency.
+- **GitHub repo placeholders** in `package.json`, `CHANGELOG.md`, `CONTRIBUTING.md`, and the Settings/YT-Music status screens now point at the real `BayuRifki/harmonix` repo.
+
+### Changed
+
+- Player bar volume slider + seek bar use the adaptive accent (`accent-color: var(--accent)`) instead of a static brand color.
+- Play-button hover/active scale animation now respects `motion-reduce`.
+- `App.tsx`: removed dead `isPlaylistsRoute && null` branch and the now-unused `useLocation` import.
+- `ScanControls.tsx`: removed dead `usePlayerStore` import and `void play` no-op.
+- `HomeView`: heading reduced from `text-4xl` to `text-3xl` for better app-shell balance.
+- Several static `text-brand-400` / `bg-brand-500` markers swapped for the accent CSS var so the adaptive theme flows through.
+
+### Fixed
+
+- Player bar no longer shows a `🎵` placeholder when no track is playing.
+- Volume slider and seek bar now use the user's chosen accent color rather than the hard-coded brand color.
+- `useKeyboardShortcuts` correctly skips `contenteditable` elements (attribute fallback added for jsdom and older browsers).
+
+### Tests
+
+- 23 new unit tests for `colorExtractor` (RGB→HSL math, hue-bucket clustering edge cases, CORS/empty/gray inputs, saturation/lightness clamping, `hslToString` rounding) and `useKeyboardShortcuts` (input/textarea/select/contenteditable detection, all six shortcut mappings including mute toggle and 0.8-restore fallback). Total: **314 tests** across **26 files**, all passing.
+
 #### Phase 0 — Foundation
+
 - Initial project scaffold (Electron + Vite + React + TypeScript)
 - Comprehensive documentation (README, PLANNING, ARCHITECTURE, SOURCES, LEGAL, CONTRIBUTING)
 - Architecture Decision Record (ADR-0001: Electron over Tauri)
@@ -27,6 +58,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `.gitattributes` for cross-platform line endings
 
 #### Phase 1 — Local Library
+
 - SQLite (sql.js) database layer with migrations and version tracking
 - Repositories: tracks, scan_folders, settings, playlists
 - Recursive music file scanner with extension allowlist
@@ -48,6 +80,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Split tsconfig: `tsconfig.test.json` (renderer+tests), `tsconfig.main.json` (main process)
 
 #### Phase 2 — Source Adapter Interface (Plugin System)
+
 - `SourceAdapter` abstract base class with `SourceCapabilities` flags (canSearch/canStream/requiresAuth/etc.)
 - Capability-gated default methods throw clear errors when called on unsupported features
 - `SourceAdapterConfig` for per-source settings persistence
@@ -68,6 +101,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated `docs/SOURCES.md` with new `SourceAdapter` pattern, capabilities, and 20-line minimal template
 
 ### Runtime fixes (post-Phase 2 smoke test)
+
 - **sql.js WASM loading**: bundled `sql-wasm.wasm` to `resources/` and added multi-path resolution (process.resourcesPath, app path, dev node_modules)
 - **DB write**: `mkdirSync` now creates the correct data directory (was creating parent)
 - **Renderer load**: fixed `loadFile` path resolution to find `dist/index.html` in both dev and prod layouts
@@ -76,6 +110,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **electron-builder.yml**: added `extraResources` entry for `sql-wasm.wasm` to ship with packaged builds
 
 #### Phase 3 — Spotify Integration
+
 - **OAuth 2.0 PKCE flow** with mini HTTP callback server (`auth/callbackServer.ts`), state CSRF protection, 5-min timeout
 - **`auth/pkce.ts`**: cryptographically-secure code verifier (RFC 7636 charset), SHA-256 challenge, state generator
 - **`auth/tokenStore.ts`**: encrypted token persistence via Electron's `safeStorage` (OS-level: Keychain/DPAPI/libsecret), graceful plaintext fallback when encryption unavailable
@@ -91,6 +126,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Unit tests**: PKCE (8), SpotifySource (10) — 18 new tests, **71 total**
 
 #### Phase 4 — YouTube Music Integration (Unofficial)
+
 - **`youtubei.js` integration** for music search (uses `WEB_REMIX` client, no auth required)
 - **`yt-dlp` subprocess wrapper** (`sources/ytmusic/ytdlp.ts`) with multi-path discovery:
   - `YT_DLP_PATH` env var → `resources/yt-dlp` (per-OS) → `process.resourcesPath` → system PATH
@@ -107,6 +143,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Live integration test**: installed `yt-dlp` + `ffmpeg` via scoop, ran search via `npx tsx tests/manual-ytmusic.ts`, successfully resolved stream URLs from real YouTube Music
 
 #### Phase 5 — Playlists & Queue
+
 - **`playlistRepository`** (electron/main/db/playlistRepository.ts): full CRUD — create / rename / delete / addTrack / removeTrack / reorder / setPlaylistTracks / countPlaylistTracks. Reorder uses 2-pass approach (set to `tempOffset` 100000+, then to final positions) to avoid in-transaction `UPDATE ... WHERE position = Y` collisions
 - **`playlistResolver`** (electron/main/sources/playlistResolver.ts): cross-source `Track` resolution from `source:trackId` URIs, returns null for unresolved tracks
 - **9 IPC handlers** in `electron/main/ipc/playlists.ts`: `playlists:list`, `playlists:get`, `playlists:create`, `playlists:rename`, `playlists:delete`, `playlists:add-track`, `playlists:remove-track`, `playlists:reorder`
@@ -121,6 +158,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Verified**: `npm run typecheck` (0 errors), `npm run lint` (0 warnings), `npm run test` (107/107), `npm run build` succeeds, Electron smoke test launches 4 sources cleanly
 
 #### Phase 6 — Equalizer & Audio Effects
+
 - **Built on the Phase 1 EQ foundation** (`src/lib/audio/equalizer.ts`): 10-band `BiquadFilter` chain (peaking, Q=1.4, -12..+12 dB)
 - **7 built-in presets** (Flat, Rock, Pop, Bass Boost, Vocal, Classical, Jazz) defined in `src/lib/audio/presets.ts` and `electron/main/sources/presets.ts`
 - **Shared EQ types/constants** added to `electron/main/sources/types.ts` (`EqPreset`, `EQ_BAND_FREQUENCIES`, `EQ_MIN_GAIN`, `EQ_MAX_GAIN`, `FLAT_GAINS`, `clampGain`, `clampGains`) — re-exported through `src/types/index.ts` for renderer
@@ -135,6 +173,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Verified**: `npm run typecheck` (0 errors), `npm run lint` (0 warnings), `npm run test` (151/151), `npm run build` succeeds, Electron smoke test launches with migration 2 applied + 4 sources init
 
 #### Phase 7 — Polish & Release + Memory Optimization
+
 - **Splash screen**: brand-gradient + spinner in `index.html`, fades out on React mount (`src/main.tsx` adds `app-ready` class to root).
 - **Dark/light theme**:
   - `themeStore` (Zustand) with `dark`/`light`/`system` modes, persisted to `localStorage` (`harmonix.theme` key)
@@ -156,6 +195,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Verified**: `npm run typecheck` (0 errors), `npm run lint` (0 warnings), `npm run test` (171/171), `npm run build` succeeds, Electron smoke test launches
 
 #### Phase 8 — Additional Sources
+
 - **Deezer** (`electron/main/sources/deezer/`): `DeezerClient` + `DeezerSource extends SourceAdapter`. Public API, no auth, 30s MP3 previews. Capabilities: search + stream + getTrack + getAlbumTracks + getPlaylistTracks + getArtistTopTracks. 30-min expiry on preview URLs (matches Spotify pattern). **29 unit tests** in `deezerSource.test.ts`
 - **Jamendo** (`electron/main/sources/jamendo/`): `JamendoClient` + `JamendoSource`. Requires `JAMENDO_CLIENT_ID` env var (falls back to public test id `709fa152` for development). Full CC-licensed indie music streaming (no 30s limit). Capabilities: search + stream + getTrack + getAlbumTracks + getPlaylist + getPlaylistTracks + getArtistTracks + getPopularTracks. **17 unit tests** in `jamendoSource.test.ts`
 - **Audius** (`electron/main/sources/audius/`): `AudiusClient` + `AudiusSource`. Decentralized protocol, no auth, public discovery node at `audius.co` (overridable via `AUDIUS_HOST` env var). Capabilities: search + stream + getTrack + getPlaylist + getPlaylistTracks + getTrendingTracks + getArtistTracks. Artwork picker prefers 480x480 → 1000x1000 → 150x150. Stream URLs built from `user_id=harmonix` placeholder. **21 unit tests** in `audiusSource.test.ts`
@@ -193,15 +233,18 @@ Brought the renderer's UI in sync with the 8 source capabilities. Most of Phase 
 - **Verified**: `npm run typecheck` (0 errors), `npm run lint` (0 warnings), `npm run test` (**284/284** pass across 24 test files), `npm run build` succeeds (renderer bundle grew from 395 kB to 428 kB)
 
 ### Changed
+
 - Switched SQLite driver from `better-sqlite3` (native, requires MSVC build tools on Windows) to `sql.js` (pure-JS WebAssembly) for portable contributor onboarding. `better-sqlite3` can be reintroduced for production builds with native deps.
 
 ### Fixed
+
 - `react/no-unescaped-entities` lint error in `HomeView.tsx`
 - Vitest picking up Playwright e2e specs (added include/exclude patterns)
 - TypeScript module resolution for `music-metadata` (split tsconfig with proper `node` types)
 - Equalizer test required AudioContext (added mock to test data layer)
 
 ### Verified
+
 - `npm install` succeeds
 - `npm run typecheck` passes (0 errors) — main + test configs
 - `npm run lint` passes (0 warnings)
@@ -213,9 +256,10 @@ Brought the renderer's UI in sync with the 8 source capabilities. Most of Phase 
 ## [0.0.1] - 2026-06-04
 
 ### Added
+
 - Project initialized
 - Documentation framework established
 - Scaffolding for future development
 
-[Unreleased]: https://github.com/your-username/harmonix/compare/v0.0.1...HEAD
-[0.0.1]: https://github.com/your-username/harmonix/releases/tag/v0.0.1
+[Unreleased]: https://github.com/BayuRifki/harmonix/compare/v0.0.1...HEAD
+[0.0.1]: https://github.com/BayuRifki/harmonix/releases/tag/v0.0.1

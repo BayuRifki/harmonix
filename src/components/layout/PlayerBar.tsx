@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { usePlayerStore } from '@/stores/playerStore';
 import { useSourcesStore } from '@/stores/sourcesStore';
 import { QueuePanel } from '@/features/player/QueuePanel';
@@ -30,6 +30,48 @@ function sourceLabel(source: string): string {
   return source;
 }
 
+const INPUT_ACCENT_STYLE: React.CSSProperties = { accentColor: 'var(--accent)' };
+
+interface ArtworkProps {
+  url: string;
+  alt: string;
+}
+
+function Artwork({ url, alt }: ArtworkProps): JSX.Element {
+  const [failed, setFailed] = useState(false);
+  const handleRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setFailed(false);
+  }, [url]);
+
+  if (failed) {
+    return (
+      <div
+        ref={handleRef}
+        className="w-12 h-12 bg-zinc-900 rounded shrink-0 flex items-center justify-center text-zinc-700"
+        aria-label={alt}
+      >
+        <span className="text-lg" aria-hidden>
+          ♪
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-12 h-12 bg-zinc-900 rounded shrink-0 overflow-hidden">
+      <img
+        src={url}
+        alt={alt}
+        className="w-full h-full object-cover animate-track-in"
+        onError={(): void => setFailed(true)}
+        draggable={false}
+      />
+    </div>
+  );
+}
+
 export function PlayerBar(): JSX.Element {
   const [queueOpen, setQueueOpen] = useState(false);
   const currentTrack = usePlayerStore((s) => s.currentTrack);
@@ -59,18 +101,29 @@ export function PlayerBar(): JSX.Element {
 
   const hasTrack = currentTrack !== null;
   const progress = durationMs > 0 ? (positionMs / durationMs) * 100 : 0;
+  const artworkUrl = currentTrack?.artworkUrl ?? currentTrack?.album?.artworkUrl ?? null;
+  const trackKey = currentTrack?.id ?? 'empty';
 
   return (
-    <footer className="h-20 border-t border-zinc-800 bg-zinc-950 flex items-center px-4 gap-4">
+    <footer className="h-20 border-t border-zinc-800 bg-black flex items-center px-4 gap-4">
       <div className="flex items-center gap-3 w-1/3 min-w-0">
-        <div className="w-12 h-12 bg-zinc-800 rounded shrink-0 flex items-center justify-center text-xl">
-          {hasTrack ? '🎵' : '—'}
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="text-sm text-zinc-100 truncate">
+        {artworkUrl ? (
+          <Artwork key={artworkUrl} url={artworkUrl} alt={currentTrack?.title ?? ''} />
+        ) : (
+          <div
+            className="w-12 h-12 bg-zinc-900 rounded shrink-0 flex items-center justify-center text-zinc-700"
+            aria-label="No artwork"
+          >
+            <span className="text-lg" aria-hidden>
+              ♪
+            </span>
+          </div>
+        )}
+        <div key={trackKey} className="min-w-0 flex-1">
+          <p className="text-sm text-zinc-100 truncate animate-track-in">
             {currentTrack?.title ?? 'No track playing'}
           </p>
-          <p className="text-xs text-zinc-500 truncate">
+          <p className="text-xs text-zinc-500 truncate animate-track-in">
             {currentTrack
               ? currentTrack.artists.map((a) => a.name).join(', ') || 'Unknown artist'
               : 'Select a track to begin'}
@@ -91,9 +144,10 @@ export function PlayerBar(): JSX.Element {
           <button
             type="button"
             onClick={toggleShuffle}
-            className={`p-1.5 rounded hover:bg-zinc-800 text-sm ${shuffle ? 'text-brand-400' : 'text-zinc-400'}`}
+            className={`p-1.5 rounded hover:bg-zinc-800 text-sm ${shuffle ? 'text-accent' : 'text-zinc-400'}`}
             aria-label="Toggle shuffle"
             aria-pressed={shuffle}
+            title="Shuffle"
           >
             ⇄
           </button>
@@ -103,6 +157,7 @@ export function PlayerBar(): JSX.Element {
             disabled={!hasTrack}
             className="p-1.5 rounded hover:bg-zinc-800 text-zinc-300 disabled:opacity-40"
             aria-label="Previous track"
+            title="Previous"
           >
             ⏮
           </button>
@@ -110,10 +165,19 @@ export function PlayerBar(): JSX.Element {
             type="button"
             onClick={() => (isPlaying ? pause() : void resume())}
             disabled={!hasTrack || loading}
-            className="w-9 h-9 rounded-full bg-white text-black flex items-center justify-center hover:scale-105 transition disabled:opacity-40"
+            className="w-9 h-9 rounded-full bg-white text-black flex items-center justify-center transition motion-reduce:transition-none hover:scale-105 motion-reduce:hover:scale-100 active:scale-95 motion-reduce:active:scale-100 disabled:opacity-40"
             aria-label={isPlaying ? 'Pause' : 'Play'}
+            title={isPlaying ? 'Pause (Space)' : 'Play (Space)'}
           >
-            {loading ? '…' : isPlaying ? '⏸' : '▶'}
+            {loading ? (
+              <span className="animate-pulse-soft" aria-hidden>
+                …
+              </span>
+            ) : isPlaying ? (
+              <span aria-hidden>⏸</span>
+            ) : (
+              <span aria-hidden>▶</span>
+            )}
           </button>
           <button
             type="button"
@@ -121,14 +185,16 @@ export function PlayerBar(): JSX.Element {
             disabled={!hasTrack}
             className="p-1.5 rounded hover:bg-zinc-800 text-zinc-300 disabled:opacity-40"
             aria-label="Next track"
+            title="Next"
           >
             ⏭
           </button>
           <button
             type="button"
             onClick={cycleRepeat}
-            className={`p-1.5 rounded hover:bg-zinc-800 text-sm ${repeat !== 'off' ? 'text-brand-400' : 'text-zinc-400'}`}
+            className={`p-1.5 rounded hover:bg-zinc-800 text-sm ${repeat !== 'off' ? 'text-accent' : 'text-zinc-400'}`}
             aria-label={`Repeat: ${repeat}`}
+            title={`Repeat: ${repeat}`}
           >
             {repeat === 'one' ? '↻¹' : '↻'}
           </button>
@@ -142,9 +208,9 @@ export function PlayerBar(): JSX.Element {
             value={positionMs}
             onChange={(e) => void seek(Number(e.target.value))}
             disabled={!hasTrack}
-            className="flex-1 accent-brand-500 disabled:opacity-40"
+            className="flex-1 disabled:opacity-40"
             aria-label="Seek"
-            style={{ '--progress': `${progress}%` } as React.CSSProperties}
+            style={{ ...INPUT_ACCENT_STYLE, '--progress': `${progress}%` } as React.CSSProperties}
           />
           <span className="w-10">{formatTime(durationMs)}</span>
         </div>
@@ -161,20 +227,23 @@ export function PlayerBar(): JSX.Element {
         >
           ☰
           {queue.length > 0 && (
-            <span className="absolute -top-1 -right-1 bg-brand-500 text-white text-[9px] rounded-full w-4 h-4 flex items-center justify-center">
+            <span className="absolute -top-1 -right-1 bg-accent text-white text-[9px] rounded-full w-4 h-4 flex items-center justify-center">
               {queue.length}
             </span>
           )}
         </button>
-        <span className="text-xs text-zinc-500">🔊</span>
+        <span className="text-xs text-zinc-500" aria-hidden>
+          {volume === 0 ? '🔇' : volume < 0.5 ? '🔈' : '🔊'}
+        </span>
         <input
           type="range"
           min={0}
           max={100}
           value={volume * 100}
           onChange={(e) => setVolume(Number(e.target.value) / 100)}
-          className="w-32 accent-brand-500"
-          aria-label="Volume"
+          className="w-32"
+          aria-label="Volume (use ArrowUp / ArrowDown)"
+          style={INPUT_ACCENT_STYLE}
         />
       </div>
 

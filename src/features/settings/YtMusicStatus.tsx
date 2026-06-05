@@ -38,14 +38,21 @@ export function YtMusicStatus(): JSX.Element {
         <div className="space-y-1">
           <p className="text-xs text-amber-400">⚠ yt-dlp not found</p>
           <p className="text-xs text-zinc-500">
-            Install yt-dlp and ensure it is on PATH, or set <code className="bg-zinc-800 px-1 rounded">YT_DLP_PATH</code> in your environment.
+            Install yt-dlp and ensure it is on PATH, or set{' '}
+            <code className="bg-zinc-800 px-1 rounded">YT_DLP_PATH</code> in your environment.
           </p>
           {status.error && <p className="text-xs text-zinc-600">{status.error}</p>}
         </div>
       )}
       <p className="text-xs text-zinc-500 mt-3">
-        Unofficial integration. You must accept the disclaimer before first use.
-        See <a href="https://github.com/your-username/harmonix/blob/main/docs/LEGAL.md" className="text-brand-400 hover:underline">docs/LEGAL.md</a>.
+        Unofficial integration. You must accept the disclaimer before first use. See{' '}
+        <a
+          href="https://github.com/BayuRifki/harmonix/blob/main/docs/LEGAL.md"
+          className="text-brand-400 hover:underline"
+        >
+          docs/LEGAL.md
+        </a>
+        .
       </p>
     </div>
   );

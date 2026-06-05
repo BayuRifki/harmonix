@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Routes, Route, useLocation, useNavigate } from 'react-router-dom';
+import { Routes, Route, useNavigate } from 'react-router-dom';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { PlayerBar } from '@/components/layout/PlayerBar';
 import { HomeView } from '@/features/home/HomeView';
@@ -12,14 +12,17 @@ import { EqualizerView } from '@/features/equalizer/EqualizerView';
 import { SourceView } from '@/features/source/SourceView';
 import { useEqualizerStore } from '@/stores/equalizerStore';
 import { useThemeStore } from '@/stores/themeStore';
+import { useAdaptiveAccent } from '@/hooks/useAdaptiveAccent';
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 
 export default function App(): JSX.Element {
-  const location = useLocation();
   const navigate = useNavigate();
   const [selectedPlaylistId, setSelectedPlaylistId] = useState<number | null>(null);
-  const isPlaylistsRoute = location.pathname === '/playlists';
   const eqLoad = useEqualizerStore((s) => s.load);
   const themeLoad = useThemeStore((s) => s.load);
+
+  useAdaptiveAccent();
+  useKeyboardShortcuts();
 
   useEffect(() => {
     themeLoad();
@@ -27,7 +30,7 @@ export default function App(): JSX.Element {
   }, [themeLoad, eqLoad]);
 
   return (
-    <div className="h-screen flex flex-col bg-zinc-950 text-zinc-100">
+    <div className="h-screen flex flex-col bg-black text-zinc-100">
       <YtMusicDisclaimer />
       <div className="flex-1 flex overflow-hidden">
         <Sidebar />
@@ -54,7 +57,6 @@ export default function App(): JSX.Element {
           </Routes>
         </main>
       </div>
-      {isPlaylistsRoute && null}
       <PlayerBar />
     </div>
   );

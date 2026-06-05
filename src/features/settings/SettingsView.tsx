@@ -3,6 +3,7 @@ import { SpotifyLoginButton } from '@/features/settings/SpotifyLoginButton';
 import { YtMusicStatus } from '@/features/settings/YtMusicStatus';
 import { ThemePicker } from '@/features/settings/ThemePicker';
 import { MemoryPanel } from '@/features/settings/MemoryPanel';
+import { KeyboardShortcutsPanel } from '@/features/settings/KeyboardShortcutsPanel';
 
 export function SettingsView(): JSX.Element {
   return (
@@ -16,6 +17,7 @@ export function SettingsView(): JSX.Element {
           <ThemePicker />
         </section>
 
+        <KeyboardShortcutsPanel />
         <MemoryPanel />
 
         <SpotifyLoginButton />
@@ -27,7 +29,7 @@ export function SettingsView(): JSX.Element {
           <p className="text-sm text-app-muted">
             See{' '}
             <a
-              href="https://github.com/your-username/harmonix/blob/main/docs/LEGAL.md"
+              href="https://github.com/BayuRifki/harmonix/blob/main/docs/LEGAL.md"
               className="text-accent hover:underline"
             >
               docs/LEGAL.md
@@ -37,7 +39,7 @@ export function SettingsView(): JSX.Element {
           <p className="text-sm text-app-muted mt-2">
             See{' '}
             <a
-              href="https://github.com/your-username/harmonix/blob/main/docs/SOURCES.md"
+              href="https://github.com/BayuRifki/harmonix/blob/main/docs/SOURCES.md"
               className="text-accent hover:underline"
             >
               docs/SOURCES.md
