@@ -406,7 +406,8 @@ window.api = {
 
 ## 10. Database Schema
 
-SQLite (via `sql.js` for cross-platform builds without native compilation; can be swapped to `better-sqlite3` for production with native deps) is used for:
+SQLite (via [`better-sqlite3`](https://github.com/WiseLibs/better-sqlite3) — sync, native bindings, no
+WASM, no server) is used for:
 
 - **Local library index** (file paths, metadata)
 - **User playlists** (cross-source)

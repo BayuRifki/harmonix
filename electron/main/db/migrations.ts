@@ -1,4 +1,4 @@
-import type { Database } from 'sql.js';
+import type { DbInstance } from './database';
 
 interface Migration {
   version: number;
@@ -111,8 +111,8 @@ const migrations: Migration[] = [
   },
 ];
 
-export function runMigrations(db: Database): void {
-  db.run(`
+export function runMigrations(db: DbInstance): void {
+  db.exec(`
     CREATE TABLE IF NOT EXISTS schema_version (
       version INTEGER PRIMARY KEY,
       name TEXT NOT NULL,
@@ -120,24 +120,25 @@ export function runMigrations(db: Database): void {
     );
   `);
 
-  const result = db.exec('SELECT MAX(version) as v FROM schema_version');
-  const currentVersion = result[0]?.values[0]?.[0] as number | undefined;
-  const startFrom = (currentVersion ?? 0) + 1;
+  const row = db
+    .prepare('SELECT MAX(version) as v FROM schema_version')
+    .get() as { v: number | null } | undefined;
+  const currentVersion = row?.v ?? 0;
+  const startFrom = currentVersion + 1;
+
+  const tx = db.transaction((migration: Migration) => {
+    db.exec(migration.up);
+    db.prepare(
+      'INSERT INTO schema_version (version, name, applied_at) VALUES (?, ?, ?)',
+    ).run(migration.version, migration.name, Date.now());
+    console.info(`[db] Applied migration ${migration.version}: ${migration.name}`);
+  });
 
   for (const migration of migrations) {
     if (migration.version < startFrom) continue;
     try {
-      db.exec('BEGIN');
-      db.exec(migration.up);
-      db.run('INSERT INTO schema_version (version, name, applied_at) VALUES (?, ?, ?)', [
-        migration.version,
-        migration.name,
-        Date.now(),
-      ]);
-      db.exec('COMMIT');
-      console.info(`[db] Applied migration ${migration.version}: ${migration.name}`);
+      tx(migration);
     } catch (err) {
-      db.exec('ROLLBACK');
       console.error(`[db] Migration ${migration.version} failed:`, err);
       throw err;
     }

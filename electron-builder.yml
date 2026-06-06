@@ -14,8 +14,6 @@ directories:
   output: release/${version}
 
 extraResources:
-  - from: "resources/sql-wasm.wasm"
-    to: "sql-wasm.wasm"
   - from: "resources/yt-dlp*"
     to: "yt-dlp.exe"
 

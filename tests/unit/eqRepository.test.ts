@@ -1,22 +1,15 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import initSqlJs, { type Database, type SqlJsStatic } from 'sql.js';
-import { join } from 'node:path';
+import Database from 'better-sqlite3';
+import type { DbInstance } from '../../electron/main/db/database';
 
-let SQL: SqlJsStatic | null = null;
-let db: Database | null = null;
-let runMigrationsFn: ((d: Database) => void) | null = null;
+let db: Database.Database | null = null;
+let runMigrationsFn: ((d: DbInstance) => void) | null = null;
 let repo: typeof import('../../electron/main/db/eqRepository') | null = null;
 
-let setDbForTestFn: ((d: Database | null) => void) | null = null;
+let setDbForTestFn: ((d: DbInstance | null) => void) | null = null;
 
 beforeEach(async () => {
-  if (!SQL) {
-    const wasmPath = join(process.cwd(), 'node_modules', 'sql.js', 'dist', 'sql-wasm.wasm');
-    SQL = await initSqlJs({
-      locateFile: (file: string) => (file.endsWith('.wasm') ? wasmPath : file),
-    });
-  }
-  db = new SQL.Database();
+  db = new Database(':memory:');
   if (!runMigrationsFn) {
     const mod = await import('../../electron/main/db/migrations');
     runMigrationsFn = mod.runMigrations;
@@ -40,10 +33,12 @@ afterEach(() => {
 
 describe('eqRepository', () => {
   it('eq_presets table is created by migration', () => {
-    const result = db!.exec(
-      "SELECT name FROM sqlite_master WHERE type='table' AND name='eq_presets'",
-    );
-    expect(result.length).toBe(1);
+    const rows = db!
+      .prepare(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='eq_presets'",
+      )
+      .all() as Array<{ name: string }>;
+    expect(rows).toHaveLength(1);
   });
 
   it('saveCustomPreset inserts a new preset', () => {

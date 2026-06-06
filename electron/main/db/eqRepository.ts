@@ -37,46 +37,30 @@ function rowToPreset(row: EqPresetDbRow): EqPresetRow {
   }
   gains = clampGains(gains);
   return {
-    id: row.id,
-    name: row.name,
+    id: Number(row.id),
+    name: String(row.name),
     gains,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
+    createdAt: Number(row.created_at),
+    updatedAt: Number(row.updated_at),
   };
 }
 
+const SELECT_PRESET =
+  'SELECT id, name, gains, created_at, updated_at FROM eq_presets';
+const ORDER_BY_NAME = ' ORDER BY name COLLATE NOCASE';
+
 export function listCustomPresets(): EqPresetRow[] {
   const db = getDb();
-  const result = db.exec(
-    'SELECT id, name, gains, created_at, updated_at FROM eq_presets ORDER BY name COLLATE NOCASE',
-  );
-  if (result.length === 0) return [];
-  return result[0].values.map((v) =>
-    rowToPreset({
-      id: v[0] as number,
-      name: v[1] as string,
-      gains: v[2] as string,
-      created_at: v[3] as number,
-      updated_at: v[4] as number,
-    }),
-  );
+  const rows = db.prepare(SELECT_PRESET + ORDER_BY_NAME).all() as EqPresetDbRow[];
+  return rows.map(rowToPreset);
 }
 
 export function getCustomPresetByName(name: string): EqPresetRow | null {
   const db = getDb();
-  const result = db.exec(
-    'SELECT id, name, gains, created_at, updated_at FROM eq_presets WHERE name = ?',
-    [name],
-  );
-  if (result.length === 0 || result[0].values.length === 0) return null;
-  const v = result[0].values[0];
-  return rowToPreset({
-    id: v[0] as number,
-    name: v[1] as string,
-    gains: v[2] as string,
-    created_at: v[3] as number,
-    updated_at: v[4] as number,
-  });
+  const row = db.prepare(SELECT_PRESET + ' WHERE name = ?').get(name) as
+    | EqPresetDbRow
+    | undefined;
+  return row ? rowToPreset(row) : null;
 }
 
 export function saveCustomPreset(name: string, gains: number[]): EqPresetRow {
@@ -85,22 +69,19 @@ export function saveCustomPreset(name: string, gains: number[]): EqPresetRow {
   const gainsJson = JSON.stringify(clampGains(gains));
   const existing = getCustomPresetByName(name);
   if (existing) {
-    db.run('UPDATE eq_presets SET gains = ?, updated_at = ? WHERE id = ?', [
+    db.prepare('UPDATE eq_presets SET gains = ?, updated_at = ? WHERE id = ?').run(
       gainsJson,
       now,
       existing.id,
-    ]);
+    );
     persist();
     const updated = getCustomPresetByName(name);
     if (updated) return updated;
     return { ...existing, gains: clampGains(gains), updatedAt: now };
   }
-  db.run('INSERT INTO eq_presets (name, gains, created_at, updated_at) VALUES (?, ?, ?, ?)', [
-    name,
-    gainsJson,
-    now,
-    now,
-  ]);
+  db.prepare(
+    'INSERT INTO eq_presets (name, gains, created_at, updated_at) VALUES (?, ?, ?, ?)',
+  ).run(name, gainsJson, now, now);
   persist();
   const created = getCustomPresetByName(name);
   if (created) return created;
@@ -111,7 +92,7 @@ export function deleteCustomPreset(name: string): boolean {
   const db = getDb();
   const existing = getCustomPresetByName(name);
   if (!existing) return false;
-  db.run('DELETE FROM eq_presets WHERE id = ?', [existing.id]);
+  db.prepare('DELETE FROM eq_presets WHERE id = ?').run(existing.id);
   persist();
   return true;
 }
