@@ -9,6 +9,7 @@ import { AnimatedBackground } from '@/components/layout/AnimatedBackground';
 import { AudioReactiveBackground } from '@/components/layout/AudioReactiveBackground';
 import { HomeView } from '@/features/home/HomeView';
 import { SearchView } from '@/features/search/SearchView';
+import { ExploreView } from '@/features/explore/ExploreView';
 import { LibraryView } from '@/features/library/LibraryView';
 import { PlaylistsView } from '@/features/playlist/PlaylistsView';
 import { SettingsView } from '@/features/settings/SettingsView';
@@ -158,7 +159,7 @@ function MainApp(): JSX.Element {
                 path="/explore"
                 element={
                   <PageTransition>
-                    <LibraryView />
+                    <ExploreView />
                   </PageTransition>
                 }
               />

@@ -12,13 +12,6 @@ publish:
 directories:
   buildResources: resources
   output: release/${version}
-  include:
-    - "**/*"
-    - "!**/.git"
-    - "!**/.github"
-    - "!**/docs"
-    - "!**/.vscode"
-    - "!**/.idea"
 
 extraResources:
   - from: "resources/sql-wasm.wasm"
