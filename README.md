@@ -77,8 +77,10 @@ Most music players lock you into a single ecosystem. Harmonix breaks that wall:
 - ✅ 446 tests across 42 files (after splash screen on open), lint clean, typecheck clean
 - ✅ 446 tests across 42 files (after dead-code sweep: removed 7 unused files, 7 dead assets, 2 dead scripts, husky + lint-staged config), lint clean, typecheck clean
 - ✅ 446 tests across 42 files (after DB swap sql.js → better-sqlite3, sync SQLite), lint clean, typecheck clean
+- ✅ 455 tests across 43 files (after gapless pre-buffer: AudioEngine.preload + playerStore 80% trigger), lint clean, typecheck clean
 - ✅ Brand mark in sidebar (public/logo.png served at `/logo.png`)
 - ✅ Splash screen on app open (logo + wordmark + tagline + spinner)
+- ✅ Gapless playback (pre-buffered next track, no gap between songs)
 - ✅ CI pipeline (lint + typecheck + test)
 
 ### Coming Next

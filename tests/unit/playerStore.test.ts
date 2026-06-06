@@ -137,4 +137,8 @@ describe('playerStore', () => {
     const out = await findRelatedTracks(['Bad', 'Good'], new Set(), searchFn, 5);
     expect(out.map((t) => t.id)).toEqual(['ytmusic:7']);
   });
+
+  it('tracks preloadTriggeredTrackId and starts null', () => {
+    expect(usePlayerStore.getState().preloadTriggeredTrackId).toBeNull();
+  });
 });

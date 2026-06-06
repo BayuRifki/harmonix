@@ -3,6 +3,41 @@ import type { Track, StreamInfo } from '@/types/global';
 import { audioEngine } from '@/lib/audio/engine';
 import { playTrack } from '@/lib/audio/sourceResolver';
 
+type PlayerGet = () => {
+  queue: Track[];
+  queueIndex: number;
+  shuffle: boolean;
+  repeat: 'off' | 'one' | 'all';
+  currentTrack: Track | null;
+  preloadTriggeredTrackId: string | null;
+};
+
+async function preloadNextInQueue(get: PlayerGet): Promise<void> {
+  const { queue, queueIndex, shuffle, repeat, currentTrack } = get();
+  if (shuffle || queue.length === 0) return;
+
+  let nextIndex: number;
+  if (queueIndex < queue.length - 1) {
+    nextIndex = queueIndex + 1;
+  } else if (repeat === 'all') {
+    nextIndex = 0;
+  } else {
+    return;
+  }
+
+  const nextTrack = queue[nextIndex];
+  if (!nextTrack) return;
+  if (currentTrack?.id === nextTrack.id) return;
+
+  try {
+    const stream = await window.api.sources.playTrack({ track: nextTrack });
+    if (stream.protocol === 'spotify-sdk') return;
+    audioEngine.preload(stream.url);
+  } catch (err) {
+    console.warn('[player] preload next failed:', (err as Error).message);
+  }
+}
+
 export function shuffleArray<T>(items: T[], pinnedIndex: number): T[] {
   const arr = items.slice();
   const pinned = arr[pinnedIndex];
@@ -90,6 +125,7 @@ interface PlayerState {
   queue: Track[];
   queueIndex: number;
   error: string | null;
+  preloadTriggeredTrackId: string | null;
 
   setVolume: (volume: number) => void;
   toggleShuffle: () => void;
@@ -116,6 +152,20 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
   });
   const offTime = audioEngine.on('time', (positionMs, durationMs) => {
     set({ positionMs, durationMs });
+    // 80% trigger: pre-buffer the next track if we haven't already for
+    // this track. The on-play trigger in `play()` covers the common case;
+    // this catches edge cases (long tracks, manual queue replacements).
+    const s = get();
+    const trackId = s.currentTrack?.id;
+    if (
+      trackId &&
+      durationMs > 0 &&
+      positionMs / durationMs >= 0.8 &&
+      s.preloadTriggeredTrackId !== trackId
+    ) {
+      set({ preloadTriggeredTrackId: trackId });
+      void preloadNextInQueue(get);
+    }
   });
   const offEnded = audioEngine.on('ended', () => {
     void get().next();
@@ -146,6 +196,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
     queue: [],
     queueIndex: -1,
     error: null,
+    preloadTriggeredTrackId: null,
 
     setVolume: (volume) => {
       const v = Math.max(0, Math.min(1, volume));
@@ -157,12 +208,18 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
       set((s) => ({ repeat: s.repeat === 'off' ? 'all' : s.repeat === 'all' ? 'one' : 'off' })),
 
     play: async (track) => {
-      set({ currentTrack: track, error: null, loading: true });
+      set({ currentTrack: track, error: null, loading: true, preloadTriggeredTrackId: null });
       try {
         const stream = await window.api.sources.playTrack({ track });
         set({ stream });
         await playTrack(track, stream);
         audioEngine.setVolume(get().volume);
+        // Pre-buffer the next track for gapless transition (Phase B).
+        // Fires immediately on play so by the time the current track
+        // ends the buffer is already warm. The 80% trigger in the time
+        // handler below is a safety net for edge cases (long tracks,
+        // manual queue replacements).
+        void preloadNextInQueue(get);
       } catch (err) {
         set({ error: (err as Error).message, loading: false });
         console.error('[player] play failed:', err);

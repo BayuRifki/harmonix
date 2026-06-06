@@ -16,6 +16,8 @@ export class AudioEngine {
   private gainNode: GainNode | null = null;
   private sourceNode: MediaElementAudioSourceNode | null = null;
   private currentAudio: HTMLAudioElement | null = null;
+  private preloadedAudio: HTMLAudioElement | null = null;
+  private preloadedUrl: string | null = null;
   private listeners: { [K in keyof AudioEngineEvents]: Set<Listener<K>> } = {
     state: new Set(),
     time: new Set(),
@@ -60,24 +62,90 @@ export class AudioEngine {
     this.emit('state', s);
   }
 
+  /**
+   * Pre-buffer a stream URL in a hidden <audio> element so the subsequent
+   * `load(sameUrl)` can skip the `canplay` wait. The element is paused
+   * (no audio output) and no MediaElementSource is created — that only
+   * happens on actual playback. Best-effort: callers should not rely on
+   * the preload succeeding; failure is silent and `load()` falls back to
+   * the full init path.
+   */
+  preload(url: string): void {
+    if (this.preloadedUrl === url && this.preloadedAudio) return;
+    this.cancelPreload();
+    const audio = new Audio();
+    audio.preload = 'auto';
+    if (url.startsWith('file://')) {
+      audio.crossOrigin = 'anonymous';
+    }
+    audio.src = url;
+    try {
+      audio.load();
+    } catch {
+      // ignore — preload is best-effort
+    }
+    this.preloadedAudio = audio;
+    this.preloadedUrl = url;
+  }
+
+  cancelPreload(): void {
+    if (this.preloadedAudio) {
+      try {
+        this.preloadedAudio.pause();
+        this.preloadedAudio.removeAttribute('src');
+      } catch {
+        // ignore
+      }
+      this.preloadedAudio = null;
+    }
+    this.preloadedUrl = null;
+  }
+
+  hasPreloaded(url: string): boolean {
+    return this.preloadedUrl === url && this.preloadedAudio !== null;
+  }
+
   async load(url: string): Promise<void> {
     this.setState('loading');
     const ctx = this.ensureContext();
     if (ctx.state === 'suspended') {
       await ctx.resume();
     }
-    if (this.currentAudio) {
-      this.currentAudio.pause();
-      this.currentAudio.removeAttribute('src');
-      if (this.sourceNode) {
-        try {
-          this.sourceNode.disconnect();
-        } catch {
-          // ignore
-        }
-        this.sourceNode = null;
+
+    // Fast path: a preload of this exact URL is already warm.
+    if (this.preloadedAudio && this.preloadedUrl === url) {
+      const reused = this.preloadedAudio;
+      this.preloadedAudio = null;
+      this.preloadedUrl = null;
+      this.cleanupCurrentAudio();
+      this.currentAudio = reused;
+
+      if (url.startsWith('file://')) {
+        this.sourceNode = ctx.createMediaElementSource(reused);
+        this.sourceNode.connect(this.gainNode!);
       }
+
+      this.attachAllListeners(reused);
+      this.emit('time', 0, Math.round(reused.duration * 1000));
+
+      // readyState >= 2 (HAVE_CURRENT_DATA) means we can already play
+      return new Promise<void>((resolve) => {
+        if (reused.readyState >= 2) {
+          resolve();
+          return;
+        }
+        const onReady = (): void => {
+          reused.removeEventListener('loadeddata', onReady);
+          reused.removeEventListener('canplay', onReady);
+          resolve();
+        };
+        reused.addEventListener('loadeddata', onReady);
+        reused.addEventListener('canplay', onReady);
+      });
     }
+
+    // Slow path: full new Audio init
+    this.cleanupCurrentAudio();
     const audio = new Audio();
     const isLocalFile = url.startsWith('file://');
     if (isLocalFile) {
@@ -92,6 +160,41 @@ export class AudioEngine {
       this.sourceNode.connect(this.gainNode!);
     }
 
+    this.attachAllListeners(audio);
+
+    return new Promise((resolve, reject) => {
+      const onCanPlay = (): void => {
+        audio.removeEventListener('canplay', onCanPlay);
+        audio.removeEventListener('error', onError);
+        resolve();
+      };
+      const onError = (): void => {
+        audio.removeEventListener('canplay', onCanPlay);
+        audio.removeEventListener('error', onError);
+        reject(new Error('Failed to load audio'));
+      };
+      audio.addEventListener('canplay', onCanPlay);
+      audio.addEventListener('error', onError);
+      audio.load();
+    });
+  }
+
+  private cleanupCurrentAudio(): void {
+    if (this.currentAudio) {
+      this.currentAudio.pause();
+      this.currentAudio.removeAttribute('src');
+      if (this.sourceNode) {
+        try {
+          this.sourceNode.disconnect();
+        } catch {
+          // ignore
+        }
+        this.sourceNode = null;
+      }
+    }
+  }
+
+  private attachAllListeners(audio: HTMLAudioElement): void {
     audio.addEventListener('loadedmetadata', () => {
       this.emit('time', 0, Math.round(audio.duration * 1000));
     });
@@ -109,22 +212,6 @@ export class AudioEngine {
     audio.addEventListener('error', () => {
       this.setState('error');
       this.emit('error', 'Audio playback error');
-    });
-
-    return new Promise((resolve, reject) => {
-      const onCanPlay = () => {
-        audio.removeEventListener('canplay', onCanPlay);
-        audio.removeEventListener('error', onError);
-        resolve();
-      };
-      const onError = () => {
-        audio.removeEventListener('canplay', onCanPlay);
-        audio.removeEventListener('error', onError);
-        reject(new Error('Failed to load audio'));
-      };
-      audio.addEventListener('canplay', onCanPlay);
-      audio.addEventListener('error', onError);
-      audio.load();
     });
   }
 
@@ -161,19 +248,9 @@ export class AudioEngine {
   }
 
   destroy(): void {
-    if (this.currentAudio) {
-      this.currentAudio.pause();
-      this.currentAudio.src = '';
-      this.currentAudio = null;
-    }
-    if (this.sourceNode) {
-      try {
-        this.sourceNode.disconnect();
-      } catch {
-        // ignore
-      }
-      this.sourceNode = null;
-    }
+    this.cancelPreload();
+    this.cleanupCurrentAudio();
+    this.currentAudio = null;
     equalizer.disconnect();
     if (this.ctx) {
       void this.ctx.close();
