@@ -10,13 +10,6 @@
     "noEmit": true,
     "composite": false
   },
-  "include": [
-    "electron/**/*.ts"
-  ],
-  "exclude": [
-    "src/**/*",
-    "node_modules",
-    "dist",
-    "dist-electron"
-  ]
+  "include": ["electron/**/*.ts"],
+  "exclude": ["src/**/*", "node_modules", "dist", "dist-electron"]
 }

@@ -32,6 +32,7 @@ We will use **Electron 30+** as the desktop runtime.
 ### Option A: Electron ✅ (Chosen)
 
 **Pros:**
+
 - Mature, battle-tested (used by VS Code, Slack, Discord, Spotify Desktop).
 - **Spotify Web Playback SDK** works natively (it's a browser-based SDK).
 - Massive ecosystem of plugins and examples.
@@ -40,6 +41,7 @@ We will use **Electron 30+** as the desktop runtime.
 - Active community and frequent updates.
 
 **Cons:**
+
 - Larger bundle size (~150MB).
 - Higher memory usage than native alternatives.
 - Chromium version lag (security updates depend on Electron releases).
@@ -47,12 +49,14 @@ We will use **Electron 30+** as the desktop runtime.
 ### Option B: Tauri
 
 **Pros:**
+
 - Much smaller bundle (~10MB).
 - Lower memory footprint (uses system WebView).
 - Rust backend is fast and memory-safe.
 - Modern, growing ecosystem.
 
 **Cons:**
+
 - **Spotify Web Playback SDK is unverified** on Tauri (depends on system WebView, which varies by OS).
 - Smaller community, fewer examples for music app use cases.
 - `yt-dlp` integration requires Rust subprocess handling.
@@ -62,10 +66,12 @@ We will use **Electron 30+** as the desktop runtime.
 ### Option C: Native (e.g., Qt, Wails, Flutter Desktop)
 
 **Pros:**
+
 - Smallest binaries.
 - Best performance.
 
 **Cons:**
+
 - Steeper learning curve.
 - Smaller web UI ecosystem.
 - Longer development time.
@@ -104,6 +110,7 @@ We will use **Electron 30+** as the desktop runtime.
 ## Notes
 
 This decision can be revisited if:
+
 - Spotify Web Playback SDK proves problematic on Electron.
 - Bundle size becomes a major user complaint.
 - Tauri's WebView support matures significantly.

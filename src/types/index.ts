@@ -20,5 +20,16 @@ import {
   clampGains,
 } from '../../electron/main/sources/types';
 
-export type { Track, Album, Artist, Playlist, MusicSource, StreamInfo, SearchResult, SearchOptions, AuthStatus, EqPreset };
+export type {
+  Track,
+  Album,
+  Artist,
+  Playlist,
+  MusicSource,
+  StreamInfo,
+  SearchResult,
+  SearchOptions,
+  AuthStatus,
+  EqPreset,
+};
 export { EQ_BAND_FREQUENCIES, EQ_MIN_GAIN, EQ_MAX_GAIN, FLAT_GAINS, clampGain, clampGains };

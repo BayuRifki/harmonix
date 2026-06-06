@@ -51,13 +51,15 @@ export function listCustomPresets(): EqPresetRow[] {
     'SELECT id, name, gains, created_at, updated_at FROM eq_presets ORDER BY name COLLATE NOCASE',
   );
   if (result.length === 0) return [];
-  return result[0].values.map((v) => rowToPreset({
-    id: v[0] as number,
-    name: v[1] as string,
-    gains: v[2] as string,
-    created_at: v[3] as number,
-    updated_at: v[4] as number,
-  }));
+  return result[0].values.map((v) =>
+    rowToPreset({
+      id: v[0] as number,
+      name: v[1] as string,
+      gains: v[2] as string,
+      created_at: v[3] as number,
+      updated_at: v[4] as number,
+    }),
+  );
 }
 
 export function getCustomPresetByName(name: string): EqPresetRow | null {
@@ -83,19 +85,22 @@ export function saveCustomPreset(name: string, gains: number[]): EqPresetRow {
   const gainsJson = JSON.stringify(clampGains(gains));
   const existing = getCustomPresetByName(name);
   if (existing) {
-    db.run(
-      'UPDATE eq_presets SET gains = ?, updated_at = ? WHERE id = ?',
-      [gainsJson, now, existing.id],
-    );
+    db.run('UPDATE eq_presets SET gains = ?, updated_at = ? WHERE id = ?', [
+      gainsJson,
+      now,
+      existing.id,
+    ]);
     persist();
     const updated = getCustomPresetByName(name);
     if (updated) return updated;
     return { ...existing, gains: clampGains(gains), updatedAt: now };
   }
-  db.run(
-    'INSERT INTO eq_presets (name, gains, created_at, updated_at) VALUES (?, ?, ?, ?)',
-    [name, gainsJson, now, now],
-  );
+  db.run('INSERT INTO eq_presets (name, gains, created_at, updated_at) VALUES (?, ?, ?, ?)', [
+    name,
+    gainsJson,
+    now,
+    now,
+  ]);
   persist();
   const created = getCustomPresetByName(name);
   if (created) return created;

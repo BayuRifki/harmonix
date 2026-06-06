@@ -1,11 +1,4 @@
-import type {
-  Track,
-  Artist,
-  SearchResult,
-  SearchOptions,
-  StreamInfo,
-  AuthStatus,
-} from '../types';
+import type { Track, Artist, SearchResult, SearchOptions, StreamInfo, AuthStatus } from '../types';
 import type { SourceCapabilities } from '../adapter';
 import { SourceAdapter } from '../adapter';
 import { findYtDlp, resolveStreamUrl, type YtDlpInfo } from './ytdlp';
@@ -102,13 +95,18 @@ export class YouTubeMusicSource extends SourceAdapter {
     const limit = Math.min(options.limit ?? 20, MAX_SEARCH_RESULTS);
     const yt = await this.acquireInnertube();
     try {
-      const result = await (yt as {
-        music: {
-          search: (q: string, filters?: { type?: string }) => Promise<{
-            songs?: { contents?: unknown[] };
-          }>;
-        };
-      }).music.search(query, { type: 'song' });
+      const result = await (
+        yt as {
+          music: {
+            search: (
+              q: string,
+              filters?: { type?: string },
+            ) => Promise<{
+              songs?: { contents?: unknown[] };
+            }>;
+          };
+        }
+      ).music.search(query, { type: 'song' });
       const items = (result.songs as { contents?: unknown[] } | undefined)?.contents ?? [];
       const tracks: Track[] = [];
       const seen = new Set<string>();
@@ -132,18 +130,20 @@ export class YouTubeMusicSource extends SourceAdapter {
   override async getTrack(trackId: string): Promise<Track | null> {
     const yt = await this.acquireInnertube();
     try {
-      const info = await (yt as {
-        music: {
-          getInfo: (id: string) => Promise<{
-            basic_info?: {
-              title?: string;
-              duration?: number;
-              author?: { id?: string; name?: string };
-              thumbnail?: { url: string }[];
-            };
-          }>;
-        };
-      }).music.getInfo(trackId);
+      const info = await (
+        yt as {
+          music: {
+            getInfo: (id: string) => Promise<{
+              basic_info?: {
+                title?: string;
+                duration?: number;
+                author?: { id?: string; name?: string };
+                thumbnail?: { url: string }[];
+              };
+            }>;
+          };
+        }
+      ).music.getInfo(trackId);
       const basic = info.basic_info;
       if (!basic) return null;
       const artists: Artist[] = basic.author

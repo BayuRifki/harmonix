@@ -33,13 +33,10 @@ export function registerEqualizerHandlers(): void {
     return getEqState();
   });
 
-  ipcMain.handle(
-    'eq:save-state',
-    async (_evt, state: EqState): Promise<{ ok: true }> => {
-      saveEqState(state);
-      return { ok: true };
-    },
-  );
+  ipcMain.handle('eq:save-state', async (_evt, state: EqState): Promise<{ ok: true }> => {
+    saveEqState(state);
+    return { ok: true };
+  });
 
   ipcMain.handle('eq:list-custom-presets', async (): Promise<EqCustomPresetView[]> => {
     return listCustomPresets().map(toView);
@@ -61,11 +58,14 @@ export function registerEqualizerHandlers(): void {
     },
   );
 
-  ipcMain.handle('eq:list-all-presets', async (): Promise<{ builtin: EqPreset[]; custom: EqCustomPresetView[] }> => {
-    const { BUILTIN_PRESETS } = await import('../sources/presets');
-    return {
-      builtin: BUILTIN_PRESETS,
-      custom: listCustomPresets().map(toView),
-    };
-  });
+  ipcMain.handle(
+    'eq:list-all-presets',
+    async (): Promise<{ builtin: EqPreset[]; custom: EqCustomPresetView[] }> => {
+      const { BUILTIN_PRESETS } = await import('../sources/presets');
+      return {
+        builtin: BUILTIN_PRESETS,
+        custom: listCustomPresets().map(toView),
+      };
+    },
+  );
 }

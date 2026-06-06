@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { isAudioFile, guessTitleFromFilename, SUPPORTED_EXTENSIONS } from '../../electron/main/sources/local/scanner';
+import {
+  isAudioFile,
+  guessTitleFromFilename,
+  SUPPORTED_EXTENSIONS,
+} from '../../electron/main/sources/local/scanner';
 
 describe('scanner', () => {
   describe('isAudioFile', () => {

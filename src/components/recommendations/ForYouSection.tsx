@@ -80,9 +80,7 @@ export function ForYouSection({
   };
 
   const containerClass =
-    layout === 'grid'
-      ? 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3'
-      : 'space-y-1';
+    layout === 'grid' ? 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3' : 'space-y-1';
 
   return (
     <section data-testid="for-you-section" data-layout={layout} data-has-history={hasHistory}>

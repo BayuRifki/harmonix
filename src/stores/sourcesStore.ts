@@ -12,7 +12,11 @@ interface SourcesState {
   setEnabled: (id: string, enabled: boolean) => Promise<void>;
   saveConfig: (id: string, settings: Record<string, unknown>) => Promise<void>;
   getConfig: (id: string) => Promise<Record<string, unknown>>;
-  search: (query: string, options?: SearchOptions, sourceIds?: string[]) => Promise<SourceSearchResult[]>;
+  search: (
+    query: string,
+    options?: SearchOptions,
+    sourceIds?: string[],
+  ) => Promise<SourceSearchResult[]>;
   getRegistration: (id: string) => SourceRegistration | undefined;
   getEnabled: () => SourceRegistration[];
   getBrowseable: () => SourceRegistration[];

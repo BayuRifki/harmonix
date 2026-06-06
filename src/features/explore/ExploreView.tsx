@@ -71,9 +71,7 @@ export function ExploreView(): JSX.Element {
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-sm font-semibold text-zinc-200 uppercase tracking-wider">
-            Tips
-          </h2>
+          <h2 className="text-sm font-semibold text-zinc-200 uppercase tracking-wider">Tips</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             {DISCOVERY_TIPS.map((tip) => {
               const Icon = tip.icon;
@@ -94,9 +92,7 @@ export function ExploreView(): JSX.Element {
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-sm font-semibold text-zinc-200 uppercase tracking-wider">
-            Sources
-          </h2>
+          <h2 className="text-sm font-semibold text-zinc-200 uppercase tracking-wider">Sources</h2>
           {registrations.filter((r) => r.enabled).length === 0 ? (
             <div className="rounded-lg border border-dashed border-zinc-700 p-6 text-center">
               <p className="text-sm text-zinc-400 mb-2">No sources enabled yet.</p>

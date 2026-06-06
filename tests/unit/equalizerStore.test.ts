@@ -17,7 +17,10 @@ let useEqualizerStore: typeof import('../../src/stores/equalizerStore').useEqual
 
 beforeEach(async () => {
   vi.clearAllMocks();
-  apiMock.eq.getState.mockResolvedValue({ activePreset: null, currentGains: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0] });
+  apiMock.eq.getState.mockResolvedValue({
+    activePreset: null,
+    currentGains: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  });
   apiMock.eq.listAllPresets.mockResolvedValue({
     builtin: [
       { name: 'Flat', builtin: true, gains: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },

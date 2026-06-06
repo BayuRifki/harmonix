@@ -11,13 +11,7 @@ let setDbForTestFn: ((d: Database | null) => void) | null = null;
 
 beforeEach(async () => {
   if (!SQL) {
-    const wasmPath = join(
-      process.cwd(),
-      'node_modules',
-      'sql.js',
-      'dist',
-      'sql-wasm.wasm',
-    );
+    const wasmPath = join(process.cwd(), 'node_modules', 'sql.js', 'dist', 'sql-wasm.wasm');
     SQL = await initSqlJs({
       locateFile: (file: string) => (file.endsWith('.wasm') ? wasmPath : file),
     });

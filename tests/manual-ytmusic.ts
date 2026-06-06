@@ -14,7 +14,9 @@ async function main() {
     const result = await src.search('never gonna give you up', { limit: 3 });
     console.log(`Found ${result.tracks.length} tracks:`);
     for (const t of result.tracks) {
-      console.log(`  - ${t.title} by ${t.artists.map(a => a.name).join(', ')} (${t.durationMs}ms) [${t.sourceId}]`);
+      console.log(
+        `  - ${t.title} by ${t.artists.map((a) => a.name).join(', ')} (${t.durationMs}ms) [${t.sourceId}]`,
+      );
     }
     if (result.tracks.length > 0) {
       const first = result.tracks[0]!;
@@ -36,7 +38,7 @@ async function main() {
   console.log('\nDone.');
 }
 
-main().catch(err => {
+main().catch((err) => {
   console.error('FATAL:', err);
   process.exit(1);
 });

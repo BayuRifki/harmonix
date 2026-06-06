@@ -29,6 +29,7 @@ If you discover a security vulnerability in Harmonix, please report it privately
 ## Scope
 
 The following are in scope:
+
 - Code execution vulnerabilities in the Electron main process
 - Cross-site scripting (XSS) in the renderer
 - OAuth token theft or leakage
@@ -36,6 +37,7 @@ The following are in scope:
 - IPC channel abuse (privilege escalation)
 
 The following are **out of scope**:
+
 - Vulnerabilities in third-party dependencies (report upstream)
 - Issues requiring physical access to the device
 - Social engineering attacks
@@ -44,6 +46,7 @@ The following are **out of scope**:
 ## Safe Harbor
 
 We will not pursue legal action against security researchers who:
+
 - Act in good faith
 - Do not access or modify user data beyond what's necessary
 - Do not degrade the service for others

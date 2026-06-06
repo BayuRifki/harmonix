@@ -1,8 +1,8 @@
 ---
 name: Feature Request
 description: Suggest a new feature for Harmonix
-title: "[Feature]: "
-labels: ["enhancement", "needs-triage"]
+title: '[Feature]: '
+labels: ['enhancement', 'needs-triage']
 ---
 
 ## Problem Statement

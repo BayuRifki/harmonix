@@ -101,9 +101,7 @@ interface RowProps {
 function Row({ track, index, isCurrent, isPlaying, onPlay, onAdd }: RowProps): JSX.Element {
   return (
     <tr
-      className={`border-b border-zinc-900 hover:bg-zinc-900 ${
-        isCurrent ? 'bg-zinc-900' : ''
-      }`}
+      className={`border-b border-zinc-900 hover:bg-zinc-900 ${isCurrent ? 'bg-zinc-900' : ''}`}
       style={{ height: ROW_HEIGHT }}
     >
       <td
@@ -131,7 +129,10 @@ function Row({ track, index, isCurrent, isPlaying, onPlay, onAdd }: RowProps): J
           {track.source}
         </code>
       </td>
-      <td className="py-2 px-2 text-zinc-500 text-right tabular-nums" style={{ height: ROW_HEIGHT }}>
+      <td
+        className="py-2 px-2 text-zinc-500 text-right tabular-nums"
+        style={{ height: ROW_HEIGHT }}
+      >
         {formatDuration(track.durationMs)}
       </td>
       <td className="py-2 px-2 text-right" style={{ height: ROW_HEIGHT }}>

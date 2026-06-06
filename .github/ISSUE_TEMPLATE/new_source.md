@@ -1,8 +1,8 @@
 ---
 name: New Source Proposal
 description: Propose adding a new music source to Harmonix
-title: "[New Source]: "
-labels: ["source", "needs-triage"]
+title: '[New Source]: '
+labels: ['source', 'needs-triage']
 ---
 
 ## Source Information

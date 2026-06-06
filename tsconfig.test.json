@@ -43,9 +43,5 @@
     "electron/main/auth/callbackServer.ts",
     "electron/main/auth/index.ts"
   ],
-  "exclude": [
-    "node_modules",
-    "dist",
-    "dist-electron"
-  ]
+  "exclude": ["node_modules", "dist", "dist-electron"]
 }

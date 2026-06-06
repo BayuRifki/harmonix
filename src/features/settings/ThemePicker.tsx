@@ -22,7 +22,11 @@ export function ThemePicker(): JSX.Element {
               ? 'border-accent text-accent bg-surface-hover'
               : 'border-app text-app-muted hover:border-app-strong hover:text-app'
           }`}
-          style={theme === opt.value ? { borderColor: 'var(--accent)', color: 'var(--accent)' } : undefined}
+          style={
+            theme === opt.value
+              ? { borderColor: 'var(--accent)', color: 'var(--accent)' }
+              : undefined
+          }
           aria-pressed={theme === opt.value}
         >
           <span aria-hidden className="mr-1">

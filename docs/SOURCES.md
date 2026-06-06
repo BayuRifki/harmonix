@@ -76,12 +76,12 @@ Declare what your source supports via `capabilities`:
 
 ```typescript
 interface SourceCapabilities {
-  canSearch: boolean;            // Does it support search?
-  canStream: boolean;            // Can it produce stream URLs?
-  canGetPlaylists: boolean;      // Does it have user playlists?
-  canGetLikedTracks: boolean;    // Liked/saved tracks?
-  requiresAuth: boolean;         // Needs user authentication?
-  supportsFileStreaming: boolean;  // file:// URLs?
+  canSearch: boolean; // Does it support search?
+  canStream: boolean; // Can it produce stream URLs?
+  canGetPlaylists: boolean; // Does it have user playlists?
+  canGetLikedTracks: boolean; // Liked/saved tracks?
+  requiresAuth: boolean; // Needs user authentication?
+  supportsFileStreaming: boolean; // file:// URLs?
   supportsRemoteStreaming: boolean; // http(s) URLs?
   supportsPlaylists: boolean;
 }
@@ -148,7 +148,7 @@ export function createSources(): MusicSource[] {
     new LocalSource(),
     new SpotifySource(),
     new YouTubeMusicSource(),
-    new YourSource(),  // ← Add this
+    new YourSource(), // ← Add this
   ];
 }
 ```
@@ -211,6 +211,7 @@ registerSource(new MySource());
 ```
 
 That's it. Your source will now:
+
 - Appear in the **Settings → Music Sources** panel
 - Be toggleable on/off (state persists in SQLite)
 - Participate in **unified search**
@@ -256,12 +257,12 @@ For OAuth PKCE flows, see the Spotify source for a complete reference implementa
 
 The `getStreamUrl` method should return a `StreamInfo` object. The protocol field tells the audio engine how to handle the stream:
 
-| Protocol | Description | Example |
-|---|---|---|
-| `'http'` | Direct HTTP URL, played via `<audio>` | Direct MP3 link |
-| `'file'` | Local file path | `C:/music/song.mp3` |
-| `'spotify-sdk'` | Handled by Spotify Web Playback SDK | Spotify tracks |
-| `'youtube'` | YouTube video ID, resolved via `yt-dlp` | YouTube Music |
+| Protocol        | Description                             | Example             |
+| --------------- | --------------------------------------- | ------------------- |
+| `'http'`        | Direct HTTP URL, played via `<audio>`   | Direct MP3 link     |
+| `'file'`        | Local file path                         | `C:/music/song.mp3` |
+| `'spotify-sdk'` | Handled by Spotify Web Playback SDK     | Spotify tracks      |
+| `'youtube'`     | YouTube video ID, resolved via `yt-dlp` | YouTube Music       |
 
 > **Bundled binary note**: The YouTube Music source ships its own CLI dependency (`yt-dlp.exe`) inside `resources/yt-dlp.exe` (Windows). The adapter looks there first via `ytdlp.ts:candidates()`, falls back to `YT_DLP_PATH` env var, then `yt-dlp` on `PATH`. To refresh the bundled binary, run `yt-dlp -U` (Settings → YouTube Music → "Check for update") and commit the updated `resources/yt-dlp.exe`. See `docs/PLANNING.md` §10 for the design rationale.
 

@@ -24,7 +24,9 @@ function now(): number {
 
 export function listPlaylists(): PlaylistRow[] {
   const db = getDb();
-  const result = db.exec('SELECT id, name, description, created_at, updated_at FROM playlists ORDER BY updated_at DESC');
+  const result = db.exec(
+    'SELECT id, name, description, created_at, updated_at FROM playlists ORDER BY updated_at DESC',
+  );
   if (!result[0]) return [];
   return result[0].values.map((row) => ({
     id: Number(row[0]),
@@ -71,10 +73,12 @@ export function getPlaylistTracks(playlistId: number): PlaylistTrackRef[] {
 export function createPlaylist(name: string, description?: string): number {
   const db = getDb();
   const t = now();
-  db.run(
-    'INSERT INTO playlists (name, description, created_at, updated_at) VALUES (?, ?, ?, ?)',
-    [name, description ?? null, t, t],
-  );
+  db.run('INSERT INTO playlists (name, description, created_at, updated_at) VALUES (?, ?, ?, ?)', [
+    name,
+    description ?? null,
+    t,
+    t,
+  ]);
   const result = db.exec('SELECT last_insert_rowid() as id');
   persist();
   return Number(result[0]?.values[0]?.[0] ?? 0);
@@ -97,11 +101,7 @@ export function deletePlaylist(id: number): void {
   persist();
 }
 
-export function addTrackToPlaylist(
-  playlistId: number,
-  source: string,
-  sourceId: string,
-): number {
+export function addTrackToPlaylist(playlistId: number, source: string, sourceId: string): number {
   const db = getDb();
   const last = db.exec(
     'SELECT COALESCE(MAX(position), -1) FROM playlist_tracks WHERE playlist_id = ?',
@@ -117,10 +117,7 @@ export function addTrackToPlaylist(
   return nextPos;
 }
 
-export function removeTrackFromPlaylist(
-  playlistId: number,
-  position: number,
-): void {
+export function removeTrackFromPlaylist(playlistId: number, position: number): void {
   const db = getDb();
   db.run('DELETE FROM playlist_tracks WHERE playlist_id = ? AND position = ?', [
     playlistId,

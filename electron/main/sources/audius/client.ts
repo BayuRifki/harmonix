@@ -64,150 +64,152 @@ const ANONYMOUS_USER_ID = 'harmonix';
 const REQUEST_TIMEOUT_MS = 10_000;
 
 export class AudiusClient {
-    private host: string;
-    private defaultUserId: string;
+  private host: string;
+  private defaultUserId: string;
 
-    constructor(config: AudiusConfig = {}) {
-        this.host = (config.host ?? DEFAULT_HOST).replace(/\/+$/, '');
-        this.defaultUserId = ANONYMOUS_USER_ID;
-    }
+  constructor(config: AudiusConfig = {}) {
+    this.host = (config.host ?? DEFAULT_HOST).replace(/\/+$/, '');
+    this.defaultUserId = ANONYMOUS_USER_ID;
+  }
 
-    getHost(): string {
-        return this.host;
-    }
+  getHost(): string {
+    return this.host;
+  }
 
-    private buildUrl(path: string, params?: Record<string, string | number>): string {
-        const normalized = path.startsWith('/') ? path : `/${path}`;
-        const search = new URLSearchParams();
-        if (params) {
-            for (const [key, value] of Object.entries(params)) {
-                if (value === undefined || value === null) continue;
-                search.set(key, String(value));
-            }
-        }
-        if (!search.has('user_id')) {
-            search.set('user_id', this.defaultUserId);
-        }
-        const query = search.toString();
-        return query ? `${this.host}${normalized}?${query}` : `${this.host}${normalized}`;
+  private buildUrl(path: string, params?: Record<string, string | number>): string {
+    const normalized = path.startsWith('/') ? path : `/${path}`;
+    const search = new URLSearchParams();
+    if (params) {
+      for (const [key, value] of Object.entries(params)) {
+        if (value === undefined || value === null) continue;
+        search.set(key, String(value));
+      }
     }
+    if (!search.has('user_id')) {
+      search.set('user_id', this.defaultUserId);
+    }
+    const query = search.toString();
+    return query ? `${this.host}${normalized}?${query}` : `${this.host}${normalized}`;
+  }
 
-    private async fetchJson<T>(path: string, params?: Record<string, string | number>): Promise<T> {
-        const url = this.buildUrl(path, params);
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-        try {
-            const response = await fetch(url, { signal: controller.signal });
-            if (!response.ok) {
-                throw new Error(`Audius request failed: ${response.status} ${response.statusText}`);
-            }
-            return (await response.json()) as T;
-        } finally {
-            clearTimeout(timeout);
-        }
+  private async fetchJson<T>(path: string, params?: Record<string, string | number>): Promise<T> {
+    const url = this.buildUrl(path, params);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    try {
+      const response = await fetch(url, { signal: controller.signal });
+      if (!response.ok) {
+        throw new Error(`Audius request failed: ${response.status} ${response.statusText}`);
+      }
+      return (await response.json()) as T;
+    } finally {
+      clearTimeout(timeout);
     }
+  }
 
-    async searchTracks(
-        query: string,
-        options: { limit?: number; offset?: number } = {},
-    ): Promise<AudiusTrack[]> {
-        const limit = options.limit ?? 20;
-        const offset = options.offset ?? 0;
-        try {
-            const data = await this.fetchJson<{ data?: AudiusTrack[] }>('/v1/tracks/search', {
-                query,
-                limit,
-                offset,
-            });
-            return Array.isArray(data?.data) ? data.data : [];
-        } catch (err) {
-            console.warn('[audius] searchTracks failed:', (err as Error).message);
-            return [];
-        }
+  async searchTracks(
+    query: string,
+    options: { limit?: number; offset?: number } = {},
+  ): Promise<AudiusTrack[]> {
+    const limit = options.limit ?? 20;
+    const offset = options.offset ?? 0;
+    try {
+      const data = await this.fetchJson<{ data?: AudiusTrack[] }>('/v1/tracks/search', {
+        query,
+        limit,
+        offset,
+      });
+      return Array.isArray(data?.data) ? data.data : [];
+    } catch (err) {
+      console.warn('[audius] searchTracks failed:', (err as Error).message);
+      return [];
     }
+  }
 
-    async getTrack(trackId: string): Promise<AudiusTrack | null> {
-        try {
-            const data = await this.fetchJson<{ data?: AudiusTrack[] }>(`/v1/tracks/${encodeURIComponent(trackId)}`);
-            const list = Array.isArray(data?.data) ? data.data : [];
-            return list.length > 0 ? (list[0] ?? null) : null;
-        } catch (err) {
-            console.warn('[audius] getTrack failed:', (err as Error).message);
-            return null;
-        }
+  async getTrack(trackId: string): Promise<AudiusTrack | null> {
+    try {
+      const data = await this.fetchJson<{ data?: AudiusTrack[] }>(
+        `/v1/tracks/${encodeURIComponent(trackId)}`,
+      );
+      const list = Array.isArray(data?.data) ? data.data : [];
+      return list.length > 0 ? (list[0] ?? null) : null;
+    } catch (err) {
+      console.warn('[audius] getTrack failed:', (err as Error).message);
+      return null;
     }
+  }
 
-    async getTrendingTracks(
-        options: { genre?: string; limit?: number; time?: 'week' | 'month' | 'year' | 'allTime' } = {},
-    ): Promise<AudiusTrack[]> {
-        const params: Record<string, string | number> = {
-            limit: options.limit ?? 20,
-        };
-        if (options.genre) params.genre = options.genre;
-        if (options.time) params.time = options.time;
-        try {
-            const data = await this.fetchJson<{ data?: AudiusTrack[] }>('/v1/tracks/trending', params);
-            return Array.isArray(data?.data) ? data.data : [];
-        } catch (err) {
-            console.warn('[audius] getTrendingTracks failed:', (err as Error).message);
-            return [];
-        }
+  async getTrendingTracks(
+    options: { genre?: string; limit?: number; time?: 'week' | 'month' | 'year' | 'allTime' } = {},
+  ): Promise<AudiusTrack[]> {
+    const params: Record<string, string | number> = {
+      limit: options.limit ?? 20,
+    };
+    if (options.genre) params.genre = options.genre;
+    if (options.time) params.time = options.time;
+    try {
+      const data = await this.fetchJson<{ data?: AudiusTrack[] }>('/v1/tracks/trending', params);
+      return Array.isArray(data?.data) ? data.data : [];
+    } catch (err) {
+      console.warn('[audius] getTrendingTracks failed:', (err as Error).message);
+      return [];
     }
+  }
 
-    async getPlaylist(playlistId: string): Promise<AudiusPlaylist | null> {
-        try {
-            const data = await this.fetchJson<{ data?: AudiusPlaylist[] }>(
-                `/v1/playlists/${encodeURIComponent(playlistId)}`,
-            );
-            const list = Array.isArray(data?.data) ? data.data : [];
-            return list.length > 0 ? (list[0] ?? null) : null;
-        } catch (err) {
-            console.warn('[audius] getPlaylist failed:', (err as Error).message);
-            return null;
-        }
+  async getPlaylist(playlistId: string): Promise<AudiusPlaylist | null> {
+    try {
+      const data = await this.fetchJson<{ data?: AudiusPlaylist[] }>(
+        `/v1/playlists/${encodeURIComponent(playlistId)}`,
+      );
+      const list = Array.isArray(data?.data) ? data.data : [];
+      return list.length > 0 ? (list[0] ?? null) : null;
+    } catch (err) {
+      console.warn('[audius] getPlaylist failed:', (err as Error).message);
+      return null;
     }
+  }
 
-    async getUserPlaylists(userId: string): Promise<AudiusPlaylist[]> {
-        try {
-            const data = await this.fetchJson<{ data?: AudiusPlaylist[] }>(
-                `/v1/users/${encodeURIComponent(userId)}/playlists`,
-                { user_id: userId },
-            );
-            return Array.isArray(data?.data) ? data.data : [];
-        } catch (err) {
-            console.warn('[audius] getUserPlaylists failed:', (err as Error).message);
-            return [];
-        }
+  async getUserPlaylists(userId: string): Promise<AudiusPlaylist[]> {
+    try {
+      const data = await this.fetchJson<{ data?: AudiusPlaylist[] }>(
+        `/v1/users/${encodeURIComponent(userId)}/playlists`,
+        { user_id: userId },
+      );
+      return Array.isArray(data?.data) ? data.data : [];
+    } catch (err) {
+      console.warn('[audius] getUserPlaylists failed:', (err as Error).message);
+      return [];
     }
+  }
 
-    async getPlaylistTracks(playlistId: string, limit = 100): Promise<AudiusTrack[]> {
-        try {
-            const data = await this.fetchJson<{ data?: AudiusTrack[] }>(
-                `/v1/playlists/${encodeURIComponent(playlistId)}/tracks`,
-                { limit },
-            );
-            return Array.isArray(data?.data) ? data.data : [];
-        } catch (err) {
-            console.warn('[audius] getPlaylistTracks failed:', (err as Error).message);
-            return [];
-        }
+  async getPlaylistTracks(playlistId: string, limit = 100): Promise<AudiusTrack[]> {
+    try {
+      const data = await this.fetchJson<{ data?: AudiusTrack[] }>(
+        `/v1/playlists/${encodeURIComponent(playlistId)}/tracks`,
+        { limit },
+      );
+      return Array.isArray(data?.data) ? data.data : [];
+    } catch (err) {
+      console.warn('[audius] getPlaylistTracks failed:', (err as Error).message);
+      return [];
     }
+  }
 
-    async getArtistTracks(userId: string, limit = 50): Promise<AudiusTrack[]> {
-        try {
-            const data = await this.fetchJson<{ data?: AudiusTrack[] }>(
-                `/v1/users/${encodeURIComponent(userId)}/tracks`,
-                { user_id: userId, sort: 'date', limit },
-            );
-            return Array.isArray(data?.data) ? data.data : [];
-        } catch (err) {
-            console.warn('[audius] getArtistTracks failed:', (err as Error).message);
-            return [];
-        }
+  async getArtistTracks(userId: string, limit = 50): Promise<AudiusTrack[]> {
+    try {
+      const data = await this.fetchJson<{ data?: AudiusTrack[] }>(
+        `/v1/users/${encodeURIComponent(userId)}/tracks`,
+        { user_id: userId, sort: 'date', limit },
+      );
+      return Array.isArray(data?.data) ? data.data : [];
+    } catch (err) {
+      console.warn('[audius] getArtistTracks failed:', (err as Error).message);
+      return [];
     }
+  }
 
-    resolveStreamUrl(trackId: string): string {
-        const url = this.buildUrl(`/v1/tracks/${encodeURIComponent(trackId)}/stream`);
-        return url;
-    }
+  resolveStreamUrl(trackId: string): string {
+    const url = this.buildUrl(`/v1/tracks/${encodeURIComponent(trackId)}/stream`);
+    return url;
+  }
 }

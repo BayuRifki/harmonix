@@ -37,17 +37,20 @@ function getMemoryStats(): MemoryStats {
 export function registerMemoryHandlers(): void {
   ipcMain.handle('mem:stats', (): MemoryStats => getMemoryStats());
 
-  ipcMain.handle('mem:gc', async (): Promise<{ ok: true; before: MemoryStats; after: MemoryStats }> => {
-    const before = getMemoryStats();
-    if (global.gc) {
-      try {
-        global.gc();
-      } catch {
-        // ignore
+  ipcMain.handle(
+    'mem:gc',
+    async (): Promise<{ ok: true; before: MemoryStats; after: MemoryStats }> => {
+      const before = getMemoryStats();
+      if (global.gc) {
+        try {
+          global.gc();
+        } catch {
+          // ignore
+        }
       }
-    }
-    await new Promise((r) => setTimeout(r, 50));
-    const after = getMemoryStats();
-    return { ok: true, before, after };
-  });
+      await new Promise((r) => setTimeout(r, 50));
+      const after = getMemoryStats();
+      return { ok: true, before, after };
+    },
+  );
 }

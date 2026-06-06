@@ -129,10 +129,11 @@ export function runMigrations(db: Database): void {
     try {
       db.exec('BEGIN');
       db.exec(migration.up);
-      db.run(
-        'INSERT INTO schema_version (version, name, applied_at) VALUES (?, ?, ?)',
-        [migration.version, migration.name, Date.now()],
-      );
+      db.run('INSERT INTO schema_version (version, name, applied_at) VALUES (?, ?, ?)', [
+        migration.version,
+        migration.name,
+        Date.now(),
+      ]);
       db.exec('COMMIT');
       console.info(`[db] Applied migration ${migration.version}: ${migration.name}`);
     } catch (err) {

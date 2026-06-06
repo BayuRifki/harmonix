@@ -1,12 +1,7 @@
 import { create } from 'zustand';
 import type { EqPreset, EqCustomPreset } from '@/types/global';
 import { equalizer } from '@/lib/audio/equalizer';
-import {
-  BUILTIN_PRESETS,
-  FLAT_GAINS,
-  clampGains,
-  getBuiltinPreset,
-} from '@/lib/audio/presets';
+import { BUILTIN_PRESETS, FLAT_GAINS, clampGains, getBuiltinPreset } from '@/lib/audio/presets';
 
 interface EqualizerState {
   builtinPresets: EqPreset[];
@@ -74,7 +69,8 @@ export const useEqualizerStore = create<EqualizerState>((set, get) => ({
   applyPreset: async (name: string) => {
     const builtin = getBuiltinPreset(name);
     const custom = get().customPresets.find((p) => p.name === name);
-    const preset = builtin ?? (custom ? { name: custom.name, builtin: false, gains: custom.gains } : null);
+    const preset =
+      builtin ?? (custom ? { name: custom.name, builtin: false, gains: custom.gains } : null);
     if (!preset) return;
     const gains = clampGains(preset.gains);
     applyGainsToEngine(gains);

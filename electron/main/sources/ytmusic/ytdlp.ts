@@ -312,8 +312,7 @@ export async function checkAndUpdateYtDlp(
       proc.on('close', async (code) => {
         clearTimeout(timer);
         const after = await readVersion(info.path);
-        const updated =
-          before !== null && after !== null && before !== after;
+        const updated = before !== null && after !== null && before !== after;
         if (updated) {
           cachedPath = null;
         }

@@ -14,10 +14,7 @@ interface UpdateResult {
   message: string;
 }
 
-type UpdateState =
-  | { kind: 'idle' }
-  | { kind: 'running' }
-  | { kind: 'done'; result: UpdateResult };
+type UpdateState = { kind: 'idle' } | { kind: 'running' } | { kind: 'done'; result: UpdateResult };
 
 export function YtMusicStatus(): JSX.Element {
   const [status, setStatus] = useState<YtStatus | null>(null);

@@ -9,7 +9,11 @@ interface AddToPlaylistMenuProps {
   onClose: () => void;
 }
 
-export function AddToPlaylistMenu({ track, open, onClose }: AddToPlaylistMenuProps): JSX.Element | null {
+export function AddToPlaylistMenu({
+  track,
+  open,
+  onClose,
+}: AddToPlaylistMenuProps): JSX.Element | null {
   const playlists = usePlaylistsStore((s) => s.playlists);
   const refresh = usePlaylistsStore((s) => s.refresh);
   const load = usePlaylistsStore((s) => s.load);

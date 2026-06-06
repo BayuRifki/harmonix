@@ -185,10 +185,10 @@ function mapRows(result: QueryExecResult[]): TrackRow[] {
 
 export function getAllTracks(limit = 500, offset = 0): TrackRow[] {
   const db = getDb();
-  const result = db.exec(
-    'SELECT * FROM tracks ORDER BY title COLLATE NOCASE LIMIT ? OFFSET ?',
-    [limit, offset],
-  );
+  const result = db.exec('SELECT * FROM tracks ORDER BY title COLLATE NOCASE LIMIT ? OFFSET ?', [
+    limit,
+    offset,
+  ]);
   return mapRows(result);
 }
 
@@ -281,10 +281,10 @@ export function deleteTracksNotIn(filePaths: string[]): number {
 
 export function markPlayed(id: number): void {
   const db = getDb();
-  db.run(
-    'UPDATE tracks SET last_played_at = ?, play_count = play_count + 1 WHERE id = ?',
-    [Date.now(), id],
-  );
+  db.run('UPDATE tracks SET last_played_at = ?, play_count = play_count + 1 WHERE id = ?', [
+    Date.now(),
+    id,
+  ]);
   persist();
 }
 

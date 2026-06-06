@@ -273,8 +273,8 @@ export function SourcePicker(): JSX.Element {
         </div>
       )}
       <p className="text-xs text-zinc-500 mt-3">
-        Toggle to enable/disable. Disabled sources will not appear in search or playback. Click ⚙ on
-        a source to configure credentials.
+        Toggle to enable/disable. Disabled sources will not appear in search or playback. Click ⚙
+        on a source to configure credentials.
       </p>
       {configSource && (
         <SourceConfigDialog

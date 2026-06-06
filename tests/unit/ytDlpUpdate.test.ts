@@ -10,9 +10,7 @@ vi.mock('node:child_process', () => ({
   default: { spawn: spawnMock },
 }));
 
-const { checkAndUpdateYtDlp } = await import(
-  '../../electron/main/sources/ytmusic/ytdlp'
-);
+const { checkAndUpdateYtDlp } = await import('../../electron/main/sources/ytmusic/ytdlp');
 
 type FindResult = {
   path: string;

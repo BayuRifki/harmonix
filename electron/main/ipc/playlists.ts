@@ -75,10 +75,7 @@ export function registerPlaylistHandlers(): void {
 
   ipcMain.handle(
     'playlists:remove-track',
-    async (
-      _evt,
-      payload: { playlistId: number; position: number },
-    ): Promise<{ ok: true }> => {
+    async (_evt, payload: { playlistId: number; position: number }): Promise<{ ok: true }> => {
       removeTrackFromPlaylist(payload.playlistId, payload.position);
       return { ok: true };
     },

@@ -1,6 +1,12 @@
 import { create } from 'zustand';
 import type { Track } from '@shared/index';
-import type { ScanFolder, AlbumSummary, ArtistSummary, ScanProgress, LibraryStats } from '@/types/global';
+import type {
+  ScanFolder,
+  AlbumSummary,
+  ArtistSummary,
+  ScanProgress,
+  LibraryStats,
+} from '@/types/global';
 
 interface LibraryState {
   tracks: Track[];

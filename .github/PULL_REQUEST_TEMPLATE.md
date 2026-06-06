@@ -33,11 +33,11 @@ Fixes #
   - [ ] Spotify
   - [ ] YouTube Music
   - [ ] Local files
-  - [ ] New source: _______
+  - [ ] New source: **\_\_\_**
 - [ ] UI / UX
 - [ ] Documentation
 - [ ] CI / Build
-- [ ] Other: _______
+- [ ] Other: **\_\_\_**
 
 ## Checklist
 

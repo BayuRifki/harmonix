@@ -54,11 +54,7 @@ export function SpotifyLoginButton(): JSX.Element {
             onClick={() => void handleLogin()}
             disabled={loading || isMissingConfig}
             className="px-3 py-1.5 text-xs bg-green-500 hover:bg-green-600 text-black font-medium rounded transition disabled:opacity-50 disabled:cursor-not-allowed"
-            title={
-              isMissingConfig
-                ? 'Set SPOTIFY_CLIENT_ID in .env first'
-                : 'Connect to Spotify'
-            }
+            title={isMissingConfig ? 'Set SPOTIFY_CLIENT_ID in .env first' : 'Connect to Spotify'}
           >
             {loading ? 'Connecting…' : 'Connect'}
           </button>
@@ -93,10 +89,12 @@ export function SpotifyLoginButton(): JSX.Element {
               </a>
             </li>
             <li>
-              Add redirect URI: <code className="bg-zinc-900 px-1 rounded">http://127.0.0.1:8888/callback</code>
+              Add redirect URI:{' '}
+              <code className="bg-zinc-900 px-1 rounded">http://127.0.0.1:8888/callback</code>
             </li>
             <li>
-              Set <code className="bg-zinc-900 px-1 rounded">SPOTIFY_CLIENT_ID</code> in <code className="bg-zinc-900 px-1 rounded">.env</code>
+              Set <code className="bg-zinc-900 px-1 rounded">SPOTIFY_CLIENT_ID</code> in{' '}
+              <code className="bg-zinc-900 px-1 rounded">.env</code>
             </li>
             <li>Restart the app</li>
           </ol>

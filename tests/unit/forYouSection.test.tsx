@@ -24,7 +24,9 @@ describe('ForYouSection', () => {
     renderWithRouter(<ForYouSection limit={6} layout="grid" />);
     expect(screen.getByText('Browse your Library')).toBeInTheDocument();
     expect(screen.getByText('Search across sources')).toBeInTheDocument();
-    expect(screen.getByText(/Play some tracks to see personalized recommendations/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Play some tracks to see personalized recommendations/i),
+    ).toBeInTheDocument();
   });
 
   it('shows recent history entries when present', () => {

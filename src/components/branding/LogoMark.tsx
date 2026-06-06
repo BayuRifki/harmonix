@@ -22,9 +22,7 @@ export function LogoMark({ size = 32, showText = true }: LogoMarkProps): JSX.Ele
           draggable={false}
         />
       </div>
-      {showText && (
-        <h1 className="text-xl font-bold tracking-tight text-white">Harmonix</h1>
-      )}
+      {showText && <h1 className="text-xl font-bold tracking-tight text-white">Harmonix</h1>}
     </div>
   );
 }

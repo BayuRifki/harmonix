@@ -70,12 +70,17 @@ export async function disposeInnertubeCache(reason: string): Promise<void> {
   clearIdleTimer();
   if (!cache) return;
   if (cache.refCount > 0) {
-    console.warn(`[innertube] Dispose requested (${reason}) but refCount=${cache.refCount}, deferring`);
+    console.warn(
+      `[innertube] Dispose requested (${reason}) but refCount=${cache.refCount}, deferring`,
+    );
     return;
   }
   const inst = cache.instance;
   cache = null;
-  if (inst && typeof (inst as { session?: { signOut?: () => Promise<void> } }).session?.signOut === 'function') {
+  if (
+    inst &&
+    typeof (inst as { session?: { signOut?: () => Promise<void> } }).session?.signOut === 'function'
+  ) {
     try {
       await (inst as { session: { signOut: () => Promise<void> } }).session.signOut();
     } catch {
@@ -84,7 +89,11 @@ export async function disposeInnertubeCache(reason: string): Promise<void> {
   }
 }
 
-export function getInnertubeCacheStats(): { refCount: number; lastUsed: number | null; ageMs: number | null } {
+export function getInnertubeCacheStats(): {
+  refCount: number;
+  lastUsed: number | null;
+  ageMs: number | null;
+} {
   if (!cache) return { refCount: 0, lastUsed: null, ageMs: null };
   return {
     refCount: cache.refCount,

@@ -72,7 +72,5 @@ export async function shutdownAllSources(): Promise<void> {
 }
 
 export async function getAllAuthStatuses(): Promise<AuthStatus[]> {
-  return Promise.all(
-    Array.from(registry.values()).map((s) => s.getAuthStatus()),
-  );
+  return Promise.all(Array.from(registry.values()).map((s) => s.getAuthStatus()));
 }

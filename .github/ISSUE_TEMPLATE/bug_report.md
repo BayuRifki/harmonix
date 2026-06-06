@@ -1,8 +1,8 @@
 ---
 name: Bug Report
 description: Report a bug or unexpected behavior in Harmonix
-title: "[Bug]: "
-labels: ["bug", "needs-triage"]
+title: '[Bug]: '
+labels: ['bug', 'needs-triage']
 ---
 
 ## Bug Description

@@ -91,7 +91,10 @@ export class SpotifyClient {
 
   async loginViaBrowser(openExternal: (url: string) => Promise<void>): Promise<SpotifyAuthResult> {
     if (!this.config.clientId) {
-      return { ok: false, error: 'Spotify Client ID not configured. Set SPOTIFY_CLIENT_ID in .env' };
+      return {
+        ok: false,
+        error: 'Spotify Client ID not configured. Set SPOTIFY_CLIENT_ID in .env',
+      };
     }
     if (pendingFlow) {
       return { ok: false, error: 'Another login flow is already in progress' };
@@ -131,7 +134,10 @@ export class SpotifyClient {
   async handleCallback(code: string, state: string): Promise<SpotifyAuthResult> {
     if (!pendingFlow) return { ok: false, error: 'No pending login flow' };
     if (state !== pendingFlow.pkce.state) {
-      const result: SpotifyAuthResult = { ok: false, error: 'State mismatch — possible CSRF attack' };
+      const result: SpotifyAuthResult = {
+        ok: false,
+        error: 'State mismatch — possible CSRF attack',
+      };
       clearTimeout(pendingFlow.timeout);
       const flow = pendingFlow;
       pendingFlow = null;

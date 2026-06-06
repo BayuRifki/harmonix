@@ -36,7 +36,9 @@ export class SpotifySource extends SourceAdapter {
   }
 
   override async initialize(): Promise<void> {
-    console.info(`[spotify] Initialized (clientId=${this.client.hasClientId() ? 'set' : 'MISSING'})`);
+    console.info(
+      `[spotify] Initialized (clientId=${this.client.hasClientId() ? 'set' : 'MISSING'})`,
+    );
   }
 
   override async shutdown(): Promise<void> {

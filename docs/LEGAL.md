@@ -15,6 +15,7 @@ Harmonix integrates with third-party music services. **Users are responsible for
 Harmonix is a **personal music player** that aggregates content from sources you already have access to. It is designed to be used with accounts and subscriptions you already own.
 
 **Harmonix does NOT:**
+
 - ❌ Provide a music catalog
 - ❌ Host or distribute copyrighted music
 - ❌ Circumvent DRM
@@ -22,6 +23,7 @@ Harmonix is a **personal music player** that aggregates content from sources you
 - ❌ Enable unauthorized access to content
 
 **Harmonix DOES:**
+
 - ✅ Provide a unified interface for sources you authorize
 - ✅ Use official APIs where available
 - ✅ Clearly label unofficial integrations
@@ -45,6 +47,7 @@ Harmonix uses the [Spotify Web API](https://developer.spotify.com/documentation/
 ### Compliance
 
 By using Harmonix with Spotify, you agree to:
+
 - [Spotify Developer Terms of Service](https://developer.spotify.com/terms/)
 - [Spotify Terms of Use](https://www.spotify.com/legal/end-user-agreement/)
 - [Spotify Privacy Policy](https://www.spotify.com/legal/privacy-policy/)
@@ -56,6 +59,7 @@ When displaying Spotify content, Harmonix must show Spotify branding and link to
 ### Scope Restrictions
 
 The Spotify API has strict rules:
+
 - We **cannot** cache or store Spotify audio files.
 - We **cannot** display Spotify content without attribution.
 - We **cannot** use Spotify data to train AI/ML models.

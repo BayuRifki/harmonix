@@ -1,6 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { SourceAdapter, type SourceCapabilities } from '../../electron/main/sources/adapter';
-import type { Track, SearchResult, StreamInfo, AuthStatus } from '../../electron/main/sources/types';
+import type {
+  Track,
+  SearchResult,
+  StreamInfo,
+  AuthStatus,
+} from '../../electron/main/sources/types';
 
 const BASE_CAPS: SourceCapabilities = {
   canSearch: true,
