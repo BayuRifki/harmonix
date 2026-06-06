@@ -675,4 +675,24 @@ gh issue list --state open
 
 ---
 
-**Last updated**: Phase 12 (UI/UX Polish), Phase 13A (Visual Immersion), and Phase 13B (Soundora-inspired Layout Redesign) shipped. Phase 11 (AI-Powered Playlist Generation) still planned. 422 tests passing.
+## 10. Progress Log (active session)
+
+Chronological log of incremental progress. Most recent first.
+
+- **Bundled yt-dlp.exe** — `resources/yt-dlp.exe` (18.4 MB, v2026.03.17) committed to repo. Eliminates external `yt-dlp` install + `YT_DLP_PATH` env var for end users. Binary treated as opaque blob via `.gitattributes` (`resources/yt-dlp* binary`).
+- **Packager integration** — `electron-builder.yml` `extraResources` now ships `resources/yt-dlp*` alongside `sql-wasm.wasm`; `asarUnpack: - resources/**` already covers it. Packaged builds will resolve yt-dlp via `process.resourcesPath`.
+- **Update API** — `electron/main/sources/ytmusic/ytdlp.ts` gained `checkAndUpdateYtDlp()` + `resetYtDlpCache()`. Spawns `yt-dlp -U`, compares version before/after via `--version`, returns `{ok, updated, oldVersion, newVersion, message}`. 60s timeout. Invalidates `cachedPath` on successful update.
+- **IPC + preload bridge** — Registered `ytmusic:check-update` handler in `electron/main/ipc/ytmusic.ts`. Exposed as `window.api.ytmusic.checkUpdate()` via `electron/preload/index.ts` with `YtDlpUpdateResult` type.
+- **Settings UI** — `src/features/settings/YtMusicStatus.tsx` now has a "Check for update" button. On click → IPC → result rendered in inline toast (green = updated with commit reminder, gray = up to date, red = error). Auto-refreshes version display after run. `data-testid` for e2e.
+- **CI cache** — `.github/workflows/ci.yml` `build` job caches `resources/yt-dlp.exe` on `windows-latest` runs (key: `yt-dlp-<os>-<package.json hash>`), restore-key for partial hits. Linux/macOS jobs skip (no Windows binary needed).
+- **Cleanup** — `.env` no longer carries `YT_DLP_PATH` (commented guidance kept for override case). Bundled binary in `resources/` is the default lookup.
+- **Docs** — `docs/SOURCES.md` updated: tree comment now says "ships a bundled CLI binary" and a "Bundled binary note" callout under §6 explains resolution order + update flow.
+- **Unit tests** — `tests/unit/ytDlpUpdate.test.ts` (4 cases): missing-binary, up-to-date, updated+commit hint, non-zero exit. Uses `vi.hoisted` + `vi.mock` for `node:child_process.spawn` and injects a fake `findFn` (parameter on `checkAndUpdateYtDlp`). Refactored function to accept optional `findFn: () => Promise<YtDlpInfo> = findYtDlp` for DI. 427/427 tests passing (was 423, +4).
+- **Verified** — `npm run lint` ✅, `npm run typecheck` ✅, `npm run test` ✅ (427/427), `npm run build` ✅. Resolution order sanity check via tsx: with `YT_DLP_PATH` unset, `findYtDlp()` returns `resources/yt-dlp.exe` v2026.03.17.
+- **Packager fix** — `electron-builder.yml` `extraResources` `to:` changed from `yt-dlp` → `yt-dlp.exe` so Windows packaged build keeps the .exe extension. Linux/macOS binaries (when added) will need a per-platform `extraResources` block.
+- **Critical .gitignore fix** — `.gitignore` had `*.exe` rule (line 63) which was silently ignoring `resources/yt-dlp.exe`. Added negation `!resources/yt-dlp*` so the binary actually gets committed. `git check-ignore` confirms it now passes through.
+- **Final verify** — `npm run lint` ✅, `npm run typecheck` ✅, `npm run test` ✅ (427/427), `npm run build` ✅. `git status` shows `resources/yt-dlp.exe` untracked (ready to commit) and all 14 expected files modified, 3 new (env.ts, ytDlpUpdate.test.ts, yt-dlp.exe).
+
+---
+
+**Last updated**: Phase 12 (UI/UX Polish), Phase 13A (Visual Immersion), and Phase 13B (Soundora-inspired Layout Redesign) shipped. Phase 11 (AI-Powered Playlist Generation) still planned. 427 tests passing.

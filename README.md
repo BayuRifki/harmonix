@@ -71,6 +71,7 @@ Most music players lock you into a single ecosystem. Harmonix breaks that wall:
 - ✅ Renderer heap hardening (Phase 13B hotfix) — 30 FPS audio-reactive canvas, deferred initialization, DPR cap 1.5
 - ✅ Build pipeline hardening (latest fixes) — esbuild 0.28.0 with override, Node heap 8 GB for build/dev
 - ✅ 423 tests across 38 files, lint clean, typecheck clean
+- ✅ 427 tests across 39 files (after yt-dlp bundle work), lint clean, typecheck clean
 - ✅ CI pipeline (lint + typecheck + test)
 
 ### Coming Next
@@ -177,6 +178,10 @@ harmonix/
 | M12       | UI/UX polish (navigation, controls, micro-interactions)                 | ✅ Done    |
 | M13       | Visual immersion (palette, glassmorphism, audio-reactive, now-playing)  | ✅ Done    |
 | M14       | Layout redesign (3-column shell, pink palette, hero player, right rail) | ✅ Done    |
+
+## Recent Progress (active session)
+
+- **Bundled `yt-dlp.exe`** — `resources/yt-dlp.exe` (v2026.03.17) shipped in-repo. No external install, no `YT_DLP_PATH` env var. Resolution order: `YT_DLP_PATH` env → `resources/yt-dlp[.exe]` (dev & packaged unpacked) → `process.resourcesPath/yt-dlp[.exe]` → PATH. Settings → YouTube Music → "Check for update" runs `yt-dlp -U` and shows commit reminder when version bumps. See `docs/PLANNING.md` §10 for the full progress log.
 
 See [`docs/PLANNING.md`](docs/PLANNING.md) for the full phase breakdown and decision log.
 

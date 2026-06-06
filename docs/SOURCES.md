@@ -26,7 +26,7 @@ electron/main/sources/
 ├── types.ts          # Interfaces (read this first)
 ├── registry.ts       # Source registration
 ├── spotify/          # Example: complex source with auth
-├── ytmusic/          # Example: source with external binary
+├── ytmusic/          # Example: source that ships a bundled CLI binary
 ├── local/            # Example: file-system based source
 └── yoursource/       # ← You'll create this
     ├── index.ts
@@ -262,6 +262,8 @@ The `getStreamUrl` method should return a `StreamInfo` object. The protocol fiel
 | `'file'` | Local file path | `C:/music/song.mp3` |
 | `'spotify-sdk'` | Handled by Spotify Web Playback SDK | Spotify tracks |
 | `'youtube'` | YouTube video ID, resolved via `yt-dlp` | YouTube Music |
+
+> **Bundled binary note**: The YouTube Music source ships its own CLI dependency (`yt-dlp.exe`) inside `resources/yt-dlp.exe` (Windows). The adapter looks there first via `ytdlp.ts:candidates()`, falls back to `YT_DLP_PATH` env var, then `yt-dlp` on `PATH`. To refresh the bundled binary, run `yt-dlp -U` (Settings → YouTube Music → "Check for update") and commit the updated `resources/yt-dlp.exe`. See `docs/PLANNING.md` §10 for the design rationale.
 
 If your source requires **proxying** (e.g., to add authentication headers), set `requiresProxy: true` and the main process will stream the audio to the renderer.
 
