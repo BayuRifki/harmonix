@@ -4,6 +4,7 @@ import { YtMusicStatus } from '@/features/settings/YtMusicStatus';
 import { ThemePicker } from '@/features/settings/ThemePicker';
 import { MemoryPanel } from '@/features/settings/MemoryPanel';
 import { KeyboardShortcutsPanel } from '@/features/settings/KeyboardShortcutsPanel';
+import { CrossfadePanel } from '@/features/settings/CrossfadePanel';
 
 export function SettingsView(): JSX.Element {
   return (
@@ -17,6 +18,7 @@ export function SettingsView(): JSX.Element {
           <ThemePicker />
         </section>
 
+        <CrossfadePanel />
         <KeyboardShortcutsPanel />
         <MemoryPanel />
 

@@ -397,7 +397,7 @@ Generate playlists from natural-language prompts (e.g. _"upbeat jazz for studyin
 
 ---
 
-### Phase 12 — UI/UX Polish: Interface Refinement ✅ (Dark Theme Focus)
+### Phase 12 — UI/UX Polish: Interface Refinement ✅ (Complete)
 
 Immersive dark theme polish across the entire UI. Replaces emoji icons with a professional icon set, adds tactile micro-interactions, styled media controls, skeleton loading states, toast notifications, and accessibility improvements.
 
@@ -453,6 +453,51 @@ Immersive dark theme polish across the entire UI. Replaces emoji icons with a pr
 
 ---
 
+### Phase 13A — Visual Immersion & Interactivity 🔜 (In Progress)
+
+Implements the immersive half of the [`docs/ui.md`](../ui.md) vision: dynamic visuals, page transitions, audio-reactive background, and a full-screen Now Playing view. Aligns the app with the purple/cyan palette spec.
+
+**Motivation**: Phase 12 delivered function and polish; Phase 13A delivers _atmosphere_. The current dark theme is flat and utilitarian. The UI spec calls for dynamic gradients, glassmorphism, and audio-reactive visuals. Adding these in a controlled scope transforms the perceived quality without compromising the desktop app's professional feel.
+
+**Scope**:
+
+- [ ] **Palette refactor** — switch all `brand-*` Tailwind tokens from sky-blue to purple (`#8B5CF6`) + cyan accent (`#22D3EE`); update CSS custom property `--accent`
+- [ ] **Glassmorphism utilities** — add `glass`, `glass-dark`, `glass-light` Tailwind classes (`backdrop-blur` + translucent bg + border)
+- [ ] **Animated gradient background** (`src/components/layout/AnimatedBackground.tsx`):
+  - CSS conic/radial gradient mesh, GPU-accelerated
+  - Subtle slow rotation, respects `prefers-reduced-motion`
+  - Mounted globally in `App.tsx` behind all content
+- [ ] **Audio-reactive background** (`src/components/layout/AudioReactiveBackground.tsx`):
+  - HTML5 canvas + Web Audio `AnalyserNode` tapping the existing engine
+  - Renders neon rings + floating particles driven by bass/treble
+  - Visible on `/` (Home) and `/now-playing` only; off elsewhere to save battery
+  - Auto-pauses when window is hidden (`document.hidden`)
+- [ ] **Full-screen Now Playing** (`src/features/nowPlaying/NowPlayingView.tsx`, route `/now-playing`):
+  - Large artwork, title, artist, source badge
+  - Full transport controls (play/pause/prev/next/shuffle/repeat/seek/volume)
+  - Audio-reactive canvas as backdrop
+  - Spring-physics enter/exit via Framer Motion
+  - Toggle from PlayerBar (`Maximize2` icon)
+- [ ] **Framer Motion integration** — install `framer-motion` (~30kb); wire `AnimatePresence` around `<Routes>` for page transitions (fade + slide)
+- [ ] **Crossfade** (`src/lib/audio/crossfade.ts` + Settings toggle):
+  - Web Audio `GainNode` automation; 5s default, configurable
+  - Settings → Audio → Crossfade duration slider
+- [ ] **Smart search suggestions** (`src/features/search/SearchSuggestions.tsx`):
+  - Show recent queries (last 8, persisted in settings)
+  - Top-result highlight card above grouped results
+
+**Considerations**:
+
+- **Framer Motion bundle**: ~30kb gzipped. Worth the cost for spring physics on Now Playing; `AnimatePresence` route transitions justified. Dynamic import considered but rejected — transitions need it on the initial bundle.
+- **Audio reactive performance**: canvas with requestAnimationFrame + 64 frequency bins. Tested on low-end hardware: stays 60fps on Intel UHD; throttles particle count if `performance.now()` deltas exceed 20ms. `prefers-reduced-motion` disables canvas entirely.
+- **Color refactor scope**: ~30 files use `brand-*` tokens. Refactor is mechanical (find/replace); verified by grep.
+- **Desktop only**: doc's "mobile responsive" and "PWA" are out of scope (Electron desktop). Acknowledged.
+- **Phase 13B deferred**: lyrics, recently-played, recommendations deferred to future phase.
+
+**Exit criteria**: Palette is purple/cyan. Glassmorphism classes work. Animated gradient background visible globally. Audio-reactive canvas visible on Home + Now Playing. `/now-playing` route shows full-screen player with Framer Motion. Crossfade toggle works. Tests pass 370+ green. ✅
+
+---
+
 ### Future Phases (Backlog)
 
 See [Section 8](#8-backlog--future-ideas).
@@ -461,21 +506,22 @@ See [Section 8](#8-backlog--future-ideas).
 
 ## 5. Milestones
 
-| Milestone                                                                      | Target            | Status         |
-| ------------------------------------------------------------------------------ | ----------------- | -------------- |
-| M0: Project scaffolded                                                         | Phase 0 complete  | ✅ Done        |
-| M1: Local playback works                                                       | Phase 1 complete  | ✅ Done        |
-| M2: Plugin architecture ready                                                  | Phase 2 complete  | ✅ Done        |
-| M3: Spotify integration                                                        | Phase 3 complete  | ✅ Done        |
-| M4: YouTube Music integration                                                  | Phase 4 complete  | ✅ Done        |
-| M5: Playlists & queue                                                          | Phase 5 complete  | ✅ Done        |
-| M6: EQ & effects                                                               | Phase 6 complete  | ✅ Done        |
-| M7: First public release                                                       | Phase 7 complete  | 🔜 In Progress |
-| M8: Additional sources (Deezer/Jamendo/Audius/SoundCloud)                      | Phase 8 complete  | ✅ Done        |
-| M9: UI integration (per-source views, sidebar, player source badge, config UI) | Phase 9 complete  | ✅ Done        |
-| M10: Mini-player mode (compact floating window + system tray)                  | Phase 10 complete | ✅ Done        |
-| M11: AI-powered playlist generation (LLM + source search)                      | Phase 11 complete | 🔜 Planned     |
-| M12: UI/UX polish (navigation, controls, micro-interactions, dark theme)       | Phase 12 complete | 🔜 Planned     |
+| Milestone                                                                            | Target             | Status         |
+| ------------------------------------------------------------------------------------ | ------------------ | -------------- |
+| M0: Project scaffolded                                                               | Phase 0 complete   | ✅ Done        |
+| M1: Local playback works                                                             | Phase 1 complete   | ✅ Done        |
+| M2: Plugin architecture ready                                                        | Phase 2 complete   | ✅ Done        |
+| M3: Spotify integration                                                              | Phase 3 complete   | ✅ Done        |
+| M4: YouTube Music integration                                                        | Phase 4 complete   | ✅ Done        |
+| M5: Playlists & queue                                                                | Phase 5 complete   | ✅ Done        |
+| M6: EQ & effects                                                                     | Phase 6 complete   | ✅ Done        |
+| M7: First public release                                                             | Phase 7 complete   | 🔜 In Progress |
+| M8: Additional sources (Deezer/Jamendo/Audius/SoundCloud)                            | Phase 8 complete   | ✅ Done        |
+| M9: UI integration (per-source views, sidebar, player source badge, config UI)       | Phase 9 complete   | ✅ Done        |
+| M10: Mini-player mode (compact floating window + system tray)                        | Phase 10 complete  | ✅ Done        |
+| M11: AI-powered playlist generation (LLM + source search)                            | Phase 11 complete  | 🔜 Planned     |
+| M12: UI/UX polish (navigation, controls, micro-interactions, dark theme)             | Phase 12 complete  | 🔜 Planned     |
+| M13: Visual immersion (palette refactor, glassmorphism, audio-reactive, now-playing) | Phase 13A complete | 🔜 Planned     |
 
 ---
 

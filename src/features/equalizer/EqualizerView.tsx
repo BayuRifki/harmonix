@@ -1,5 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useEqualizerStore } from '@/stores/equalizerStore';
+import { useToastStore } from '@/components/ui/toastStore';
+import { Modal } from '@/components/ui/Modal';
+import { Button } from '@/components/ui/Button';
+import { Skeleton } from '@/components/ui/Skeleton';
+import { Save } from 'lucide-react';
 import { EQ_BAND_FREQUENCIES, EQ_BAND_LABELS, EQ_MIN_GAIN, EQ_MAX_GAIN } from '@/lib/audio/presets';
 
 export function EqualizerView(): JSX.Element {
@@ -15,6 +20,7 @@ export function EqualizerView(): JSX.Element {
   const reset = useEqualizerStore((s) => s.reset);
   const saveCustom = useEqualizerStore((s) => s.saveCustom);
   const deleteCustom = useEqualizerStore((s) => s.deleteCustom);
+  const toast = useToastStore((s) => s.success);
 
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   const [newPresetName, setNewPresetName] = useState('');
@@ -36,7 +42,7 @@ export function EqualizerView(): JSX.Element {
     return (
       <div className="p-8">
         <h1 className="text-2xl font-bold text-white mb-2">Equalizer</h1>
-        <p className="text-zinc-500 text-sm">Loading…</p>
+        <Skeleton variant="text" lines={2} />
       </div>
     );
   }
@@ -47,6 +53,7 @@ export function EqualizerView(): JSX.Element {
     await saveCustom(trimmed);
     setNewPresetName('');
     setSaveDialogOpen(false);
+    toast(`Preset "${trimmed}" saved`);
   };
 
   return (
@@ -84,29 +91,24 @@ export function EqualizerView(): JSX.Element {
               </optgroup>
             )}
           </select>
-          <button
+          <Button
+            variant="primary"
+            size="sm"
             onClick={() => {
               setNewPresetName('');
               setSaveDialogOpen(true);
             }}
-            className="px-3 py-1.5 text-sm bg-brand-600 hover:bg-brand-500 text-white rounded"
           >
-            Save as…
-          </button>
+            <Save size={14} /> Save as…
+          </Button>
           {activePreset && custom.some((p) => p.name === activePreset) && (
-            <button
-              onClick={() => void deleteCustom(activePreset)}
-              className="px-3 py-1.5 text-sm bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded"
-            >
+            <Button variant="ghost" size="sm" onClick={() => void deleteCustom(activePreset)}>
               Delete custom
-            </button>
+            </Button>
           )}
-          <button
-            onClick={() => void reset()}
-            className="px-3 py-1.5 text-sm bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded"
-          >
+          <Button variant="ghost" size="sm" onClick={() => void reset()}>
             Flat
-          </button>
+          </Button>
         </div>
 
         <div className="flex justify-center gap-2 h-72">
@@ -178,40 +180,34 @@ export function EqualizerView(): JSX.Element {
         </p>
       </div>
 
-      {saveDialogOpen && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6 w-96">
-            <h2 className="text-lg font-semibold text-white mb-3">Save EQ preset</h2>
-            <input
-              type="text"
-              value={newPresetName}
-              onChange={(e) => setNewPresetName(e.target.value)}
-              placeholder="My preset"
-              autoFocus
-              className="w-full bg-zinc-800 border border-zinc-700 rounded px-3 py-2 text-sm text-white mb-4"
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') void handleSave();
-                if (e.key === 'Escape') setSaveDialogOpen(false);
-              }}
-            />
-            <div className="flex justify-end gap-2">
-              <button
-                onClick={() => setSaveDialogOpen(false)}
-                className="px-3 py-1.5 text-sm bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => void handleSave()}
-                disabled={!newPresetName.trim()}
-                className="px-3 py-1.5 text-sm bg-brand-600 hover:bg-brand-500 disabled:bg-zinc-700 disabled:text-zinc-500 text-white rounded"
-              >
-                Save
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <Modal
+        open={saveDialogOpen}
+        onClose={() => setSaveDialogOpen(false)}
+        title="Save EQ preset"
+        actions={
+          <>
+            <Button variant="ghost" onClick={() => setSaveDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              onClick={() => void handleSave()}
+              disabled={!newPresetName.trim()}
+            >
+              Save
+            </Button>
+          </>
+        }
+      >
+        <input
+          type="text"
+          value={newPresetName}
+          onChange={(e) => setNewPresetName(e.target.value)}
+          placeholder="My preset"
+          autoFocus
+          className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500/50 transition-colors"
+        />
+      </Modal>
     </div>
   );
 }

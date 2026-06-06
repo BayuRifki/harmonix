@@ -1,4 +1,5 @@
 import { audioEngine } from './engine';
+import { crossfadeTo } from './crossfade';
 import type { StreamInfo, Track } from '@shared/index';
 
 export async function playTrack(_track: Track, stream: StreamInfo): Promise<void> {
@@ -8,6 +9,6 @@ export async function playTrack(_track: Track, stream: StreamInfo): Promise<void
     );
     return;
   }
-  await audioEngine.load(stream.url);
+  await crossfadeTo(audioEngine.load(stream.url));
   await audioEngine.play();
 }

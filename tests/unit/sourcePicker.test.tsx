@@ -60,8 +60,9 @@ describe('SourcePicker', () => {
   it('shows loading state when fetching', async () => {
     installMockWindowApi();
     useSourcesStore.setState({ loading: true, registrations: [] });
-    render(<SourcePicker />);
-    expect(screen.getByText(/loading/i)).toBeInTheDocument();
+    const { container } = render(<SourcePicker />);
+    const skeletons = container.querySelectorAll('[aria-hidden="true"].animate-pulse');
+    expect(skeletons.length).toBeGreaterThan(0);
   });
 
   it('shows empty state when no sources registered', async () => {
@@ -136,7 +137,9 @@ describe('SourcePicker', () => {
 
   it('opens config dialog when gear clicked for configurable source', async () => {
     const getConfigMock = vi.fn().mockResolvedValue({ clientId: 'abc123' });
-    const saveConfigMock = vi.fn().mockResolvedValue({ id: 'soundcloud', settings: { clientId: 'new' } });
+    const saveConfigMock = vi
+      .fn()
+      .mockResolvedValue({ id: 'soundcloud', settings: { clientId: 'new' } });
     installMockWindowApi({
       sources: {
         getConfig: getConfigMock,

@@ -1,13 +1,23 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { Search, SearchCheck, Sparkles, Play, History } from 'lucide-react';
 import { useSourcesStore } from '@/stores/sourcesStore';
 import { usePlayerStore } from '@/stores/playerStore';
+import { useSearchHistoryStore } from '@/stores/searchHistoryStore';
+import { Skeleton } from '@/components/ui/Skeleton';
 import type { Track, SourceSearchResult } from '@/types/global';
 
 type GroupedResults = SourceSearchResult & { sourceName: string };
 
 function getArtistNames(track: Track): string {
   return track.artists.map((a) => a.name).join(', ') || 'Unknown';
+}
+
+function formatDuration(ms: number): string {
+  if (!ms) return '0:00';
+  const s = Math.floor(ms / 1000);
+  const m = Math.floor(s / 60);
+  return `${m}:${(s % 60).toString().padStart(2, '0')}`;
 }
 
 export function SearchView(): JSX.Element {
@@ -19,6 +29,9 @@ export function SearchView(): JSX.Element {
   const [searching, setSearching] = useState(false);
   const [activeSourceIds, setActiveSourceIds] = useState<string[]>([]);
   const playQueue = usePlayerStore((s) => s.setQueue);
+  const recent = useSearchHistoryStore((s) => s.queries);
+  const addRecent = useSearchHistoryStore((s) => s.add);
+  const clearRecent = useSearchHistoryStore((s) => s.clear);
   const [searchParams, setSearchParams] = useSearchParams();
   const sourceParam = searchParams.get('source');
 
@@ -35,24 +48,25 @@ export function SearchView(): JSX.Element {
     }
   }, [registrations, activeSourceIds.length, sourceParam]);
 
-  const enabledSources = useMemo(
-    () => registrations.filter((r) => r.enabled),
-    [registrations],
-  );
+  const enabledSources = useMemo(() => registrations.filter((r) => r.enabled), [registrations]);
 
   useEffect(() => {
-    if (!query.trim()) {
+    const q = query.trim();
+    if (!q) {
       setResults([]);
       return;
     }
     let cancelled = false;
     setSearching(true);
-    const handle = setTimeout(async () => {
+    const saveHandle = window.setTimeout(() => {
+      addRecent(q);
+    }, 1500);
+    const handle = window.setTimeout(async () => {
       const sourceIds = activeSourceIds.length > 0 ? activeSourceIds : undefined;
       try {
-        const r = await search(query, { limit: 25 }, sourceIds);
+        const r = await search(q, { limit: 25 }, sourceIds);
         if (!cancelled) {
-          const regMap = new Map(registrations.map((r) => [r.id, r.name]));
+          const regMap = new Map(registrations.map((rr) => [rr.id, rr.name]));
           const grouped: GroupedResults[] = r.map((sr) => ({
             ...sr,
             sourceName: regMap.get(sr.sourceId) ?? sr.sourceId,
@@ -65,9 +79,10 @@ export function SearchView(): JSX.Element {
     }, 250);
     return () => {
       cancelled = true;
-      clearTimeout(handle);
+      window.clearTimeout(handle);
+      window.clearTimeout(saveHandle);
     };
-  }, [query, activeSourceIds, search, registrations]);
+  }, [query, activeSourceIds, search, registrations, addRecent]);
 
   const toggleSource = (id: string): void => {
     setActiveSourceIds((prev) => {
@@ -84,32 +99,47 @@ export function SearchView(): JSX.Element {
 
   const totalTracks = results.reduce((sum, r) => sum + r.result.tracks.length, 0);
 
+  const topTrack = useMemo(() => {
+    for (const g of results) {
+      if (g.result.tracks.length > 0) return g.result.tracks[0];
+    }
+    return null;
+  }, [results]);
+  const topTrackGroup = useMemo(() => {
+    if (!topTrack) return null;
+    return results.find((g) => g.result.tracks[0]?.id === topTrack.id) ?? null;
+  }, [results, topTrack]);
+
   return (
     <div className="p-8 max-w-4xl">
       <h1 className="text-2xl font-bold text-white mb-2">Search</h1>
-      <p className="text-zinc-400 mb-4 text-sm">
-        Search across all enabled music sources at once.
-      </p>
+      <p className="text-zinc-400 mb-4 text-sm">Search across all enabled music sources at once.</p>
 
-      <input
-        type="search"
-        placeholder="Search for tracks, artists, albums…"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        className="w-full bg-zinc-900 border border-zinc-800 rounded px-4 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-brand-500"
-        autoFocus
-      />
+      <div className="relative mb-6">
+        <Search
+          size={18}
+          className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 pointer-events-none"
+        />
+        <input
+          type="search"
+          placeholder="Search for tracks, artists, albums…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          className="w-full bg-zinc-900 border border-zinc-800 rounded-lg pl-10 pr-4 py-3 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500/50 transition-all"
+          autoFocus
+        />
+      </div>
 
       {enabledSources.length > 1 && (
-        <div className="flex flex-wrap gap-2 mt-3">
+        <div className="flex flex-wrap gap-2 mb-4">
           {enabledSources.map((s) => (
             <button
               key={s.id}
               type="button"
               onClick={() => toggleSource(s.id)}
-              className={`px-2.5 py-1 text-xs rounded-full border transition ${
+              className={`px-3 py-1.5 text-xs rounded-full border transition-all duration-150 active:scale-[0.95] ${
                 activeSourceIds.includes(s.id)
-                  ? 'bg-brand-500 border-brand-500 text-white'
+                  ? 'bg-brand-500/20 border-brand-500/60 text-brand-300'
                   : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:border-zinc-700'
               }`}
             >
@@ -119,24 +149,91 @@ export function SearchView(): JSX.Element {
         </div>
       )}
 
-      <div className="mt-4">
+      <div className="mt-2">
         {query.trim() === '' ? (
-          <div className="text-zinc-500 text-sm py-8 text-center border border-dashed border-zinc-800 rounded">
-            Start typing to search across {enabledSources.length} source{enabledSources.length === 1 ? '' : 's'}.
+          <div className="space-y-4">
+            {recent.length > 0 && (
+              <div className="animate-fade-in">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-xs uppercase tracking-wider text-zinc-500 font-medium inline-flex items-center gap-1.5">
+                    <History size={14} /> Recent searches
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={clearRecent}
+                    className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+                  >
+                    Clear
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {recent.map((q) => (
+                    <button
+                      key={q}
+                      type="button"
+                      onClick={() => setQuery(q)}
+                      className="group flex items-center gap-1.5 px-3 py-1.5 bg-zinc-900/60 border border-zinc-800 rounded-full text-xs text-zinc-300 hover:border-brand-500/50 hover:text-white transition-all active:scale-95"
+                    >
+                      <Search size={12} className="opacity-50" />
+                      {q}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div className="text-zinc-400 text-sm py-12 text-center border border-dashed border-zinc-700 rounded-xl animate-fade-in">
+              <Sparkles size={24} className="mx-auto mb-3 opacity-50" />
+              <p>
+                Start typing to search across {enabledSources.length} source
+                {enabledSources.length === 1 ? '' : 's'}.
+              </p>
+            </div>
           </div>
         ) : searching ? (
-          <div className="text-zinc-500 text-sm py-8 text-center">Searching…</div>
+          <div className="space-y-2">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} variant="rect" className="h-10 w-full rounded-lg" />
+            ))}
+          </div>
         ) : totalTracks === 0 ? (
-          <div className="text-zinc-500 text-sm py-8 text-center border border-dashed border-zinc-800 rounded">
-            No results for &quot;{query}&quot;.
+          <div className="text-zinc-400 text-sm py-12 text-center border border-dashed border-zinc-700 rounded-xl animate-fade-in">
+            <SearchCheck size={24} className="mx-auto mb-3 opacity-50" />
+            <p>No results for &quot;{query}&quot;.</p>
           </div>
         ) : (
           <div className="space-y-6">
+            {topTrack && topTrackGroup && (
+              <button
+                type="button"
+                onClick={() => void playQueue(topTrackGroup.result.tracks, 0)}
+                className="w-full flex items-center gap-4 p-4 rounded-2xl bg-gradient-to-br from-brand-900/30 to-accent-900/20 border border-brand-500/30 hover:border-brand-400/60 transition-all duration-200 active:scale-[0.99] text-left"
+              >
+                <div className="w-16 h-16 rounded-xl bg-zinc-800/60 overflow-hidden flex items-center justify-center text-zinc-600 shrink-0">
+                  {topTrack.artworkUrl ? (
+                    <img src={topTrack.artworkUrl} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <Play size={20} />
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] uppercase tracking-wider text-brand-300 font-medium">
+                    Top result · {topTrackGroup.sourceName}
+                  </p>
+                  <p className="text-base font-semibold text-white truncate mt-0.5">
+                    {topTrack.title}
+                  </p>
+                  <p className="text-xs text-zinc-400 truncate">
+                    {topTrack.artists.map((a) => a.name).join(', ')}
+                  </p>
+                </div>
+                <Play size={20} className="text-brand-300 shrink-0 mr-2" />
+              </button>
+            )}
             {results
               .filter((r) => r.result.tracks.length > 0)
               .map((group) => (
                 <section key={group.sourceId}>
-                  <h2 className="text-xs uppercase tracking-wide text-zinc-500 mb-2 flex items-center gap-2">
+                  <h2 className="text-xs uppercase tracking-wide text-zinc-400 mb-2 flex items-center gap-2">
                     <span>{group.sourceName}</span>
                     <span className="text-zinc-700">·</span>
                     <span>{group.result.tracks.length} tracks</span>
@@ -148,13 +245,10 @@ export function SearchView(): JSX.Element {
                         onDoubleClick={() =>
                           void playQueue(group.result.tracks, group.result.tracks.indexOf(track))
                         }
-                        className="flex items-center gap-3 px-3 py-2 rounded hover:bg-zinc-900 cursor-pointer"
+                        className="group flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-zinc-900 cursor-pointer transition-colors"
                       >
                         <span className="text-zinc-500 text-xs w-8 text-right tabular-nums">
-                          {Math.floor(track.durationMs / 60000)}:
-                          {Math.floor((track.durationMs % 60000) / 1000)
-                            .toString()
-                            .padStart(2, '0')}
+                          {formatDuration(track.durationMs)}
                         </span>
                         <div className="min-w-0 flex-1">
                           <p className="text-sm text-zinc-100 truncate">{track.title}</p>
@@ -163,9 +257,19 @@ export function SearchView(): JSX.Element {
                             {track.album && ` · ${track.album.title}`}
                           </p>
                         </div>
-                        <code className="text-[10px] text-zinc-600 bg-zinc-900 px-1.5 py-0.5 rounded">
+                        <code className="text-[10px] text-zinc-500 bg-zinc-800 px-1.5 py-0.5 rounded">
                           {track.source}
                         </code>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            void playQueue(group.result.tracks, group.result.tracks.indexOf(track))
+                          }
+                          className="opacity-0 group-hover:opacity-100 p-1.5 rounded-full hover:bg-brand-500/20 text-zinc-400 hover:text-brand-400 transition-all active:scale-95"
+                          aria-label="Play track"
+                        >
+                          <Play size={14} />
+                        </button>
                       </li>
                     ))}
                   </ul>

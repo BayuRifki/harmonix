@@ -3,6 +3,7 @@ import { useLibraryStore } from '@/stores/libraryStore';
 import { usePlayerStore } from '@/stores/playerStore';
 import { useSourcesStore } from '@/stores/sourcesStore';
 import type { Track, AlbumSummary, ArtistSummary } from '@/types/global';
+import { Skeleton } from '@/components/ui/Skeleton';
 import { TrackList } from './TrackList';
 import { AlbumGrid } from './AlbumGrid';
 import { ArtistList } from './ArtistList';
@@ -63,16 +64,22 @@ export function LibraryView(): JSX.Element {
   const filteredAlbums: AlbumSummary[] = sourceFilter
     ? albums.filter((a) => {
         const sample = tracks.find(
-          (t) => t.album?.title === a.title && (t.album?.artists?.[0]?.name ?? t.artists[0]?.name) === a.artist,
+          (t) =>
+            t.album?.title === a.title &&
+            (t.album?.artists?.[0]?.name ?? t.artists[0]?.name) === a.artist,
         );
         return sample?.source === sourceFilter;
       })
     : q
-      ? albums.filter((a) => a.title.toLowerCase().includes(q) || a.artist.toLowerCase().includes(q))
+      ? albums.filter(
+          (a) => a.title.toLowerCase().includes(q) || a.artist.toLowerCase().includes(q),
+        )
       : albums;
   const filteredArtists: ArtistSummary[] = sourceFilter
     ? artists.filter((a) => {
-        const sample = tracks.find((t) => (t.album?.artists?.[0]?.name ?? t.artists[0]?.name) === a.name);
+        const sample = tracks.find(
+          (t) => (t.album?.artists?.[0]?.name ?? t.artists[0]?.name) === a.name,
+        );
         return sample?.source === sourceFilter;
       })
     : q
@@ -151,7 +158,11 @@ export function LibraryView(): JSX.Element {
       </div>
 
       {loading ? (
-        <div className="text-zinc-500 text-sm py-8 text-center">Loading…</div>
+        <div className="space-y-2 py-4">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Skeleton key={i} variant="rect" className="h-10 w-full" />
+          ))}
+        </div>
       ) : activeTab === 'tracks' ? (
         <TrackList
           tracks={filteredTracks}

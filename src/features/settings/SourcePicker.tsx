@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSourcesStore } from '@/stores/sourcesStore';
+import { Skeleton } from '@/components/ui/Skeleton';
 import type { SourceRegistration } from '@/types/global';
 
 interface ConfigField {
@@ -16,7 +17,12 @@ const SOURCE_CONFIG_FIELDS: Record<string, ConfigField[]> = {
   ],
   deezer: [],
   jamendo: [
-    { key: 'clientId', label: 'Client ID', type: 'text', placeholder: 'Defaults to public test id' },
+    {
+      key: 'clientId',
+      label: 'Client ID',
+      type: 'text',
+      placeholder: 'Defaults to public test id',
+    },
   ],
   audius: [
     { key: 'host', label: 'Discovery Node', type: 'text', placeholder: 'https://audius.co' },
@@ -37,7 +43,12 @@ interface SourceConfigDialogProps {
   getConfig: (id: string) => Promise<Record<string, unknown>>;
 }
 
-function SourceConfigDialog({ source, onClose, onSave, getConfig }: SourceConfigDialogProps): JSX.Element {
+function SourceConfigDialog({
+  source,
+  onClose,
+  onSave,
+  getConfig,
+}: SourceConfigDialogProps): JSX.Element {
   const fields = useMemo(() => SOURCE_CONFIG_FIELDS[source.id] ?? [], [source.id]);
   const [values, setValues] = useState<Record<string, string>>({});
   const [loaded, setLoaded] = useState(false);
@@ -97,7 +108,10 @@ function SourceConfigDialog({ source, onClose, onSave, getConfig }: SourceConfig
         {fields.length === 0 ? (
           <p className="text-sm text-zinc-500">This source has no configurable options.</p>
         ) : !loaded ? (
-          <p className="text-sm text-zinc-500">Loading existing settings…</p>
+          <div className="space-y-2">
+            <Skeleton variant="rect" className="h-8 w-full rounded" />
+            <Skeleton variant="rect" className="h-8 w-full rounded" />
+          </div>
         ) : (
           <div className="space-y-3">
             {fields.map((f) => (
@@ -239,7 +253,11 @@ export function SourcePicker(): JSX.Element {
         </button>
       </div>
       {loading && registrations.length === 0 ? (
-        <p className="text-xs text-zinc-500">Loading…</p>
+        <div className="space-y-2">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} variant="rect" className="h-12 w-full rounded-lg" />
+          ))}
+        </div>
       ) : registrations.length === 0 ? (
         <p className="text-xs text-zinc-500">No sources registered.</p>
       ) : (

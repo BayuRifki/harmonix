@@ -1,5 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { usePlaylistsStore } from '@/stores/playlistsStore';
+import { useToastStore } from '@/components/ui/toastStore';
+import { Modal } from '@/components/ui/Modal';
+import { Button } from '@/components/ui/Button';
+import { Skeleton } from '@/components/ui/Skeleton';
 import { PlaylistDetailView } from './PlaylistDetailView';
 import type { PlaylistSummary } from '@/types/global';
 
@@ -15,6 +19,7 @@ function CreatePlaylistForm({ onCreate }: CreateFormProps): JSX.Element {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
+  const toast = useToastStore((s) => s.success);
 
   const submit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
@@ -24,6 +29,7 @@ function CreatePlaylistForm({ onCreate }: CreateFormProps): JSX.Element {
       await onCreate(name.trim());
       setName('');
       setOpen(false);
+      toast(`Playlist "${name.trim()}" created`);
     } finally {
       setBusy(false);
     }
@@ -34,7 +40,7 @@ function CreatePlaylistForm({ onCreate }: CreateFormProps): JSX.Element {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="px-4 py-2 bg-brand-500 hover:bg-brand-600 text-white text-sm font-medium rounded"
+        className="px-4 py-2 bg-brand-500 hover:bg-brand-600 text-white text-sm font-medium rounded-lg transition-all duration-150 active:scale-[0.98]"
       >
         + New Playlist
       </button>
@@ -49,23 +55,19 @@ function CreatePlaylistForm({ onCreate }: CreateFormProps): JSX.Element {
         placeholder="Playlist name…"
         value={name}
         onChange={(e) => setName(e.target.value)}
-        className="flex-1 bg-zinc-900 border border-zinc-800 rounded px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-brand-500"
+        className="flex-1 bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500/50 transition-colors"
         maxLength={100}
       />
-      <button
-        type="submit"
-        disabled={busy || !name.trim()}
-        className="px-4 py-2 bg-brand-500 hover:bg-brand-600 text-white text-sm font-medium rounded disabled:opacity-50"
-      >
+      <Button type="submit" variant="primary" size="sm" disabled={busy || !name.trim()}>
         {busy ? '…' : 'Create'}
-      </button>
+      </Button>
       <button
         type="button"
         onClick={() => {
           setOpen(false);
           setName('');
         }}
-        className="px-3 py-2 text-zinc-400 hover:text-zinc-200 text-sm"
+        className="px-3 py-2 text-zinc-400 hover:text-zinc-200 text-sm transition-colors"
       >
         Cancel
       </button>
@@ -80,32 +82,64 @@ interface PlaylistRowProps {
 }
 
 function PlaylistRow({ playlist, onOpen, onDelete }: PlaylistRowProps): JSX.Element {
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const toast = useToastStore((s) => s.success);
+
+  const handleDelete = useCallback(async () => {
+    setDeleting(true);
+    try {
+      await onDelete(playlist.id);
+      toast(`Playlist "${playlist.name}" deleted`);
+    } finally {
+      setDeleting(false);
+      setConfirmDelete(false);
+    }
+  }, [onDelete, playlist.id, playlist.name, toast]);
+
   return (
-    <div className="flex items-center justify-between gap-3 p-3 bg-zinc-900 border border-zinc-800 rounded hover:bg-zinc-800/50 transition">
-      <button
-        type="button"
-        onClick={() => onOpen(playlist.id)}
-        className="flex-1 min-w-0 text-left"
-      >
-        <p className="text-sm font-medium text-white truncate">{playlist.name}</p>
-        <p className="text-xs text-zinc-500 mt-0.5">
-          {playlist.trackCount} {playlist.trackCount === 1 ? 'track' : 'tracks'} ·{' '}
-          Updated {formatDate(playlist.updated_at)}
-        </p>
-      </button>
-      <button
-        type="button"
-        onClick={() => {
-          if (confirm(`Delete playlist "${playlist.name}"?`)) {
-            void onDelete(playlist.id);
-          }
+    <>
+      <div className="flex items-center justify-between gap-3 p-3 bg-zinc-900 border border-zinc-800 rounded-lg hover:bg-zinc-800/50 transition-all duration-150 group">
+        <button
+          type="button"
+          onClick={() => onOpen(playlist.id)}
+          className="flex-1 min-w-0 text-left"
+        >
+          <p className="text-sm font-medium text-white truncate">{playlist.name}</p>
+          <p className="text-xs text-zinc-400 mt-0.5">
+            {playlist.trackCount} {playlist.trackCount === 1 ? 'track' : 'tracks'} · Updated{' '}
+            {formatDate(playlist.updated_at)}
+          </p>
+        </button>
+        <button
+          type="button"
+          onClick={() => setConfirmDelete(true)}
+          className="text-zinc-500 hover:text-red-400 text-sm px-2 opacity-0 group-hover:opacity-100 transition-opacity"
+          title="Delete playlist"
+        >
+          ✕
+        </button>
+      </div>
+
+      <Modal
+        open={confirmDelete}
+        onClose={() => {
+          if (!deleting) setConfirmDelete(false);
         }}
-        className="text-zinc-500 hover:text-red-400 text-sm px-2"
         title="Delete playlist"
-      >
-        ✕
-      </button>
-    </div>
+        description={`Are you sure you want to delete "${playlist.name}"? This cannot be undone.`}
+        actions={
+          <>
+            <Button variant="ghost" onClick={() => setConfirmDelete(false)} disabled={deleting}>
+              Cancel
+            </Button>
+            <Button variant="danger" onClick={() => void handleDelete()} disabled={deleting}>
+              {deleting ? 'Deleting…' : 'Delete'}
+            </Button>
+          </>
+        }
+      />
+    </>
   );
 }
 
@@ -142,9 +176,13 @@ export function PlaylistsView({ selectedId, onSelect }: PlaylistsViewProps): JSX
       </header>
 
       {loading && playlists.length === 0 ? (
-        <div className="text-zinc-500 text-sm py-8 text-center">Loading…</div>
+        <div className="space-y-2">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} variant="rect" className="h-14 w-full rounded-lg" />
+          ))}
+        </div>
       ) : playlists.length === 0 ? (
-        <div className="text-zinc-500 text-sm py-12 text-center border border-dashed border-zinc-800 rounded">
+        <div className="text-zinc-400 text-sm py-12 text-center border border-dashed border-zinc-700 rounded-xl animate-fade-in">
           No playlists yet. Create one to get started.
         </div>
       ) : (
@@ -154,7 +192,9 @@ export function PlaylistsView({ selectedId, onSelect }: PlaylistsViewProps): JSX
               key={p.id}
               playlist={p}
               onOpen={onSelect}
-              onDelete={(id) => remove(id)}
+              onDelete={async (id) => {
+                await remove(id);
+              }}
             />
           ))}
         </div>

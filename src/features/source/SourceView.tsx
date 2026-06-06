@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate, NavLink } from 'react-router-dom';
 import { useSourcesStore } from '@/stores/sourcesStore';
 import { usePlayerStore } from '@/stores/playerStore';
+import { Skeleton } from '@/components/ui/Skeleton';
 import type { Playlist, Track, SourceRegistration } from '@/types/global';
 
 interface SourceMeta {
@@ -24,7 +25,8 @@ const SOURCE_META: Record<string, SourceMeta> = {
   },
   spotify: {
     description: 'Official Spotify integration. Requires sign-in.',
-    searchHint: 'Search the full Spotify catalog. Sign in to access your playlists and liked tracks.',
+    searchHint:
+      'Search the full Spotify catalog. Sign in to access your playlists and liked tracks.',
     emoji: '🟢',
   },
   ytmusic: {
@@ -33,7 +35,8 @@ const SOURCE_META: Record<string, SourceMeta> = {
     emoji: '▶️',
   },
   deezer: {
-    description: 'Public Deezer catalog. 30-second MP3 previews only — full playback requires a Premium account.',
+    description:
+      'Public Deezer catalog. 30-second MP3 previews only — full playback requires a Premium account.',
     searchHint: 'Search Deezer for tracks, albums, and artists.',
     emoji: '🎧',
   },
@@ -157,7 +160,9 @@ export function SourceView(): JSX.Element {
             {meta.emoji}
           </span>
           <h1 className="text-3xl font-bold text-white">{source.name}</h1>
-          <code className="text-xs text-zinc-500 bg-zinc-800 px-1.5 py-0.5 rounded">{source.id}</code>
+          <code className="text-xs text-zinc-500 bg-zinc-800 px-1.5 py-0.5 rounded">
+            {source.id}
+          </code>
           {source.authenticated && (
             <span className="text-xs text-green-400" title="Authenticated">
               ✓ signed in
@@ -197,7 +202,9 @@ export function SourceView(): JSX.Element {
             className="p-4 bg-zinc-900 border border-zinc-800 rounded-lg text-left hover:border-brand-500 transition"
           >
             <p className="text-sm font-medium text-white">📚 Manage library folders</p>
-            <p className="text-xs text-zinc-500 mt-1">Add, remove, and rescan local music folders.</p>
+            <p className="text-xs text-zinc-500 mt-1">
+              Add, remove, and rescan local music folders.
+            </p>
           </button>
         )}
       </section>
@@ -206,7 +213,11 @@ export function SourceView(): JSX.Element {
         <section className="mb-6">
           <h2 className="text-lg font-semibold text-white mb-3">Liked Tracks</h2>
           {loadingLiked ? (
-            <p className="text-xs text-zinc-500">Loading…</p>
+            <div className="space-y-2">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <Skeleton key={i} variant="rect" className="h-10 w-full rounded-lg" />
+              ))}
+            </div>
           ) : liked && liked.length > 0 ? (
             <>
               <button
@@ -250,7 +261,11 @@ export function SourceView(): JSX.Element {
         <section className="mb-6">
           <h2 className="text-lg font-semibold text-white mb-3">Your Playlists</h2>
           {loadingPlaylists ? (
-            <p className="text-xs text-zinc-500">Loading…</p>
+            <div className="space-y-2">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <Skeleton key={i} variant="rect" className="h-12 w-full rounded-lg" />
+              ))}
+            </div>
           ) : playlists && playlists.length > 0 ? (
             <ul className="space-y-1">
               {playlists.map((pl) => (
@@ -265,7 +280,9 @@ export function SourceView(): JSX.Element {
             </ul>
           ) : (
             <p className="text-xs text-zinc-500">
-              {source.id === 'local' ? 'No playlists available.' : 'No playlists available for this account.'}
+              {source.id === 'local'
+                ? 'No playlists available.'
+                : 'No playlists available for this account.'}
             </p>
           )}
         </section>
@@ -297,7 +314,12 @@ interface PlaylistRowProps {
   canPlay: boolean;
 }
 
-function PlaylistRow({ playlist, sourceId, loadPlaylistTracks, canPlay }: PlaylistRowProps): JSX.Element {
+function PlaylistRow({
+  playlist,
+  sourceId,
+  loadPlaylistTracks,
+  canPlay,
+}: PlaylistRowProps): JSX.Element {
   const [expanded, setExpanded] = useState(false);
   const [tracks, setTracks] = useState<Track[] | null>(null);
   const [loading, setLoading] = useState(false);
@@ -364,7 +386,11 @@ function PlaylistRow({ playlist, sourceId, loadPlaylistTracks, canPlay }: Playli
       {expanded && (
         <div className="border-t border-zinc-800 px-3 py-2">
           {loading ? (
-            <p className="text-xs text-zinc-500 py-2">Loading tracks…</p>
+            <div className="space-y-1 py-1">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <Skeleton key={i} variant="rect" className="h-6 w-full rounded" />
+              ))}
+            </div>
           ) : tracks && tracks.length > 0 ? (
             <ul className="space-y-1 max-h-72 overflow-y-auto">
               {tracks.slice(0, 50).map((t) => (
@@ -382,7 +408,9 @@ function PlaylistRow({ playlist, sourceId, loadPlaylistTracks, canPlay }: Playli
                 </li>
               ))}
               {tracks.length > 50 && (
-                <li className="text-xs text-zinc-600 px-2 py-1">+ {tracks.length - 50} more tracks</li>
+                <li className="text-xs text-zinc-600 px-2 py-1">
+                  + {tracks.length - 50} more tracks
+                </li>
               )}
             </ul>
           ) : (

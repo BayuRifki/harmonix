@@ -1,17 +1,33 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { usePlayerStore } from '@/stores/playerStore';
 import { useSourcesStore } from '@/stores/sourcesStore';
 import { QueuePanel } from '@/features/player/QueuePanel';
+import {
+  Shuffle,
+  SkipBack,
+  Play,
+  Pause,
+  SkipForward,
+  Repeat,
+  ListMusic,
+  LayoutGrid,
+  Maximize2,
+  Volume1,
+  Volume2,
+  VolumeX,
+  Music,
+} from 'lucide-react';
 
 const SOURCE_BADGE_COLORS: Record<string, string> = {
-  local: 'bg-blue-900/60 text-blue-200 border-blue-800',
-  demo: 'bg-zinc-800 text-zinc-300 border-zinc-700',
-  spotify: 'bg-green-900/60 text-green-200 border-green-800',
-  ytmusic: 'bg-red-900/60 text-red-200 border-red-800',
-  deezer: 'bg-purple-900/60 text-purple-200 border-purple-800',
-  jamendo: 'bg-amber-900/60 text-amber-200 border-amber-800',
-  audius: 'bg-pink-900/60 text-pink-200 border-pink-800',
-  soundcloud: 'bg-orange-900/60 text-orange-200 border-orange-800',
+  local: 'bg-blue-500/20 text-blue-300 border-blue-500/40',
+  demo: 'bg-zinc-700/40 text-zinc-300 border-zinc-600/50',
+  spotify: 'bg-green-500/20 text-green-300 border-green-500/40',
+  ytmusic: 'bg-red-500/20 text-red-300 border-red-500/40',
+  deezer: 'bg-purple-500/20 text-purple-300 border-purple-500/40',
+  jamendo: 'bg-amber-500/20 text-amber-300 border-amber-500/40',
+  audius: 'bg-pink-500/20 text-pink-300 border-pink-500/40',
+  soundcloud: 'bg-orange-500/20 text-orange-300 border-orange-500/40',
 };
 
 function formatTime(ms: number): string {
@@ -22,15 +38,13 @@ function formatTime(ms: number): string {
 }
 
 function sourceColor(source: string): string {
-  return SOURCE_BADGE_COLORS[source] ?? 'bg-zinc-800 text-zinc-300 border-zinc-700';
+  return SOURCE_BADGE_COLORS[source] ?? 'bg-zinc-700/40 text-zinc-300 border-zinc-600/50';
 }
 
 function sourceLabel(source: string): string {
   if (source.startsWith('local:')) return 'local';
   return source;
 }
-
-const INPUT_ACCENT_STYLE: React.CSSProperties = { accentColor: 'var(--accent)' };
 
 interface ArtworkProps {
   url: string;
@@ -39,7 +53,7 @@ interface ArtworkProps {
 
 function Artwork({ url, alt }: ArtworkProps): JSX.Element {
   const [failed, setFailed] = useState(false);
-  const handleRef = useRef<HTMLDivElement>(null);
+  const [hovered, setHovered] = useState(false);
 
   useEffect(() => {
     setFailed(false);
@@ -48,32 +62,45 @@ function Artwork({ url, alt }: ArtworkProps): JSX.Element {
   if (failed) {
     return (
       <div
-        ref={handleRef}
-        className="w-12 h-12 bg-zinc-900 rounded shrink-0 flex items-center justify-center text-zinc-700"
+        className="w-12 h-12 bg-zinc-800/80 rounded-lg shrink-0 flex items-center justify-center text-zinc-600"
         aria-label={alt}
       >
-        <span className="text-lg" aria-hidden>
-          ♪
-        </span>
+        <Music size={20} />
       </div>
     );
   }
 
   return (
-    <div className="w-12 h-12 bg-zinc-900 rounded shrink-0 overflow-hidden">
+    <div
+      className="w-12 h-12 rounded-lg shrink-0 overflow-hidden relative group cursor-pointer"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
       <img
         src={url}
         alt={alt}
-        className="w-full h-full object-cover animate-track-in"
-        onError={(): void => setFailed(true)}
+        className="w-full h-full object-cover animate-fade-in"
+        onError={() => setFailed(true)}
         draggable={false}
       />
+      {hovered && (
+        <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center animate-scale-in">
+          <Play size={16} className="text-white fill-white" />
+        </div>
+      )}
     </div>
   );
 }
 
+function VolumeIcon({ volume }: { volume: number }): JSX.Element {
+  if (volume === 0) return <VolumeX size={16} />;
+  if (volume < 0.5) return <Volume1 size={16} />;
+  return <Volume2 size={16} />;
+}
+
 export function PlayerBar(): JSX.Element {
   const [queueOpen, setQueueOpen] = useState(false);
+  const navigate = useNavigate();
   const currentTrack = usePlayerStore((s) => s.currentTrack);
   const isPlaying = usePlayerStore((s) => s.isPlaying);
   const loading = usePlayerStore((s) => s.loading);
@@ -105,129 +132,155 @@ export function PlayerBar(): JSX.Element {
   const trackKey = currentTrack?.id ?? 'empty';
 
   return (
-    <footer className="h-20 border-t border-zinc-800 bg-black flex items-center px-4 gap-4">
+    <footer className="h-20 border-t border-zinc-800 bg-zinc-950 flex items-center px-4 gap-4">
+      {/* Left: Track info */}
       <div className="flex items-center gap-3 w-1/3 min-w-0">
         {artworkUrl ? (
           <Artwork key={artworkUrl} url={artworkUrl} alt={currentTrack?.title ?? ''} />
         ) : (
           <div
-            className="w-12 h-12 bg-zinc-900 rounded shrink-0 flex items-center justify-center text-zinc-700"
+            className="w-12 h-12 bg-zinc-800/80 rounded-lg shrink-0 flex items-center justify-center text-zinc-600"
             aria-label="No artwork"
           >
-            <span className="text-lg" aria-hidden>
-              ♪
-            </span>
+            <Music size={20} />
           </div>
         )}
         <div key={trackKey} className="min-w-0 flex-1">
-          <p className="text-sm text-zinc-100 truncate animate-track-in">
+          <p className="text-sm text-zinc-100 truncate animate-fade-in">
             {currentTrack?.title ?? 'No track playing'}
           </p>
-          <p className="text-xs text-zinc-500 truncate animate-track-in">
+          <p className="text-xs text-zinc-400 truncate animate-fade-in">
             {currentTrack
               ? currentTrack.artists.map((a) => a.name).join(', ') || 'Unknown artist'
               : 'Select a track to begin'}
           </p>
         </div>
         {currentTrack && (
-          <code
-            className={`text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded border shrink-0 ${sourceColor(sourceLabel(currentTrack.source))}`}
+          <span
+            className={`text-[10px] uppercase tracking-wide px-2 py-0.5 rounded-md border font-medium shadow-sm ${sourceColor(
+              sourceLabel(currentTrack.source),
+            )}`}
             title={`Source: ${sourceName}`}
           >
             {sourceLabel(currentTrack.source)}
-          </code>
+          </span>
         )}
       </div>
 
-      <div className="flex flex-col items-center gap-1 w-1/3">
-        <div className="flex items-center gap-2">
+      {/* Center: Transport controls + seek */}
+      <div className="flex flex-col items-center gap-2 w-1/3">
+        <div className="flex items-center gap-0.5">
           <button
             type="button"
             onClick={toggleShuffle}
-            className={`p-1.5 rounded hover:bg-zinc-800 text-sm ${shuffle ? 'text-accent' : 'text-zinc-400'}`}
+            className={`p-2 rounded-lg transition-all duration-100 active:scale-95 ${
+              shuffle
+                ? 'text-brand-400 bg-brand-500/10'
+                : 'text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/60'
+            }`}
             aria-label="Toggle shuffle"
             aria-pressed={shuffle}
-            title="Shuffle"
+            title={`Shuffle ${shuffle ? '(on)' : '(off)'}`}
           >
-            ⇄
+            <Shuffle size={16} />
           </button>
           <button
             type="button"
             onClick={() => void previous()}
             disabled={!hasTrack}
-            className="p-1.5 rounded hover:bg-zinc-800 text-zinc-300 disabled:opacity-40"
+            className="p-2 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800/60 disabled:opacity-40 transition-all duration-100 active:scale-95"
             aria-label="Previous track"
             title="Previous"
           >
-            ⏮
+            <SkipBack size={18} />
           </button>
           <button
             type="button"
             onClick={() => (isPlaying ? pause() : void resume())}
             disabled={!hasTrack || loading}
-            className="w-9 h-9 rounded-full bg-white text-black flex items-center justify-center transition motion-reduce:transition-none hover:scale-105 motion-reduce:hover:scale-100 active:scale-95 motion-reduce:active:scale-100 disabled:opacity-40"
+            className="mx-1 w-10 h-10 rounded-full bg-zinc-100 text-zinc-900 flex items-center justify-center transition-all duration-150 hover:bg-white hover:scale-105 active:scale-95 disabled:opacity-40 shadow-glow-sm"
             aria-label={isPlaying ? 'Pause' : 'Play'}
             title={isPlaying ? 'Pause (Space)' : 'Play (Space)'}
           >
             {loading ? (
-              <span className="animate-pulse-soft" aria-hidden>
-                …
+              <span className="animate-spin-slow" aria-hidden>
+                <Music size={18} className="opacity-50" />
               </span>
             ) : isPlaying ? (
-              <span aria-hidden>⏸</span>
+              <Pause size={18} />
             ) : (
-              <span aria-hidden>▶</span>
+              <Play size={18} className="ml-0.5" />
             )}
           </button>
           <button
             type="button"
             onClick={() => void next()}
             disabled={!hasTrack}
-            className="p-1.5 rounded hover:bg-zinc-800 text-zinc-300 disabled:opacity-40"
+            className="p-2 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800/60 disabled:opacity-40 transition-all duration-100 active:scale-95"
             aria-label="Next track"
             title="Next"
           >
-            ⏭
+            <SkipForward size={18} />
           </button>
           <button
             type="button"
             onClick={cycleRepeat}
-            className={`p-1.5 rounded hover:bg-zinc-800 text-sm ${repeat !== 'off' ? 'text-accent' : 'text-zinc-400'}`}
+            className={`p-2 rounded-lg transition-all duration-100 active:scale-95 ${
+              repeat !== 'off'
+                ? 'text-brand-400 bg-brand-500/10'
+                : 'text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/60'
+            }`}
             aria-label={`Repeat: ${repeat}`}
             title={`Repeat: ${repeat}`}
           >
-            {repeat === 'one' ? '↻¹' : '↻'}
+            <Repeat size={16} />
           </button>
         </div>
-        <div className="w-full max-w-md flex items-center gap-2 text-xs text-zinc-500 tabular-nums">
+
+        <div className="w-full max-w-md flex items-center gap-3 text-xs text-zinc-400 tabular-nums group">
           <span className="w-10 text-right">{formatTime(positionMs)}</span>
-          <input
-            type="range"
-            min={0}
-            max={durationMs || 0}
-            value={positionMs}
-            onChange={(e) => void seek(Number(e.target.value))}
-            disabled={!hasTrack}
-            className="flex-1 disabled:opacity-40"
-            aria-label="Seek"
-            style={{ ...INPUT_ACCENT_STYLE, '--progress': `${progress}%` } as React.CSSProperties}
-          />
+          <div className="flex-1 relative h-1.5 rounded-full bg-zinc-800 overflow-hidden cursor-pointer">
+            <div
+              className="h-full bg-gradient-to-r from-brand-600 to-brand-400 rounded-full transition-[width] duration-100"
+              style={{ width: `${progress}%` }}
+            />
+            <input
+              type="range"
+              min={0}
+              max={durationMs || 0}
+              value={positionMs}
+              onChange={(e) => void seek(Number(e.target.value))}
+              disabled={!hasTrack}
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
+              aria-label="Seek"
+            />
+            <div
+              className="absolute h-2.5 w-2.5 rounded-full bg-brand-400 shadow border border-white/30 top-1/2 -translate-y-1/2 pointer-events-none transition-opacity duration-150 opacity-0 group-hover:opacity-100"
+              style={{ left: `calc(${progress}% - 5px)` }}
+            />
+          </div>
           <span className="w-10">{formatTime(durationMs)}</span>
         </div>
-        {error && <p className="text-xs text-red-400">{error}</p>}
+
+        {error && (
+          <p className="text-xs text-red-400 bg-red-500/10 px-2 py-0.5 rounded animate-scale-in">
+            {error}
+          </p>
+        )}
       </div>
 
-      <div className="flex items-center gap-2 w-1/3 justify-end">
+      {/* Right: Volume + Queue */}
+      <div className="flex items-center gap-3 w-1/3 justify-end">
         <button
           type="button"
           onClick={() => setQueueOpen(true)}
-          className="relative px-2 py-1 text-xs text-zinc-400 hover:text-zinc-200 rounded"
+          className="relative px-2 py-1.5 rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/60 transition-all duration-100 active:scale-95"
           aria-label="Show queue"
           title="Show queue"
         >
-          ☰
+          <ListMusic size={16} />
           {queue.length > 0 && (
-            <span className="absolute -top-1 -right-1 bg-accent text-white text-[9px] rounded-full w-4 h-4 flex items-center justify-center">
+            <span className="absolute -top-1 -right-1 bg-brand-500 text-white text-[9px] font-bold rounded-full w-4 h-4 flex items-center justify-center shadow">
               {queue.length}
             </span>
           )}
@@ -237,25 +290,47 @@ export function PlayerBar(): JSX.Element {
           onClick={() => {
             void window.api.miniPlayer.show();
           }}
-          className="px-2 py-1 text-xs text-zinc-400 hover:text-zinc-200 rounded"
+          className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/60 transition-all duration-100 active:scale-95"
           aria-label="Open mini-player"
           title="Open mini-player (Ctrl+Shift+M)"
         >
-          ⊟
+          <LayoutGrid size={16} />
         </button>
-        <span className="text-xs text-zinc-500" aria-hidden>
-          {volume === 0 ? '🔇' : volume < 0.5 ? '🔈' : '🔊'}
-        </span>
-        <input
-          type="range"
-          min={0}
-          max={100}
-          value={volume * 100}
-          onChange={(e) => setVolume(Number(e.target.value) / 100)}
-          className="w-32"
-          aria-label="Volume (use ArrowUp / ArrowDown)"
-          style={INPUT_ACCENT_STYLE}
-        />
+        <button
+          type="button"
+          onClick={() => navigate('/now-playing')}
+          disabled={!hasTrack}
+          className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/60 transition-all duration-100 active:scale-95 disabled:opacity-40"
+          aria-label="Open now playing"
+          title="Now playing"
+        >
+          <Maximize2 size={16} />
+        </button>
+        <div className="flex items-center gap-2 group/vol">
+          <button
+            type="button"
+            onClick={() => setVolume(volume === 0 ? 0.5 : 0)}
+            className="text-zinc-400 hover:text-zinc-100 transition-colors"
+            aria-label="Toggle mute"
+          >
+            <VolumeIcon volume={volume} />
+          </button>
+          <div className="relative w-24 h-1.5 rounded-full bg-zinc-800 overflow-hidden cursor-pointer">
+            <div
+              className="h-full bg-zinc-300 rounded-full transition-[width]"
+              style={{ width: `${volume * 100}%` }}
+            />
+            <input
+              type="range"
+              min={0}
+              max={100}
+              value={volume * 100}
+              onChange={(e) => setVolume(Number(e.target.value) / 100)}
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+              aria-label="Volume"
+            />
+          </div>
+        </div>
       </div>
 
       <QueuePanel open={queueOpen} onClose={() => setQueueOpen(false)} />

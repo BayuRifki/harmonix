@@ -3,6 +3,11 @@ import { usePlaylistsStore } from '@/stores/playlistsStore';
 import { usePlayerStore } from '@/stores/playerStore';
 import { useSourcesStore } from '@/stores/sourcesStore';
 import type { Track } from '@shared/index';
+import { Modal } from '@/components/ui/Modal';
+import { Button } from '@/components/ui/Button';
+import { useToastStore } from '@/components/ui/toastStore';
+import { Skeleton } from '@/components/ui/Skeleton';
+import { Trash2, ArrowLeft, Play } from 'lucide-react';
 
 function formatDuration(ms: number): string {
   if (!ms || ms <= 0) return '—';
@@ -52,9 +57,7 @@ function TrackRow({
       onMouseLeave={() => setHovering(false)}
       className={`flex items-center gap-3 px-3 py-2 rounded border-b border-zinc-900 cursor-grab ${
         isCurrent ? 'bg-zinc-900' : ''
-      } ${isDragOver ? 'border-t-2 border-t-brand-500' : ''} ${
-        hovering ? 'bg-zinc-900/60' : ''
-      }`}
+      } ${isDragOver ? 'border-t-2 border-t-brand-500' : ''} ${hovering ? 'bg-zinc-900/60' : ''}`}
     >
       <span className="w-6 text-xs text-zinc-500 text-right tabular-nums">
         {isCurrent && isPlaying ? '▶' : position + 1}
@@ -108,6 +111,9 @@ export function PlaylistDetailView({ playlistId, onBack }: PlaylistDetailViewPro
   const [nameDraft, setNameDraft] = useState('');
   const [dragFrom, setDragFrom] = useState<number | null>(null);
   const [dragOver, setDragOver] = useState<number | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const toast = useToastStore((s) => s.success);
 
   useEffect(() => {
     void load(playlistId);
@@ -120,10 +126,20 @@ export function PlaylistDetailView({ playlistId, onBack }: PlaylistDetailViewPro
   if (!detail) {
     return (
       <div className="p-8">
-        <button type="button" onClick={onBack} className="text-sm text-zinc-400 hover:text-zinc-200">
+        <button
+          type="button"
+          onClick={onBack}
+          className="text-sm text-zinc-400 hover:text-zinc-200"
+        >
           ← Back to Playlists
         </button>
-        <p className="text-zinc-500 text-sm mt-4">{loading ? 'Loading…' : 'Not found'}</p>
+        {loading ? (
+          <div className="space-y-2 mt-4">
+            <Skeleton variant="text" lines={3} />
+          </div>
+        ) : (
+          <p className="text-zinc-500 text-sm mt-4">Not found</p>
+        )}
       </div>
     );
   }
@@ -159,9 +175,9 @@ export function PlaylistDetailView({ playlistId, onBack }: PlaylistDetailViewPro
       <button
         type="button"
         onClick={onBack}
-        className="text-sm text-zinc-400 hover:text-zinc-200 mb-4"
+        className="inline-flex items-center gap-2 text-sm text-zinc-400 hover:text-zinc-200 mb-4 transition-colors"
       >
-        ← Back to Playlists
+        <ArrowLeft size={16} /> Back to Playlists
       </button>
 
       <header className="mb-6 flex items-start justify-between gap-4 flex-wrap">
@@ -191,33 +207,49 @@ export function PlaylistDetailView({ playlistId, onBack }: PlaylistDetailViewPro
           <p className="text-zinc-400 text-sm mt-1">
             {tracks.length} {tracks.length === 1 ? 'track' : 'tracks'}
             {detail.unresolved.length > 0 && (
-              <span className="text-amber-400 ml-2">
-                ({detail.unresolved.length} unavailable)
-              </span>
+              <span className="text-amber-400 ml-2">({detail.unresolved.length} unavailable)</span>
             )}
           </p>
         </div>
         <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={() => handlePlay(0)}
-            disabled={tracks.length === 0}
-            className="px-4 py-2 bg-brand-500 hover:bg-brand-600 text-white text-sm font-medium rounded disabled:opacity-50"
-          >
-            ▶ Play All
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              if (confirm(`Delete playlist "${detail.name}"?`)) {
-                void remove(detail.id);
-                onBack();
-              }
+          <Button variant="primary" onClick={() => handlePlay(0)} disabled={tracks.length === 0}>
+            <Play size={14} /> Play All
+          </Button>
+          <Button variant="icon" onClick={() => setConfirmDelete(true)} title="Delete playlist">
+            <Trash2 size={16} />
+          </Button>
+          <Modal
+            open={confirmDelete}
+            onClose={() => {
+              if (!deleting) setConfirmDelete(false);
             }}
-            className="px-3 py-2 text-zinc-400 hover:text-red-400 text-sm"
-          >
-            Delete
-          </button>
+            title="Delete playlist"
+            description={`Are you sure you want to delete "${detail.name}"? This cannot be undone.`}
+            actions={
+              <>
+                <Button variant="ghost" onClick={() => setConfirmDelete(false)} disabled={deleting}>
+                  Cancel
+                </Button>
+                <Button
+                  variant="danger"
+                  onClick={async () => {
+                    setDeleting(true);
+                    try {
+                      await remove(detail.id);
+                      toast(`Playlist "${detail.name}" deleted`);
+                      onBack();
+                    } finally {
+                      setDeleting(false);
+                      setConfirmDelete(false);
+                    }
+                  }}
+                  disabled={deleting}
+                >
+                  {deleting ? 'Deleting…' : 'Delete'}
+                </Button>
+              </>
+            }
+          />
         </div>
       </header>
 

@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
+import { Skeleton } from '@/components/ui/Skeleton';
 import type { MemoryStats } from '@/types/global';
 
 export function MemoryPanel(): JSX.Element {
@@ -36,13 +37,20 @@ export function MemoryPanel(): JSX.Element {
     return (
       <section className="bg-surface border border-app rounded-lg p-4">
         <h2 className="text-sm font-semibold text-app mb-3">Memory</h2>
-        <p className="text-xs text-app-faint">Loading…</p>
+        <div className="space-y-2">
+          <Skeleton variant="rect" className="h-4 w-full rounded" />
+          <Skeleton variant="rect" className="h-4 w-2/3 rounded" />
+        </div>
       </section>
     );
   }
 
   const rssColor =
-    stats.rssMb > 1500 ? 'text-red-400' : stats.rssMb > 800 ? 'text-yellow-400' : 'text-emerald-400';
+    stats.rssMb > 1500
+      ? 'text-red-400'
+      : stats.rssMb > 800
+        ? 'text-yellow-400'
+        : 'text-emerald-400';
 
   return (
     <section className="bg-surface border border-app rounded-lg p-4">
