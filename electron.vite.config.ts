@@ -44,6 +44,14 @@ export default defineConfig({
         input: resolve(__dirname, 'index.html'),
       },
     },
+    esbuild: {
+      target: 'esnext',
+    },
+    optimizeDeps: {
+      esbuildOptions: {
+        target: 'esnext',
+      },
+    },
     resolve: {
       alias: {
         '@': resolve(__dirname, 'src'),

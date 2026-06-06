@@ -17,6 +17,14 @@ export default defineConfig({
     outDir: 'dist',
     sourcemap: true,
   },
+  esbuild: {
+    target: 'esnext',
+  },
+  optimizeDeps: {
+    esbuildOptions: {
+      target: 'esnext',
+    },
+  },
   test: {
     globals: true,
     environment: 'jsdom',
