@@ -64,6 +64,14 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
+      - name: Cache yt-dlp binary (Windows)
+        if: matrix.os == 'windows-latest'
+        uses: actions/cache@v4
+        with:
+          path: resources/yt-dlp.exe
+          key: yt-dlp-${{ runner.os }}-${{ hashFiles('package.json') }}
+          restore-keys: |
+            yt-dlp-${{ runner.os }}-
       - run: npm ci
       - run: npm run build
       - name: Build distributable (Linux)

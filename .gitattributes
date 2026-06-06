@@ -35,3 +35,6 @@ test-results/
 *.dmg
 *.AppImage
 *.deb
+
+# Bundled third-party binaries (kept in repo, treated as opaque blobs)
+resources/yt-dlp* binary

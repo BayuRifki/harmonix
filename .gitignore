@@ -68,6 +68,9 @@ out/
 *.pkg
 *.zip
 
+# Bundled third-party CLI binaries (kept in repo as opaque blobs)
+!resources/yt-dlp*
+
 # Cache
 .cache/
 .turbo/
