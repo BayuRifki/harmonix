@@ -20,12 +20,29 @@ function makeMockWindow(): MockWindow {
   return win;
 }
 
-const BrowserWindowMock = vi.fn();
-const appGetAppPathMock = vi.fn(() => '/mocked/app/path');
+const mocks = vi.hoisted(() => {
+  const fakePng = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
+    'base64',
+  );
+  return {
+    BrowserWindow: vi.fn(),
+    appGetAppPath: vi.fn(() => '/mocked/app/path'),
+    fakePng,
+  };
+});
+
+vi.mock('node:fs', () => {
+  const stub = {
+    existsSync: vi.fn(() => true),
+    readFileSync: vi.fn(() => mocks.fakePng),
+  };
+  return { ...stub, default: stub };
+});
 
 vi.mock('electron', () => ({
-  BrowserWindow: BrowserWindowMock,
-  app: { getAppPath: appGetAppPathMock },
+  BrowserWindow: mocks.BrowserWindow,
+  app: { getAppPath: mocks.appGetAppPath },
 }));
 
 const { createSplashWindow, closeSplashWindow, isSplashWindow } = await import(
@@ -34,9 +51,9 @@ const { createSplashWindow, closeSplashWindow, isSplashWindow } = await import(
 
 describe('splashWindow', () => {
   beforeEach(() => {
-    BrowserWindowMock.mockReset();
-    BrowserWindowMock.mockImplementation(() => makeMockWindow());
-    appGetAppPathMock.mockClear();
+    mocks.BrowserWindow.mockReset();
+    mocks.BrowserWindow.mockImplementation(() => makeMockWindow());
+    mocks.appGetAppPath.mockClear();
     closeSplashWindow();
   });
 
@@ -47,7 +64,7 @@ describe('splashWindow', () => {
 
   it('creates a frameless, always-on-top, centered, non-resizable window', () => {
     createSplashWindow();
-    const opts = BrowserWindowMock.mock.calls[0]?.[0] as Record<string, unknown>;
+    const opts = mocks.BrowserWindow.mock.calls[0]?.[0] as Record<string, unknown>;
     expect(opts).toMatchObject({
       frame: false,
       alwaysOnTop: true,
@@ -68,22 +85,20 @@ describe('splashWindow', () => {
     });
   });
 
-  it('loads a data: URL with the splash HTML and the logo as a hash fragment', () => {
+  it('loads a data: URL with the splash HTML and the logo embedded as a data: URL src', () => {
     const win = createSplashWindow() as unknown as MockWindow;
     const loadURL = win.loadURL;
     expect(loadURL).toHaveBeenCalledTimes(1);
     const url = (loadURL.mock.calls[0]?.[0] as string) ?? '';
     expect(url.startsWith('data:text/html;charset=utf-8,')).toBe(true);
-    const hashIdx = url.indexOf('#');
-    expect(hashIdx).toBeGreaterThan(0);
-    const htmlEncoded = url.slice('data:text/html;charset=utf-8,'.length, hashIdx);
+    expect(url).not.toContain('#');
+    const htmlEncoded = url.slice('data:text/html;charset=utf-8,'.length);
     const html = decodeURIComponent(htmlEncoded);
     expect(html).toContain('HARMONIX');
     expect(html).toContain('ONE PLAYER. ALL MUSIC.');
     expect(html).toContain('class="spinner"');
-    const hash = url.slice(hashIdx + 1);
-    const decodedHash = decodeURIComponent(hash);
-    expect(decodedHash).toMatch(/^file:\/\/\/.*\/mocked\/app\/path\/public\/logo\.png$/);
+    expect(html).toMatch(/src="data:image\/png;base64,[A-Za-z0-9+/=]+"/);
+    expect(html).not.toMatch(/src="file:\/\//);
   });
 
   it('shows the window when the renderer is ready', () => {
@@ -96,7 +111,7 @@ describe('splashWindow', () => {
     const a = createSplashWindow();
     const b = createSplashWindow();
     expect(a).toBe(b);
-    expect(BrowserWindowMock).toHaveBeenCalledTimes(1);
+    expect(mocks.BrowserWindow).toHaveBeenCalledTimes(1);
   });
 
   it('clears the splash reference and auto-close timer on closed event', () => {

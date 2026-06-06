@@ -1,6 +1,6 @@
 import { BrowserWindow, app } from 'electron';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { pathToFileURL } from 'node:url';
 
 const SPLASH_WIDTH = 360;
 const SPLASH_HEIGHT = 360;
@@ -10,11 +10,27 @@ const SPLASH_MAX_LIFETIME_MS = 15_000;
 let splash: BrowserWindow | null = null;
 let autoCloseTimer: NodeJS.Timeout | null = null;
 
-const SPLASH_HTML = `<!DOCTYPE html>
+function loadLogoAsDataUrl(): string {
+  const candidates = [
+    join(app.getAppPath(), 'public', 'logo.png'),
+    join(process.resourcesPath ?? '', 'logo.png'),
+  ];
+  for (const path of candidates) {
+    if (path && existsSync(path)) {
+      const buf = readFileSync(path);
+      return `data:image/png;base64,${buf.toString('base64')}`;
+    }
+  }
+  return '';
+}
+
+function buildSplashHtml(): string {
+  const logoDataUrl = loadLogoAsDataUrl();
+  return `<!DOCTYPE html>
 <html>
   <head>
     <meta charset="utf-8" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self' file:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; img-src 'self' file: data:;" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self';" />
     <title>Harmonix</title>
     <style>
       * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -50,32 +66,22 @@ const SPLASH_HTML = `<!DOCTYPE html>
     </style>
   </head>
   <body>
-    <div class="logo-wrap"><img id="logo" alt="" /></div>
+    <div class="logo-wrap"><img id="logo" alt="" src="${logoDataUrl}" /></div>
     <h1>HARMONIX</h1>
     <div class="spinner" role="status" aria-label="Loading"></div>
     <p class="tagline">ONE PLAYER. ALL MUSIC.</p>
-    <script>
-      try {
-        const url = decodeURIComponent((location.hash || '').slice(1));
-        if (url) {
-          const img = document.getElementById('logo');
-          if (img) img.src = url;
-        }
-      } catch (e) {}
-    </script>
   </body>
 </html>
 `;
+}
 
 export function createSplashWindow(): BrowserWindow {
   if (splash && !splash.isDestroyed()) {
     return splash;
   }
 
-  const logoPath = join(app.getAppPath(), 'public', 'logo.png');
-  const logoUrl = pathToFileURL(logoPath).href;
-  const dataUrl =
-    'data:text/html;charset=utf-8,' + encodeURIComponent(SPLASH_HTML) + '#' + encodeURIComponent(logoUrl);
+  const html = buildSplashHtml();
+  const dataUrl = 'data:text/html;charset=utf-8,' + encodeURIComponent(html);
 
   splash = new BrowserWindow({
     width: SPLASH_WIDTH,
