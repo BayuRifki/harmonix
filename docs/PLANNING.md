@@ -497,7 +497,78 @@ Implements the immersive half of the [`docs/ui.md`](../ui.md) vision: dynamic vi
 
 ---
 
-### Future Phases (Backlog)
+### Phase 13B — Layout Redesign (Soundora-inspired) 🔜 (Planned)
+
+Reimagines the app shell as a **3-column layout** (sidebar + main + right rail) with a **pink/magenta palette** and a **hero-centered Home view**. Adopts the visual/UX patterns from a Soundora mockup while keeping the **Harmonix** name and identity. Adds a real listening-history store to power recommendations.
+
+**Motivation**: Phase 13A shipped function + atmosphere (audio-reactive canvas, framer transitions, crossfade) but the underlying shell is still 2-column utilitarian. A Soundora-style reference shows how a 3-column shell, persistent queue rail, and hero transport card transform the perceived quality of a music app. We adopt the _design language_ (pink palette, vinyl-flick, hero card) without copying the brand or removing the existing `/now-playing` fanout.
+
+**Scope**:
+
+- [ ] **Color palette refactor** — replace `brand-*`/`accent-*` Tailwind tokens from purple (`#8B5CF6`)+cyan (`#22D3EE`) to pink/magenta (`#EC4899`/`#F472B6`). Update `tailwind.config.ts`, `index.html` CSS vars, splash screen, and all `glow`/`glow-cyan` shadow tokens. Mechanical find/replace verified by grep.
+- [ ] **Vinyl-flick animation** — add `animate-vinyl-spin` keyframe (slow continuous rotation, paused on `prefers-reduced-motion`). Used in `HeroPlayer` for the vinyl record peeking out behind the album artwork.
+- [ ] **3-column app shell** (`App.tsx`) — grid `grid-cols-[224px_1fr_320px]`. Right rail visible on `/` and `/search`; collapsed to 2-column on other routes. `/now-playing` remains fullscreen (no sidebar/right-rail) per Phase 13A contract.
+- [ ] **TopBar** (`src/components/layout/TopBar.tsx`):
+  - Search input (wide, rounded) — debounced, navigates to `/search?q=`
+  - Notification bell with red-dot indicator (stub for future notifications)
+  - Settings gear (deep-link to `/settings`)
+  - Mounted in main shell, hidden on `/now-playing`
+- [ ] **Sidebar redesign** (`src/components/layout/Sidebar.tsx`):
+  - New `<LogoMark>` component (gradient waveform + "Harmonix" wordmark)
+  - Nav: Home, Explore (sources overview), Library, Favorites, Playlists, Equalizer, Settings
+  - **Your Playlists** section: 4-5 `<PlaylistCardSidebar>` with 48px artwork + name + song count (data from `playlistsStore`); `+` button opens create-playlist modal
+  - Bottom section: library stats (track/album/artist counts) — no user profile yet (per decision)
+- [ ] **HeroPlayer** (`src/features/home/HeroPlayer.tsx`):
+  - Centerpiece of Home route. Replaces current Welcome/Stats/QuickActions
+  - Large rounded artwork (288-320px) with vinyl record peeking out on the right (CSS absolute + rotate animation)
+  - Radial pink glow behind artwork (inline radial-gradient or pseudo-element)
+  - Title (large) + favorite heart icon + artist
+  - Metadata pills: "Playing from &lt;Playlist&gt;" / "Hi-Fi" / kebab
+  - Full transport: shuffle | prev | **large circular play/pause** | next | repeat
+  - Seek bar (pink gradient fill + thumb on hover) + time labels
+  - Extract `<TransportControls>` shared component (used by HeroPlayer and PlayerBar)
+- [ ] **RightRail** (`src/components/layout/RightRail.tsx`):
+  - "UP NEXT" — 5 upcoming tracks from queue, 40px mini-artwork + title + artist + duration + kebab. "Clear" button at header. Reuses queue data (no separate route).
+  - "FOR YOU" — 3 recommendation cards (artwork + title + subtitle + play button). Data from new `listeningHistoryStore` (see below). Empty state: "Play some tracks to see recommendations" with CTA.
+  - Hidden on Library/Playlists/Settings/Source/EQ routes
+- [ ] **listeningHistoryStore** (`src/stores/listeningHistoryStore.ts`):
+  - Zustand store, persists to `localStorage` key `harmonix:listening-history`
+  - Actions: `add(track)`, `clear()`, `getRecent(n)`
+  - Cap at 20 entries; dedupe by `track.id` (most recent wins)
+  - Wired into `usePlayerStateSync` or equivalent — called on `player:trackEnded` event
+  - Tests: add/dedupe/cap/persist (~8 unit tests)
+- [ ] **NowPlayingView remains unchanged** (per user decision) — still fullscreen `/now-playing` route, `AudioReactiveBackground` mounted, Framer Motion spring physics. PlayerBar `Maximize2` button still toggles it.
+- [ ] **Tests** (~30 new, target total 417):
+  - `listeningHistoryStore` (8): add, dedupe, cap, persist, clear, getRecent
+  - `TopBar` (4): search input + navigation + gear deep-link
+  - `RightRail` (6): queue list + for-you list + empty states
+  - `HeroPlayer` (6): transport controls, pills render, vinyl animation class
+  - `PlaylistCardSidebar` (3): artwork + name + count
+  - Sidebar test (update): playlist list renders with artwork thumbnails
+- [ ] **Planning & docs**:
+  - Tick all scope checkboxes after ship
+  - Update Milestone M14 to ✅ Done
+  - Update "Last updated" footer
+  - Add a CHANGELOG entry under "Unreleased"
+
+**Considerations**:
+
+- **Bundle impact**: +~6 KB (mostly CSS, no new deps). Phase 13A's `framer-motion` is already on bundle.
+- **Window size**: Harmonix is Electron desktop (1024px+ minimum). 3-column layout is safe — no responsive collapse logic needed. If we ever ship to a 1024px window, the right rail could become a toggleable drawer (deferred).
+- **"Hi-Fi" badge**: placeholder for future audio-quality setting. For this phase it is a static label rendered next to "Playing from &lt;Playlist&gt;". Will become dynamic when bitrate/quality setting lands (Phase 14+).
+- **Empty-state UX**: FOR YOU needs a minimum amount of history to be useful. We show the empty state copy but also render 2 hardcoded "starter" recommendations (e.g., "Browse Library", "Top from Spotify") so the section is never fully empty on first run.
+- **Playlist card sidebar limit**: 4-5 cards visible. If user has 10+ playlists, the section scrolls. Route `/playlists` remains the full management view.
+- **Vinyl-flick accessibility**: `animation-play-state: paused` when `prefers-reduced-motion: reduce`. No functional impact.
+- **Naming**: brand name remains **Harmonix**. Mockup's "Soundora" was design reference only. Logo wordmark and splash text stay as "Harmonix".
+- **Out of scope**: lyrics, Discord Rich Presence, Last.fm scrobbling, global hotkeys, cloud sync, mobile/PWA, real account system (Profile chip deferred to a future phase).
+
+**Open questions (decide during implementation)**:
+
+- Should `<TransportControls>` accept a `variant="hero" | "compact"` prop, or should we have two separate components? — Leaning toward single component with variant prop to keep transport logic in one place.
+- Should Right Rail collapse to a drawer on routes other than Home/Search, or stay mounted (taking up grid space)? — Leaning toward collapse (the `hidden md:block` pattern on the right rail wrapper) so Library/Playlists get the full width for tables.
+- For "Playing from &lt;Playlist&gt;" pill, where does the playlist name come from when playing from queue/library? — Track the source playlist ID in the player state if available; fall back to "From Queue" or "From &lt;SourceName&gt;".
+
+**Exit criteria**: Layout is 3-column on Home/Search, 2-column on other routes. Palette is pink/magenta throughout. Home route shows `<HeroPlayer>` with full transport + vinyl-flick + radial glow. Right rail shows UP NEXT queue + FOR YOU recommendations (with empty state). TopBar is mounted with working search navigation. Listening history persists across restarts. `/now-playing` route still works as a fullscreen fanout. Tests pass 417 green. Lint and typecheck clean. CI green. Pushed to `main`.
 
 See [Section 8](#8-backlog--future-ideas).
 
@@ -521,6 +592,7 @@ See [Section 8](#8-backlog--future-ideas).
 | M11: AI-powered playlist generation (LLM + source search)                            | Phase 11 complete  | 🔜 Planned     |
 | M12: UI/UX polish (navigation, controls, micro-interactions, dark theme)             | Phase 12 complete  | ✅ Done        |
 | M13: Visual immersion (palette refactor, glassmorphism, audio-reactive, now-playing) | Phase 13A complete | ✅ Done        |
+| M14: Layout redesign (3-column shell, pink palette, hero player, right rail)         | Phase 13B complete | 🔜 Planned     |
 
 ---
 
@@ -602,4 +674,4 @@ gh issue list --state open
 
 ---
 
-**Last updated**: Phase 12 (UI/UX Polish) and Phase 13A (Visual Immersion) shipped. Phase 11 (AI-Powered Playlist Generation) still planned. 387 tests passing.
+**Last updated**: Phase 12 (UI/UX Polish) and Phase 13A (Visual Immersion) shipped. Phase 13B (Layout Redesign) planned. Phase 11 (AI-Powered Playlist Generation) still planned. 387 tests passing.
