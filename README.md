@@ -73,6 +73,8 @@ Most music players lock you into a single ecosystem. Harmonix breaks that wall:
 - ✅ 423 tests across 38 files, lint clean, typecheck clean
 - ✅ 427 tests across 39 files (after yt-dlp bundle work), lint clean, typecheck clean
 - ✅ 433 tests across 40 files (after Home For You + Sources removal cleanup), lint clean, typecheck clean
+- ✅ 439 tests across 41 files (after brand + Explore page), lint clean, typecheck clean
+- ✅ Brand mark in sidebar (public/logo.png served at `/logo.png`)
 - ✅ CI pipeline (lint + typecheck + test)
 
 ### Coming Next

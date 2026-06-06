@@ -3,18 +3,18 @@ interface LogoMarkProps {
   showText?: boolean;
 }
 
-const ICON_PATH = './logo-horizontal.png';
+const LOGO_URL = '/logo.png';
 
 export function LogoMark({ size = 32, showText = true }: LogoMarkProps): JSX.Element {
   return (
     <div className="flex items-center gap-2.5">
       <div
-        className="rounded-xl overflow-hidden flex items-center justify-center"
+        className="rounded-xl overflow-hidden shrink-0"
         style={{ width: size, height: size }}
         aria-hidden
       >
         <img
-          src={ICON_PATH}
+          src={LOGO_URL}
           alt=""
           width={size}
           height={size}

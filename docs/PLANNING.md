@@ -693,6 +693,13 @@ Chronological log of incremental progress. Most recent first.
 - **Critical .gitignore fix** — `.gitignore` had `*.exe` rule (line 63) which was silently ignoring `resources/yt-dlp.exe`. Added negation `!resources/yt-dlp*` so the binary actually gets committed. `git check-ignore` confirms it now passes through.
 - **Final verify** — `npm run lint` ✅, `npm run typecheck` ✅, `npm run test` ✅ (427/427), `npm run build` ✅. `git status` shows `resources/yt-dlp.exe` untracked (ready to commit) and all 14 expected files modified, 3 new (env.ts, ytDlpUpdate.test.ts, yt-dlp.exe).
 
+- **Brand mark fix** — The previous brand image (with text + tagline) wasn't rendering in the sidebar — `LogoMark.tsx` was using a relative `./logo-horizontal.png` path that doesn't resolve in the Vite-bundled renderer (only `dist/` is served). Fixed by:
+  1. Replaced the brand asset with the new icon-only mark (the colorful H waveform, 1254×1254) at `public/logo.png` so Vite serves it at the absolute path `/logo.png` for both dev and packaged builds.
+  2. Also copied to `resources/logo.png` for Electron-side references (tray icon, splash, future use).
+  3. `LogoMark.tsx` now uses `/logo.png` (absolute public path) with `object-contain` so the icon scales cleanly. The "Harmonix" text is rendered as a separate `<h1>` next to the icon for crisp typography.
+  4. Removed the now-unused `resources/logo-horizontal.png` and replaced `resources/brand-guide.png` with the new icon.
+  5. `dist/logo.png` confirmed present after `npm run build` (491 KB), so packaged builds will include it.
+
 ## 10. Progress Log (active session) — continued
 
 - **Sources section removed (UI cleanup)** — Per user feedback referencing `docs/perbaiki-nanti/`: Sidebar no longer renders the per-source "Sources" sub-nav, and HomeView no longer renders the "Sources" quick-access grid. Source management stays exclusively in Settings → SourcePicker. Footer still shows enabled source count for transparency.
