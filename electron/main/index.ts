@@ -29,6 +29,7 @@ import {
   focusMainWindow,
   setQuitting,
 } from './windowManager';
+import { createSplashWindow, closeSplashWindow } from './splashWindow';
 import { createTray, destroyTray } from './tray';
 import { getSetting, setSetting } from './db/settingsRepository';
 
@@ -155,7 +156,11 @@ if (!gotLock) {
       console.error('[main] Failed to register IPC handlers:', err);
     }
 
-    createMainWindow();
+    createSplashWindow();
+    const mainWin = createMainWindow();
+    mainWin.once('ready-to-show', () => {
+      closeSplashWindow();
+    });
     setupAutoUpdater();
     createTray();
 

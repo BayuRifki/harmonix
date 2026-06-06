@@ -700,6 +700,8 @@ Chronological log of incremental progress. Most recent first.
   4. Removed the now-unused `resources/logo-horizontal.png` and replaced `resources/brand-guide.png` with the new icon.
   5. `dist/logo.png` confirmed present after `npm run build` (491 KB), so packaged builds will include it.
 
+- **Splash screen with logo on app open** — Added a frameless, always-on-top splash window that shows the brand mark + a "HARMONIX" wordmark + "ONE PLAYER. ALL MUSIC." tagline + a pink spinner while the main window initializes. New `electron/main/splashWindow.ts` module: `createSplashWindow()` builds the BrowserWindow (360×360, centered, skipTaskbar), loads an inlined HTML via `data:` URL with the logo path passed as a hash fragment (resolved to `file://.../public/logo.png` via `pathToFileURL` so Vite serves it). The splash closes when the main window's `ready-to-show` fires. A 15s safety timer auto-closes if the main window never reports ready. `electron/main/index.ts` calls `createSplashWindow()` first in `whenReady`, then `createMainWindow()`, then `closeSplashWindow()` on the main window's `ready-to-show`. Tests: `tests/unit/splashWindow.test.ts` (7 cases) — frameless/centered/options, data: URL with splash HTML + logo fragment, ready-to-show, idempotency, cleanup, no-op when missing, 15s auto-close. 446/446 tests pass (was 439, +7).
+
 ## 10. Progress Log (active session) — continued
 
 - **Sources section removed (UI cleanup)** — Per user feedback referencing `docs/perbaiki-nanti/`: Sidebar no longer renders the per-source "Sources" sub-nav, and HomeView no longer renders the "Sources" quick-access grid. Source management stays exclusively in Settings → SourcePicker. Footer still shows enabled source count for transparency.
@@ -711,4 +713,4 @@ Chronological log of incremental progress. Most recent first.
 
 ---
 
-**Last updated**: Phase 12 (UI/UX Polish), Phase 13A (Visual Immersion), and Phase 13B (Soundora-inspired Layout Redesign) shipped. Phase 11 (AI-Powered Playlist Generation) still planned. 433 tests passing.
+**Last updated**: Phase 12 (UI/UX Polish), Phase 13A (Visual Immersion), and Phase 13B (Soundora-inspired Layout Redesign) shipped. Phase 11 (AI-Powered Playlist Generation) still planned. 446 tests passing.

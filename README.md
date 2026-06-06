@@ -74,7 +74,9 @@ Most music players lock you into a single ecosystem. Harmonix breaks that wall:
 - ✅ 427 tests across 39 files (after yt-dlp bundle work), lint clean, typecheck clean
 - ✅ 433 tests across 40 files (after Home For You + Sources removal cleanup), lint clean, typecheck clean
 - ✅ 439 tests across 41 files (after brand + Explore page), lint clean, typecheck clean
+- ✅ 446 tests across 42 files (after splash screen on open), lint clean, typecheck clean
 - ✅ Brand mark in sidebar (public/logo.png served at `/logo.png`)
+- ✅ Splash screen on app open (logo + wordmark + tagline + spinner)
 - ✅ CI pipeline (lint + typecheck + test)
 
 ### Coming Next
@@ -186,6 +188,7 @@ harmonix/
 
 - **Bundled `yt-dlp.exe`** — `resources/yt-dlp.exe` (v2026.03.17) shipped in-repo. No external install, no `YT_DLP_PATH` env var. Resolution order: `YT_DLP_PATH` env → `resources/yt-dlp[.exe]` (dev & packaged unpacked) → `process.resourcesPath/yt-dlp[.exe]` → PATH. Settings → YouTube Music → "Check for update" runs `yt-dlp -U` and shows commit reminder when version bumps. See `docs/PLANNING.md` §10 for the full progress log.
 - **Sources section removed + Home For You** — Sidebar and Home no longer render a Sources sub-nav/grid; the global TopBar search is the single entry point across all enabled sources. Home now shows a 6-card "For You" grid sourced from listening history (with starter cards for new users). Shared `ForYouSection` component drives both Home (grid) and RightRail (list).
+- **Splash screen on app open** — Frameless 360×360 always-on-top window shows the brand mark + "HARMONIX" wordmark + tagline + spinner while the main window initializes. Closes on main window `ready-to-show`. 15s safety auto-close. Implementation in `electron/main/splashWindow.ts`; HTML inlined as a `data:` URL, logo URL passed as a hash fragment so Vite-served assets resolve at runtime.
 
 See [`docs/PLANNING.md`](docs/PLANNING.md) for the full phase breakdown and decision log.
 
