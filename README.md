@@ -75,6 +75,7 @@ Most music players lock you into a single ecosystem. Harmonix breaks that wall:
 - ✅ 433 tests across 40 files (after Home For You + Sources removal cleanup), lint clean, typecheck clean
 - ✅ 439 tests across 41 files (after brand + Explore page), lint clean, typecheck clean
 - ✅ 446 tests across 42 files (after splash screen on open), lint clean, typecheck clean
+- ✅ 446 tests across 42 files (after dead-code sweep: removed 7 unused files, 7 dead assets, 2 dead scripts, husky + lint-staged config), lint clean, typecheck clean
 - ✅ Brand mark in sidebar (public/logo.png served at `/logo.png`)
 - ✅ Splash screen on app open (logo + wordmark + tagline + spinner)
 - ✅ CI pipeline (lint + typecheck + test)

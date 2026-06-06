@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Track, StreamInfo } from '@shared/index';
+import type { Track, StreamInfo } from '@/types/global';
 import { audioEngine } from '@/lib/audio/engine';
 import { playTrack } from '@/lib/audio/sourceResolver';
 

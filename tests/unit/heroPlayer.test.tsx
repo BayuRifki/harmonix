@@ -5,7 +5,7 @@ import { HeroPlayer } from '@/features/home/HeroPlayer';
 import { usePlayerStore } from '@/stores/playerStore';
 import { useSourcesStore } from '@/stores/sourcesStore';
 import { installMockWindowApi } from '../setup';
-import type { Track } from '@shared/index';
+import type { Track } from '@/types/global';
 
 function makeTrack(overrides: Partial<Track> = {}): Track {
   return {

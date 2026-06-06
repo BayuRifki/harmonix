@@ -27,7 +27,6 @@
     "dev": "node --max-old-space-size=8192 --max-semi-space-size=512 node_modules/electron-vite/bin/electron-vite.js dev",
     "build": "node --max-old-space-size=8192 --max-semi-space-size=512 node_modules/electron-vite/bin/electron-vite.js build",
     "preview": "node --max-old-space-size=8192 --max-semi-space-size=512 node_modules/electron-vite/bin/electron-vite.js preview",
-    "icons": "node scripts/generate-icons.mjs && node scripts/generate-ico.mjs",
     "lint": "eslint . --ext .ts,.tsx",
     "lint:fix": "eslint . --ext .ts,.tsx --fix",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md,css}\"",
@@ -81,9 +80,7 @@
     "eslint-plugin-react": "^7.37.2",
     "eslint-plugin-react-hooks": "^5.0.0",
     "eslint-plugin-react-refresh": "^0.4.14",
-    "husky": "^9.1.6",
     "jsdom": "^25.0.1",
-    "lint-staged": "^15.2.10",
     "postcss": "^8.4.49",
     "prettier": "3.6.2",
     "tailwindcss": "^3.4.14",
@@ -94,14 +91,5 @@
   },
   "overrides": {
     "esbuild": "^0.28.0"
-  },
-  "lint-staged": {
-    "*.{ts,tsx}": [
-      "eslint --fix",
-      "prettier --write"
-    ],
-    "*.{json,md,css}": [
-      "prettier --write"
-    ]
   }
 }

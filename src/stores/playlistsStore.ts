@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { PlaylistSummary, PlaylistDetail } from '@/types/global';
-import type { Track } from '@shared/index';
+import type { Track } from '@/types/global';
 import { usePlayerStore } from '@/stores/playerStore';
 
 interface PlaylistsState {

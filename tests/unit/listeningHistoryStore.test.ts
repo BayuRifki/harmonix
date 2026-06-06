@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { useListeningHistoryStore } from '@/stores/listeningHistoryStore';
-import type { Track } from '@shared/index';
+import type { Track } from '@/types/global';
 
 function makeTrack(overrides: Partial<Track> = {}): Track {
   return {

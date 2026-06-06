@@ -1,6 +1,6 @@
 import { audioEngine } from './engine';
 import { crossfadeTo } from './crossfade';
-import type { StreamInfo, Track } from '@shared/index';
+import type { StreamInfo, Track } from '@/types/global';
 
 export async function playTrack(_track: Track, stream: StreamInfo): Promise<void> {
   if (stream.protocol === 'spotify-sdk') {

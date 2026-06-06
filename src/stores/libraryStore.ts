@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Track } from '@shared/index';
+import type { Track } from '@/types/global';
 import type {
   ScanFolder,
   AlbumSummary,

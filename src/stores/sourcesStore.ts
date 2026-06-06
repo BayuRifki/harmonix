@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { SourceRegistration, SourceSearchResult } from '@/types/global';
-import type { Track, SearchOptions, Playlist } from '@shared/index';
+import type { Track, SearchOptions, Playlist } from '@/types/global';
 
 const VIRTUAL_IDS = new Set(['local', 'demo']);
 

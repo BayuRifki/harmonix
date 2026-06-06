@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { Track } from '@shared/index';
+import type { Track } from '@/types/global';
 import { usePlaylistsStore } from '@/stores/playlistsStore';
 import type { PlaylistSummary } from '@/types/global';
 

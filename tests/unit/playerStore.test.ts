@@ -5,7 +5,7 @@ import {
   collectSeedArtists,
   findRelatedTracks,
 } from '../../src/stores/playerStore';
-import type { Track, Artist } from '@shared/index';
+import type { Track, Artist } from '@/types/global';
 
 function artist(name: string): Artist {
   return { id: `a:${name}`, name, source: 'ytmusic' };

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { usePlaylistsStore } from '@/stores/playlistsStore';
 import { usePlayerStore } from '@/stores/playerStore';
 import { useSourcesStore } from '@/stores/sourcesStore';
-import type { Track } from '@shared/index';
+import type { Track } from '@/types/global';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { useToastStore } from '@/components/ui/toastStore';

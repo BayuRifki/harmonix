@@ -5,8 +5,8 @@ import {
   EQ_MAX_GAIN,
   clampGain,
   clampGains,
-  type EqPreset as _EqPreset,
-} from '@shared/index';
+} from '../../../electron/main/sources/types';
+import type { EqPreset as _EqPreset } from '@/types/global';
 
 export const EQ_BAND_LABELS = [
   '32',

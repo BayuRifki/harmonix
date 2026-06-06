@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import type { PlaylistSummary, PlaylistDetail } from '@/types/global';
-import type { Track } from '@shared/index';
+import type { PlaylistSummary, PlaylistDetail, Track } from '@/types/global';
 
 const mockList = vi.fn();
 const mockGet = vi.fn();

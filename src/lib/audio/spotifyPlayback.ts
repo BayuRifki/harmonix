@@ -1,4 +1,4 @@
-import type { Track } from '@shared/index';
+import type { Track } from '@/types/global';
 
 declare global {
   interface Window {

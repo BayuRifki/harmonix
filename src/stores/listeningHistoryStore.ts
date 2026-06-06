@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Track } from '@shared/index';
+import type { Track } from '@/types/global';
 
 const STORAGE_KEY = 'harmonix.listeningHistory';
 const MAX_ENTRIES = 20;
