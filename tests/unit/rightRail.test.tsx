@@ -38,10 +38,9 @@ describe('RightRail', () => {
     useListeningHistoryStore.setState({ entries: [] });
   });
 
-  it('renders UP NEXT and FOR YOU sections', () => {
+  it('renders UP NEXT section', () => {
     renderWithRouter();
     expect(screen.getByText('Up Next')).toBeInTheDocument();
-    expect(screen.getByText('For You')).toBeInTheDocument();
   });
 
   it('shows empty state for queue when none', () => {

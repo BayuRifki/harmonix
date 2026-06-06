@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Music, MoreHorizontal, X, Play } from 'lucide-react';
 import { usePlayerStore } from '@/stores/playerStore';
-import { useListeningHistoryStore, type HistoryEntry } from '@/stores/listeningHistoryStore';
-import { RecommendationCard } from '@/components/recommendations/RecommendationCard';
+import { useListeningHistoryStore } from '@/stores/listeningHistoryStore';
+import { ForYouSection, STARTER_RECOMMENDATIONS } from '@/components/recommendations/ForYouSection';
+import type { HistoryEntry } from '@/stores/listeningHistoryStore';
 
 interface RightRailProps {
   onPlayHistoryEntry?: (entry: HistoryEntry) => void;
@@ -22,7 +23,7 @@ function ArtworkThumb({
 }: {
   url: string | null;
   alt: string;
-  size?: number;
+  size: number;
 }): JSX.Element {
   const [failed, setFailed] = useState(false);
   useEffect(() => {
@@ -50,41 +51,14 @@ function ArtworkThumb({
   );
 }
 
-const STARTER_RECOMMENDATIONS: HistoryEntry[] = [
-  {
-    id: 'starter-browse-library',
-    sourceId: 'starter-browse-library',
-    title: 'Browse your Library',
-    artist: 'Start with what you have',
-    album: null,
-    artworkUrl: null,
-    source: 'local',
-    durationMs: 0,
-    playedAt: 0,
-  },
-  {
-    id: 'starter-search',
-    sourceId: 'starter-search',
-    title: 'Search across sources',
-    artist: 'Find new tracks',
-    album: null,
-    artworkUrl: null,
-    source: 'search',
-    durationMs: 0,
-    playedAt: 0,
-  },
-];
-
 export function RightRail({ onPlayHistoryEntry }: RightRailProps): JSX.Element {
   const queue = usePlayerStore((s) => s.queue);
   const queueIndex = usePlayerStore((s) => s.queueIndex);
   const setQueue = usePlayerStore((s) => s.setQueue);
-  const play = usePlayerStore((s) => s.play);
   const recent = useListeningHistoryStore((s) => s.entries);
   const clearHistory = useListeningHistoryStore((s) => s.clear);
 
   const upNext = queue.slice(queueIndex + 1, queueIndex + 6);
-  const recommendations = recent.length > 0 ? recent.slice(0, 3) : STARTER_RECOMMENDATIONS;
 
   const playQueueItem = (realIndex: number): void => {
     void setQueue(queue, realIndex);
@@ -93,23 +67,6 @@ export function RightRail({ onPlayHistoryEntry }: RightRailProps): JSX.Element {
   const clearUpNext = (): void => {
     const newQueue = queue.slice(0, queueIndex + 1);
     usePlayerStore.setState({ queue: newQueue });
-  };
-
-  const playHistory = (entry: HistoryEntry): void => {
-    if (onPlayHistoryEntry) {
-      onPlayHistoryEntry(entry);
-      return;
-    }
-    void play({
-      id: entry.id,
-      source: entry.source,
-      sourceId: entry.sourceId,
-      title: entry.title,
-      artists: entry.artist.split(', ').map((name) => ({ id: name, name, source: entry.source })),
-      durationMs: entry.durationMs,
-      artworkUrl: entry.artworkUrl ?? undefined,
-      isPlayable: true,
-    });
   };
 
   return (
@@ -180,9 +137,6 @@ export function RightRail({ onPlayHistoryEntry }: RightRailProps): JSX.Element {
 
       <section className="p-4 flex-1 overflow-y-auto">
         <header className="flex items-center justify-between mb-3">
-          <h2 className="text-[11px] font-semibold text-zinc-300 tracking-wider uppercase">
-            For You
-          </h2>
           {recent.length > 0 && (
             <button
               type="button"
@@ -195,35 +149,29 @@ export function RightRail({ onPlayHistoryEntry }: RightRailProps): JSX.Element {
             </button>
           )}
         </header>
-        {recent.length === 0 ? (
-          <p className="text-xs text-zinc-500 mb-3">
-            Play some tracks to see personalized recommendations.
-          </p>
-        ) : null}
-        <div className="space-y-1">
-          {recommendations.map((entry) => (
-            <RecommendationCard
-              key={entry.id}
-              entry={entry}
-              onPlay={entry.id.startsWith('starter-') ? undefined : () => playHistory(entry)}
-            />
-          ))}
-        </div>
-        {recent.length === 0 && (
-          <div className="mt-4 pt-4 border-t border-zinc-800/50">
-            <p className="text-[10px] text-zinc-600 uppercase tracking-wider mb-2">Quick actions</p>
-            <div className="space-y-1">
-              <button
-                type="button"
-                onClick={() => playHistory(STARTER_RECOMMENDATIONS[0]!)}
-                className="w-full text-left flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-zinc-900/60 text-zinc-400 hover:text-zinc-200 transition-colors"
-              >
-                <Play size={12} />
-                <span className="text-xs">Open library</span>
-              </button>
+        <ForYouSection
+          limit={3}
+          layout="list"
+          onPlayHistoryEntry={onPlayHistoryEntry}
+          showHeader={false}
+          emptyAction={
+            <div className="mt-4 pt-4 border-t border-zinc-800/50">
+              <p className="text-[10px] text-zinc-600 uppercase tracking-wider mb-2">
+                Quick actions
+              </p>
+              <div className="space-y-1">
+                <button
+                  type="button"
+                  onClick={() => onPlayHistoryEntry?.(STARTER_RECOMMENDATIONS[0]!)}
+                  className="w-full text-left flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-zinc-900/60 text-zinc-400 hover:text-zinc-200 transition-colors"
+                >
+                  <Play size={12} />
+                  <span className="text-xs">Open library</span>
+                </button>
+              </div>
             </div>
-          </div>
-        )}
+          }
+        />
       </section>
     </aside>
   );

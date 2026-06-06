@@ -120,7 +120,7 @@ describe('Sidebar', () => {
     expect(screen.getByText('24 songs')).toBeInTheDocument();
   });
 
-  it('shows per-source nav entries for enabled browseable sources', () => {
+  it('does not render per-source sub-nav (Sources section removed)', () => {
     installMockWindowApi();
     useSourcesStore.setState({
       registrations: [
@@ -141,57 +141,8 @@ describe('Sidebar', () => {
       ],
     });
     renderWithRouter();
-    expect(screen.getByText('Sources')).toBeInTheDocument();
-    expect(screen.getByText('Spotify')).toBeInTheDocument();
-  });
-
-  it('hides per-source nav when no browseable sources', () => {
-    installMockWindowApi();
-    useSourcesStore.setState({
-      registrations: [
-        reg({
-          id: 'demo',
-          name: 'Demo',
-          capabilities: {
-            canSearch: false,
-            canStream: true,
-            canGetPlaylists: false,
-            canGetLikedTracks: false,
-            requiresAuth: false,
-            supportsFileStreaming: false,
-            supportsRemoteStreaming: false,
-            supportsPlaylists: false,
-          },
-        }),
-      ],
-    });
-    renderWithRouter();
-    expect(screen.queryByText('Sources')).not.toBeInTheDocument();
-  });
-
-  it('hides disabled sources from per-source nav', () => {
-    installMockWindowApi();
-    useSourcesStore.setState({
-      registrations: [
-        reg({
-          id: 'spotify',
-          name: 'Spotify',
-          enabled: false,
-          capabilities: {
-            canSearch: true,
-            canStream: true,
-            canGetPlaylists: true,
-            canGetLikedTracks: true,
-            requiresAuth: true,
-            supportsFileStreaming: false,
-            supportsRemoteStreaming: true,
-            supportsPlaylists: true,
-          },
-        }),
-      ],
-    });
-    renderWithRouter();
-    expect(screen.queryByText('Sources')).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /^Sources$/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/^Sources$/i)).not.toBeInTheDocument();
   });
 
   it('shows enabled source count in footer', () => {

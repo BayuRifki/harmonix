@@ -693,6 +693,15 @@ Chronological log of incremental progress. Most recent first.
 - **Critical .gitignore fix** — `.gitignore` had `*.exe` rule (line 63) which was silently ignoring `resources/yt-dlp.exe`. Added negation `!resources/yt-dlp*` so the binary actually gets committed. `git check-ignore` confirms it now passes through.
 - **Final verify** — `npm run lint` ✅, `npm run typecheck` ✅, `npm run test` ✅ (427/427), `npm run build` ✅. `git status` shows `resources/yt-dlp.exe` untracked (ready to commit) and all 14 expected files modified, 3 new (env.ts, ytDlpUpdate.test.ts, yt-dlp.exe).
 
+## 10. Progress Log (active session) — continued
+
+- **Sources section removed (UI cleanup)** — Per user feedback referencing `docs/perbaiki-nanti/`: Sidebar no longer renders the per-source "Sources" sub-nav, and HomeView no longer renders the "Sources" quick-access grid. Source management stays exclusively in Settings → SourcePicker. Footer still shows enabled source count for transparency.
+- **Home: For You recommendations** — `src/features/home/HomeView.tsx` now embeds a 6-card responsive "For You" grid directly below the hero player. New users see 2 starter cards (Browse Library, Search) with a prompt to play tracks.
+- **Unified search** — Verified the global TopBar search is the single entry point: types in the top search bar navigate to `/search?q=…` which fans out across all enabled sources (`SearchView` already uses `sourcesStore.search`). No source-specific search boxes remain in the main window.
+- **ForYouSection extracted** — New `src/components/recommendations/ForYouSection.tsx` is the single source of truth for "For You" rendering. Used by Home (grid, 6 items, with header) and RightRail (list, 3 items, headerless). Props: `limit`, `layout: 'grid' | 'list'`, `onPlayHistoryEntry`, `showHeader`, `emptyAction`. Plays via `usePlayerStore.play` by default, or delegates to `onPlayHistoryEntry` if provided.
+- **Tests** — `tests/unit/forYouSection.test.tsx` (8 cases) covers starter/history toggle, limit, showHeader, grid+list layouts, data-testid, and entry rendering. `tests/unit/sidebar.test.tsx` updated: removed 3 sub-section tests, replaced with 1 negative assertion that the "Sources" sub-nav is not rendered. `tests/unit/rightRail.test.tsx`: 1 test updated to expect only "Up Next" (the For You heading moved to Home).
+- **Verified** — `npm run lint` ✅, `npm run typecheck` ✅, `npm run test` ✅ (433/433, was 427, +6).
+
 ---
 
-**Last updated**: Phase 12 (UI/UX Polish), Phase 13A (Visual Immersion), and Phase 13B (Soundora-inspired Layout Redesign) shipped. Phase 11 (AI-Powered Playlist Generation) still planned. 427 tests passing.
+**Last updated**: Phase 12 (UI/UX Polish), Phase 13A (Visual Immersion), and Phase 13B (Soundora-inspired Layout Redesign) shipped. Phase 11 (AI-Powered Playlist Generation) still planned. 433 tests passing.

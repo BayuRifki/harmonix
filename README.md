@@ -72,6 +72,7 @@ Most music players lock you into a single ecosystem. Harmonix breaks that wall:
 - ✅ Build pipeline hardening (latest fixes) — esbuild 0.28.0 with override, Node heap 8 GB for build/dev
 - ✅ 423 tests across 38 files, lint clean, typecheck clean
 - ✅ 427 tests across 39 files (after yt-dlp bundle work), lint clean, typecheck clean
+- ✅ 433 tests across 40 files (after Home For You + Sources removal cleanup), lint clean, typecheck clean
 - ✅ CI pipeline (lint + typecheck + test)
 
 ### Coming Next
@@ -182,6 +183,7 @@ harmonix/
 ## Recent Progress (active session)
 
 - **Bundled `yt-dlp.exe`** — `resources/yt-dlp.exe` (v2026.03.17) shipped in-repo. No external install, no `YT_DLP_PATH` env var. Resolution order: `YT_DLP_PATH` env → `resources/yt-dlp[.exe]` (dev & packaged unpacked) → `process.resourcesPath/yt-dlp[.exe]` → PATH. Settings → YouTube Music → "Check for update" runs `yt-dlp -U` and shows commit reminder when version bumps. See `docs/PLANNING.md` §10 for the full progress log.
+- **Sources section removed + Home For You** — Sidebar and Home no longer render a Sources sub-nav/grid; the global TopBar search is the single entry point across all enabled sources. Home now shows a 6-card "For You" grid sourced from listening history (with starter cards for new users). Shared `ForYouSection` component drives both Home (grid) and RightRail (list).
 
 See [`docs/PLANNING.md`](docs/PLANNING.md) for the full phase breakdown and decision log.
 

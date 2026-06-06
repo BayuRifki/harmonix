@@ -9,13 +9,6 @@ import {
   SlidersHorizontal,
   Settings,
   Plus,
-  FolderOpen,
-  Radio,
-  Disc,
-  Headphones,
-  Music2,
-  Orbit,
-  CloudSun,
 } from 'lucide-react';
 import { LogoMark } from '@/components/branding/LogoMark';
 import { PlaylistCardSidebar } from '@/components/sidebar/PlaylistCardSidebar';
@@ -39,17 +32,6 @@ const STATIC_NAV: StaticNavItem[] = [
   { to: '/settings', label: 'Settings', icon: Settings },
 ];
 
-const SOURCE_ICONS: Record<string, typeof FolderOpen> = {
-  local: FolderOpen,
-  demo: Radio,
-  spotify: Disc,
-  ytmusic: Headphones,
-  deezer: Music2,
-  jamendo: Music2,
-  audius: Orbit,
-  soundcloud: CloudSun,
-};
-
 const SIDEBAR_PLAYLIST_LIMIT = 4;
 
 export function Sidebar(): JSX.Element {
@@ -70,20 +52,12 @@ export function Sidebar(): JSX.Element {
     void refreshPlaylists();
   }, [refreshLibrary, refreshSources, refreshPlaylists]);
 
-  const browseableSources = useMemo(
-    () =>
-      registrations.filter(
-        (r) =>
-          r.enabled &&
-          (r.capabilities.canGetPlaylists ||
-            r.capabilities.canGetLikedTracks ||
-            (r.capabilities.canSearch && r.capabilities.canStream)),
-      ),
-    [registrations],
-  );
-
   const visiblePlaylists = playlists.slice(0, SIDEBAR_PLAYLIST_LIMIT);
   const hasMorePlaylists = playlists.length > SIDEBAR_PLAYLIST_LIMIT;
+  const enabledCount = useMemo(
+    () => registrations.filter((r) => r.enabled).length,
+    [registrations],
+  );
 
   const handleCreatePlaylist = async (): Promise<void> => {
     if (creating) return;
@@ -124,34 +98,6 @@ export function Sidebar(): JSX.Element {
             </NavLink>
           );
         })}
-
-        {browseableSources.length > 0 && (
-          <>
-            <p className="px-3 pt-4 pb-2 text-[10px] uppercase tracking-wider text-zinc-600 font-medium">
-              Sources
-            </p>
-            {browseableSources.map((source, index) => {
-              const Icon = SOURCE_ICONS[source.id] ?? Music;
-              return (
-                <NavLink
-                  key={source.id}
-                  to={`/source/${source.id}`}
-                  className={({ isActive }) =>
-                    `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all duration-150 mt-0.5 animate-slide-in ${
-                      isActive
-                        ? 'bg-zinc-800/60 text-white border-l-2 border-brand-400'
-                        : 'text-zinc-400 hover:bg-zinc-900/60 hover:text-zinc-100 active:scale-[0.98]'
-                    }`
-                  }
-                  style={{ animationDelay: `${(STATIC_NAV.length + index) * 50}ms` }}
-                >
-                  <Icon size={16} strokeWidth={1.5} className="shrink-0 opacity-75" aria-hidden />
-                  <span className="truncate">{source.name}</span>
-                </NavLink>
-              );
-            })}
-          </>
-        )}
 
         <div className="mt-4 pt-3 border-t border-zinc-800/60">
           <div className="flex items-center justify-between px-3 mb-2">
@@ -207,7 +153,7 @@ export function Sidebar(): JSX.Element {
 
       <div className="p-3 border-t border-zinc-800 text-xs text-zinc-600">
         <p>v0.1.0 — Phase 13B</p>
-        <p className="mt-1">{registrations.filter((r) => r.enabled).length} sources enabled</p>
+        <p className="mt-1">{enabledCount} sources enabled</p>
       </div>
     </aside>
   );
