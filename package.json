@@ -24,9 +24,9 @@
     "typescript"
   ],
   "scripts": {
-    "dev": "electron-vite dev",
-    "build": "electron-vite build",
-    "preview": "electron-vite preview",
+    "dev": "node --max-old-space-size=8192 --max-semi-space-size=512 node_modules/electron-vite/bin/electron-vite.js dev",
+    "build": "node --max-old-space-size=8192 --max-semi-space-size=512 node_modules/electron-vite/bin/electron-vite.js build",
+    "preview": "node --max-old-space-size=8192 --max-semi-space-size=512 node_modules/electron-vite/bin/electron-vite.js preview",
     "icons": "node scripts/generate-icons.mjs && node scripts/generate-ico.mjs",
     "lint": "eslint . --ext .ts,.tsx",
     "lint:fix": "eslint . --ext .ts,.tsx --fix",
@@ -75,6 +75,7 @@
     "electron-builder": "^25.1.8",
     "electron-updater": "^6.8.3",
     "electron-vite": "^2.3.0",
+    "esbuild": "^0.28.0",
     "eslint": "^8.57.1",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-react": "^7.37.2",
@@ -90,6 +91,9 @@
     "typescript": "^5.6.3",
     "vite": "^5.4.10",
     "vitest": "^2.1.4"
+  },
+  "overrides": {
+    "esbuild": "^0.28.0"
   },
   "lint-staged": {
     "*.{ts,tsx}": [
