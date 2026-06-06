@@ -1,3 +1,4 @@
+import './env';
 import { app, BrowserWindow, ipcMain, safeStorage } from 'electron';
 import { initDatabase, closeDatabase } from './db';
 import { setElectronApp } from './auth/tokenStore';
