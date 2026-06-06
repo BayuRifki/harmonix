@@ -227,3 +227,124 @@ export async function resolveStreamUrl(
     });
   });
 }
+
+export interface YtDlpUpdateResult {
+  ok: boolean;
+  updated: boolean;
+  oldVersion: string | null;
+  newVersion: string | null;
+  message: string;
+}
+
+function readVersion(bin: string): Promise<string | null> {
+  return new Promise((resolve) => {
+    try {
+      const proc = spawn(bin, ['--version'], { stdio: ['ignore', 'pipe', 'pipe'] });
+      let out = '';
+      const timer = setTimeout(() => {
+        proc.kill();
+        resolve(null);
+      }, 5_000);
+      proc.stdout.on('data', (chunk) => {
+        out += chunk.toString('utf8');
+      });
+      proc.on('error', () => {
+        clearTimeout(timer);
+        resolve(null);
+      });
+      proc.on('close', (code) => {
+        clearTimeout(timer);
+        resolve(code === 0 && out.trim() ? out.trim() : null);
+      });
+    } catch {
+      resolve(null);
+    }
+  });
+}
+
+export function resetYtDlpCache(): void {
+  cachedPath = null;
+}
+
+export async function checkAndUpdateYtDlp(
+  findFn: () => Promise<YtDlpInfo> = findYtDlp,
+): Promise<YtDlpUpdateResult> {
+  const info = await findFn();
+  if (!info.available) {
+    return {
+      ok: false,
+      updated: false,
+      oldVersion: null,
+      newVersion: null,
+      message: info.error ?? 'yt-dlp not found',
+    };
+  }
+
+  const before = info.version ?? (await readVersion(info.path));
+
+  return new Promise((resolve) => {
+    try {
+      const proc = spawn(info.path, ['-U'], { stdio: ['ignore', 'pipe', 'pipe'] });
+      let stderr = '';
+      const timer = setTimeout(() => {
+        proc.kill();
+        resolve({
+          ok: false,
+          updated: false,
+          oldVersion: before,
+          newVersion: null,
+          message: 'yt-dlp -U timed out after 60s',
+        });
+      }, 60_000);
+      proc.stderr.on('data', (chunk) => {
+        stderr += chunk.toString('utf8');
+      });
+      proc.on('error', (err) => {
+        clearTimeout(timer);
+        resolve({
+          ok: false,
+          updated: false,
+          oldVersion: before,
+          newVersion: null,
+          message: err.message,
+        });
+      });
+      proc.on('close', async (code) => {
+        clearTimeout(timer);
+        const after = await readVersion(info.path);
+        const updated =
+          before !== null && after !== null && before !== after;
+        if (updated) {
+          cachedPath = null;
+        }
+        if (code === 0) {
+          resolve({
+            ok: true,
+            updated,
+            oldVersion: before,
+            newVersion: after,
+            message: updated
+              ? `Updated yt-dlp ${before} → ${after}. Commit the new resources/yt-dlp.exe to share with the team.`
+              : `yt-dlp is up to date (${after ?? 'unknown'}).`,
+          });
+          return;
+        }
+        resolve({
+          ok: false,
+          updated: false,
+          oldVersion: before,
+          newVersion: after,
+          message: `yt-dlp -U exited with code ${code}: ${stderr.slice(0, 300)}`,
+        });
+      });
+    } catch (err) {
+      resolve({
+        ok: false,
+        updated: false,
+        oldVersion: before,
+        newVersion: null,
+        message: (err as Error).message,
+      });
+    }
+  });
+}

@@ -176,6 +176,7 @@ export interface HarmonixApi {
     requiresDisclaimer(): Promise<boolean>;
     acknowledgeDisclaimer(): Promise<{ acknowledged: boolean }>;
     status(): Promise<{ ytdlpAvailable: boolean; version: string | null; error?: string }>;
+    checkUpdate(): Promise<YtDlpUpdateResult>;
   };
   playlists: {
     list(): Promise<PlaylistSummary[]>;
@@ -294,6 +295,14 @@ export interface EqCustomPreset {
   gains: number[];
   createdAt: number;
   updatedAt: number;
+}
+
+export interface YtDlpUpdateResult {
+  ok: boolean;
+  updated: boolean;
+  oldVersion: string | null;
+  newVersion: string | null;
+  message: string;
 }
 
 declare global {

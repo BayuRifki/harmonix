@@ -173,6 +173,7 @@ export interface HarmonixApi {
     requiresDisclaimer(): Promise<boolean>;
     acknowledgeDisclaimer(): Promise<{ acknowledged: boolean }>;
     status(): Promise<{ ytdlpAvailable: boolean; version: string | null; error?: string }>;
+    checkUpdate(): Promise<YtDlpUpdateResult>;
   };
   playlists: {
     list(): Promise<PlaylistSummary[]>;
@@ -293,6 +294,14 @@ export interface EqCustomPreset {
   updatedAt: number;
 }
 
+export interface YtDlpUpdateResult {
+  ok: boolean;
+  updated: boolean;
+  oldVersion: string | null;
+  newVersion: string | null;
+  message: string;
+}
+
 const api: HarmonixApi = {
   app: {
     getVersion: (): Promise<string> => ipcRenderer.invoke('app:get-version'),
@@ -348,6 +357,7 @@ const api: HarmonixApi = {
       ipcRenderer.invoke('ytmusic:acknowledge-disclaimer'),
     status: (): Promise<{ ytdlpAvailable: boolean; version: string | null; error?: string }> =>
       ipcRenderer.invoke('ytmusic:status'),
+    checkUpdate: (): Promise<YtDlpUpdateResult> => ipcRenderer.invoke('ytmusic:check-update'),
   },
   playlists: {
     list: (): Promise<PlaylistSummary[]> => ipcRenderer.invoke('playlists:list'),

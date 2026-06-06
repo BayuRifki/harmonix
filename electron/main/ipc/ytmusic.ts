@@ -1,7 +1,7 @@
 import { ipcMain } from 'electron';
 import { getSource } from '../sources/registry';
 import { YouTubeMusicSource } from '../sources/ytmusic';
-import { findYtDlp } from '../sources/ytmusic/ytdlp';
+import { checkAndUpdateYtDlp, findYtDlp } from '../sources/ytmusic/ytdlp';
 
 export function registerYtMusicHandlers(): void {
   ipcMain.handle('ytmusic:disclaimer-text', async () => {
@@ -34,5 +34,9 @@ export function registerYtMusicHandlers(): void {
       version: info.version,
       error: info.error,
     };
+  });
+
+  ipcMain.handle('ytmusic:check-update', async () => {
+    return checkAndUpdateYtDlp();
   });
 }
