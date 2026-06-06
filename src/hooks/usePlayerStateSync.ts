@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { usePlayerStore } from '@/stores/playerStore';
+import { useListeningHistoryStore } from '@/stores/listeningHistoryStore';
 import type { MiniPlayerStateSnapshot, MiniPlayerAction } from '@/types/global';
 
 function buildSnapshot(): MiniPlayerStateSnapshot {
@@ -62,12 +63,21 @@ function handleMiniCommand(action: MiniPlayerAction): void {
 export function usePlayerStateSync(): void {
   const pushedRef = useRef<string>('');
   const lastPushAtRef = useRef<number>(0);
+  const lastRecordedTrackIdRef = useRef<string>('');
 
   useEffect(() => {
     if (typeof window === 'undefined' || !window.api?.player) return undefined;
 
     const push = (): void => {
       const snap = buildSnapshot();
+      const liveTrack = usePlayerStore.getState().currentTrack;
+      const trackId = liveTrack?.id ?? '';
+      if (trackId && trackId !== lastRecordedTrackIdRef.current) {
+        if (liveTrack) {
+          useListeningHistoryStore.getState().add(liveTrack);
+        }
+        lastRecordedTrackIdRef.current = trackId;
+      }
       const key = JSON.stringify({
         t: snap.title,
         a: snap.artistLine,

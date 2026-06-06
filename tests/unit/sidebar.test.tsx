@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { useSourcesStore } from '@/stores/sourcesStore';
 import { useLibraryStore } from '@/stores/libraryStore';
+import { usePlaylistsStore } from '@/stores/playlistsStore';
 import { installMockWindowApi } from '../setup';
 
 interface Registration {
@@ -55,24 +56,68 @@ describe('Sidebar', () => {
     useLibraryStore.setState({
       stats: { trackCount: 0, albumCount: 0, artistCount: 0 },
     });
+    usePlaylistsStore.setState({ playlists: [], current: null, loading: false });
   });
 
   it('shows the app name and version', () => {
     installMockWindowApi();
     renderWithRouter();
     expect(screen.getByText('Harmonix')).toBeInTheDocument();
-    expect(screen.getByText(/Phase 12/)).toBeInTheDocument();
+    expect(screen.getByText(/Phase 13B/)).toBeInTheDocument();
   });
 
   it('renders all static nav items', () => {
     installMockWindowApi();
     renderWithRouter();
     expect(screen.getByText('Home')).toBeInTheDocument();
-    expect(screen.getByText('Search')).toBeInTheDocument();
+    expect(screen.getByText('Explore')).toBeInTheDocument();
     expect(screen.getByText('Library')).toBeInTheDocument();
+    expect(screen.getByText('Favorites')).toBeInTheDocument();
     expect(screen.getByText('Playlists')).toBeInTheDocument();
     expect(screen.getByText('Equalizer')).toBeInTheDocument();
     expect(screen.getByText('Settings')).toBeInTheDocument();
+  });
+
+  it('renders Your Playlists section with create button', () => {
+    installMockWindowApi();
+    renderWithRouter();
+    expect(screen.getByText('Your Playlists')).toBeInTheDocument();
+    expect(screen.getByLabelText('Create playlist')).toBeInTheDocument();
+  });
+
+  it('shows empty state for playlists when none exist', () => {
+    installMockWindowApi();
+    renderWithRouter();
+    expect(screen.getByText(/No playlists yet/i)).toBeInTheDocument();
+  });
+
+  it('renders playlist cards with name and song count', () => {
+    installMockWindowApi();
+    usePlaylistsStore.setState({
+      playlists: [
+        {
+          id: 1,
+          name: 'Chill Vibes',
+          trackCount: 32,
+          description: null,
+          created_at: 0,
+          updated_at: 0,
+        },
+        {
+          id: 2,
+          name: 'Focus Flow',
+          trackCount: 24,
+          description: null,
+          created_at: 0,
+          updated_at: 0,
+        },
+      ],
+    });
+    renderWithRouter();
+    expect(screen.getByText('Chill Vibes')).toBeInTheDocument();
+    expect(screen.getByText('32 songs')).toBeInTheDocument();
+    expect(screen.getByText('Focus Flow')).toBeInTheDocument();
+    expect(screen.getByText('24 songs')).toBeInTheDocument();
   });
 
   it('shows per-source nav entries for enabled browseable sources', () => {

@@ -1,0 +1,228 @@
+import { useState, useEffect } from 'react';
+import { Music, MoreHorizontal, X, Play } from 'lucide-react';
+import { usePlayerStore } from '@/stores/playerStore';
+import { useListeningHistoryStore, type HistoryEntry } from '@/stores/listeningHistoryStore';
+import { RecommendationCard } from '@/components/recommendations/RecommendationCard';
+
+interface RightRailProps {
+  onPlayHistoryEntry?: (entry: HistoryEntry) => void;
+}
+
+function formatDuration(ms: number): string {
+  if (!ms || ms <= 0) return '—';
+  const s = Math.floor(ms / 1000);
+  const m = Math.floor(s / 60);
+  return `${m}:${(s % 60).toString().padStart(2, '0')}`;
+}
+
+function ArtworkThumb({
+  url,
+  alt,
+  size = 40,
+}: {
+  url: string | null;
+  alt: string;
+  size?: number;
+}): JSX.Element {
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    setFailed(false);
+  }, [url]);
+  if (!url || failed) {
+    return (
+      <div
+        className="bg-zinc-800 rounded shrink-0 flex items-center justify-center text-zinc-600"
+        style={{ width: size, height: size }}
+        aria-label={alt}
+      >
+        <Music size={size * 0.4} />
+      </div>
+    );
+  }
+  return (
+    <img
+      src={url}
+      alt={alt}
+      className="rounded shrink-0 object-cover"
+      style={{ width: size, height: size }}
+      onError={() => setFailed(true)}
+    />
+  );
+}
+
+const STARTER_RECOMMENDATIONS: HistoryEntry[] = [
+  {
+    id: 'starter-browse-library',
+    title: 'Browse your Library',
+    artist: 'Start with what you have',
+    album: null,
+    artworkUrl: null,
+    source: 'local',
+    durationMs: 0,
+    playedAt: 0,
+  },
+  {
+    id: 'starter-search',
+    title: 'Search across sources',
+    artist: 'Find new tracks',
+    album: null,
+    artworkUrl: null,
+    source: 'search',
+    durationMs: 0,
+    playedAt: 0,
+  },
+];
+
+export function RightRail({ onPlayHistoryEntry }: RightRailProps): JSX.Element {
+  const queue = usePlayerStore((s) => s.queue);
+  const queueIndex = usePlayerStore((s) => s.queueIndex);
+  const setQueue = usePlayerStore((s) => s.setQueue);
+  const play = usePlayerStore((s) => s.play);
+  const recent = useListeningHistoryStore((s) => s.entries);
+  const clearHistory = useListeningHistoryStore((s) => s.clear);
+
+  const upNext = queue.slice(queueIndex + 1, queueIndex + 6);
+  const recommendations = recent.length > 0 ? recent.slice(0, 3) : STARTER_RECOMMENDATIONS;
+
+  const playQueueItem = (realIndex: number): void => {
+    void setQueue(queue, realIndex);
+  };
+
+  const clearUpNext = (): void => {
+    const newQueue = queue.slice(0, queueIndex + 1);
+    usePlayerStore.setState({ queue: newQueue });
+  };
+
+  const playHistory = (entry: HistoryEntry): void => {
+    if (onPlayHistoryEntry) {
+      onPlayHistoryEntry(entry);
+      return;
+    }
+    void play({
+      id: entry.id,
+      source: entry.source,
+      sourceId: entry.id,
+      title: entry.title,
+      artists: entry.artist.split(', ').map((name) => ({ id: name, name, source: entry.source })),
+      durationMs: entry.durationMs,
+      artworkUrl: entry.artworkUrl ?? undefined,
+      isPlayable: true,
+    });
+  };
+
+  return (
+    <aside className="w-80 border-l border-zinc-800 bg-zinc-950/60 backdrop-blur flex flex-col overflow-hidden">
+      <section className="p-4 border-b border-zinc-800">
+        <header className="flex items-center justify-between mb-3">
+          <h2 className="text-[11px] font-semibold text-zinc-300 tracking-wider uppercase">
+            Up Next
+          </h2>
+          {upNext.length > 0 && (
+            <button
+              type="button"
+              onClick={clearUpNext}
+              className="text-[11px] text-zinc-500 hover:text-zinc-300 transition-colors"
+              aria-label="Clear up next"
+            >
+              Clear
+            </button>
+          )}
+        </header>
+        {upNext.length === 0 ? (
+          <p className="text-xs text-zinc-500 py-2">
+            No upcoming tracks. Play something to fill the queue.
+          </p>
+        ) : (
+          <ul className="space-y-1">
+            {upNext.map((track, i) => {
+              const realIndex = queueIndex + 1 + i;
+              const artworkUrl = track.artworkUrl ?? track.album?.artworkUrl ?? null;
+              return (
+                <li
+                  key={`u-${realIndex}-${track.id}`}
+                  onClick={() => playQueueItem(realIndex)}
+                  className="group flex items-center gap-3 px-2 py-1.5 rounded-md hover:bg-zinc-900/60 cursor-pointer transition-colors"
+                >
+                  <ArtworkThumb url={artworkUrl} alt={track.title} size={40} />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm text-zinc-200 truncate">{track.title}</p>
+                    <p className="text-xs text-zinc-500 truncate">
+                      {track.artists.map((a) => a.name).join(', ') || 'Unknown artist'}
+                    </p>
+                  </div>
+                  <span className="text-xs text-zinc-600 shrink-0">
+                    {formatDuration(track.durationMs)}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const newQueue = queue.filter((_, idx) => idx !== realIndex);
+                      usePlayerStore.setState({
+                        queue: newQueue,
+                        queueIndex: Math.min(queueIndex, newQueue.length - 1),
+                      });
+                    }}
+                    className="opacity-0 group-hover:opacity-100 text-zinc-500 hover:text-zinc-300 transition-all p-1"
+                    aria-label="Remove from queue"
+                    title="Remove from queue"
+                  >
+                    <X size={14} />
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
+
+      <section className="p-4 flex-1 overflow-y-auto">
+        <header className="flex items-center justify-between mb-3">
+          <h2 className="text-[11px] font-semibold text-zinc-300 tracking-wider uppercase">
+            For You
+          </h2>
+          {recent.length > 0 && (
+            <button
+              type="button"
+              onClick={clearHistory}
+              className="text-[11px] text-zinc-500 hover:text-zinc-300 transition-colors"
+              aria-label="Clear history"
+              title="Clear history"
+            >
+              <MoreHorizontal size={14} />
+            </button>
+          )}
+        </header>
+        {recent.length === 0 ? (
+          <p className="text-xs text-zinc-500 mb-3">
+            Play some tracks to see personalized recommendations.
+          </p>
+        ) : null}
+        <div className="space-y-1">
+          {recommendations.map((entry) => (
+            <RecommendationCard
+              key={entry.id}
+              entry={entry}
+              onPlay={entry.id.startsWith('starter-') ? undefined : () => playHistory(entry)}
+            />
+          ))}
+        </div>
+        {recent.length === 0 && (
+          <div className="mt-4 pt-4 border-t border-zinc-800/50">
+            <p className="text-[10px] text-zinc-600 uppercase tracking-wider mb-2">Quick actions</p>
+            <div className="space-y-1">
+              <button
+                type="button"
+                onClick={() => playHistory(STARTER_RECOMMENDATIONS[0]!)}
+                className="w-full text-left flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-zinc-900/60 text-zinc-400 hover:text-zinc-200 transition-colors"
+              >
+                <Play size={12} />
+                <span className="text-xs">Open library</span>
+              </button>
+            </div>
+          </div>
+        )}
+      </section>
+    </aside>
+  );
+}

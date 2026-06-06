@@ -2,20 +2,16 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { usePlayerStore } from '@/stores/playerStore';
 import { useSourcesStore } from '@/stores/sourcesStore';
+import { TransportControls } from '@/components/player/TransportControls';
 import { QueuePanel } from '@/features/player/QueuePanel';
 import {
-  Shuffle,
-  SkipBack,
-  Play,
-  Pause,
-  SkipForward,
-  Repeat,
   ListMusic,
   LayoutGrid,
   Maximize2,
   Volume1,
   Volume2,
   VolumeX,
+  Play,
   Music,
 } from 'lucide-react';
 
@@ -29,13 +25,6 @@ const SOURCE_BADGE_COLORS: Record<string, string> = {
   audius: 'bg-pink-500/20 text-pink-300 border-pink-500/40',
   soundcloud: 'bg-orange-500/20 text-orange-300 border-orange-500/40',
 };
-
-function formatTime(ms: number): string {
-  if (!ms || ms <= 0) return '0:00';
-  const s = Math.floor(ms / 1000);
-  const m = Math.floor(s / 60);
-  return `${m}:${(s % 60).toString().padStart(2, '0')}`;
-}
 
 function sourceColor(source: string): string {
   return SOURCE_BADGE_COLORS[source] ?? 'bg-zinc-700/40 text-zinc-300 border-zinc-600/50';
@@ -102,13 +91,7 @@ export function PlayerBar(): JSX.Element {
   const [queueOpen, setQueueOpen] = useState(false);
   const navigate = useNavigate();
   const currentTrack = usePlayerStore((s) => s.currentTrack);
-  const isPlaying = usePlayerStore((s) => s.isPlaying);
-  const loading = usePlayerStore((s) => s.loading);
   const volume = usePlayerStore((s) => s.volume);
-  const positionMs = usePlayerStore((s) => s.positionMs);
-  const durationMs = usePlayerStore((s) => s.durationMs);
-  const shuffle = usePlayerStore((s) => s.shuffle);
-  const repeat = usePlayerStore((s) => s.repeat);
   const queue = usePlayerStore((s) => s.queue);
   const error = usePlayerStore((s) => s.error);
   const registrations = useSourcesStore((s) => s.registrations);
@@ -118,16 +101,8 @@ export function PlayerBar(): JSX.Element {
       : null;
 
   const setVolume = usePlayerStore((s) => s.setVolume);
-  const toggleShuffle = usePlayerStore((s) => s.toggleShuffle);
-  const cycleRepeat = usePlayerStore((s) => s.cycleRepeat);
-  const resume = usePlayerStore((s) => s.resume);
-  const pause = usePlayerStore((s) => s.pause);
-  const next = usePlayerStore((s) => s.next);
-  const previous = usePlayerStore((s) => s.previous);
-  const seek = usePlayerStore((s) => s.seek);
 
   const hasTrack = currentTrack !== null;
-  const progress = durationMs > 0 ? (positionMs / durationMs) * 100 : 0;
   const artworkUrl = currentTrack?.artworkUrl ?? currentTrack?.album?.artworkUrl ?? null;
   const trackKey = currentTrack?.id ?? 'empty';
 
@@ -168,100 +143,8 @@ export function PlayerBar(): JSX.Element {
       </div>
 
       {/* Center: Transport controls + seek */}
-      <div className="flex flex-col items-center gap-2 w-1/3">
-        <div className="flex items-center gap-0.5">
-          <button
-            type="button"
-            onClick={toggleShuffle}
-            className={`p-2 rounded-lg transition-all duration-100 active:scale-95 ${
-              shuffle
-                ? 'text-brand-400 bg-brand-500/10'
-                : 'text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/60'
-            }`}
-            aria-label="Toggle shuffle"
-            aria-pressed={shuffle}
-            title={`Shuffle ${shuffle ? '(on)' : '(off)'}`}
-          >
-            <Shuffle size={16} />
-          </button>
-          <button
-            type="button"
-            onClick={() => void previous()}
-            disabled={!hasTrack}
-            className="p-2 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800/60 disabled:opacity-40 transition-all duration-100 active:scale-95"
-            aria-label="Previous track"
-            title="Previous"
-          >
-            <SkipBack size={18} />
-          </button>
-          <button
-            type="button"
-            onClick={() => (isPlaying ? pause() : void resume())}
-            disabled={!hasTrack || loading}
-            className="mx-1 w-10 h-10 rounded-full bg-zinc-100 text-zinc-900 flex items-center justify-center transition-all duration-150 hover:bg-white hover:scale-105 active:scale-95 disabled:opacity-40 shadow-glow-sm"
-            aria-label={isPlaying ? 'Pause' : 'Play'}
-            title={isPlaying ? 'Pause (Space)' : 'Play (Space)'}
-          >
-            {loading ? (
-              <span className="animate-spin-slow" aria-hidden>
-                <Music size={18} className="opacity-50" />
-              </span>
-            ) : isPlaying ? (
-              <Pause size={18} />
-            ) : (
-              <Play size={18} className="ml-0.5" />
-            )}
-          </button>
-          <button
-            type="button"
-            onClick={() => void next()}
-            disabled={!hasTrack}
-            className="p-2 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800/60 disabled:opacity-40 transition-all duration-100 active:scale-95"
-            aria-label="Next track"
-            title="Next"
-          >
-            <SkipForward size={18} />
-          </button>
-          <button
-            type="button"
-            onClick={cycleRepeat}
-            className={`p-2 rounded-lg transition-all duration-100 active:scale-95 ${
-              repeat !== 'off'
-                ? 'text-brand-400 bg-brand-500/10'
-                : 'text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/60'
-            }`}
-            aria-label={`Repeat: ${repeat}`}
-            title={`Repeat: ${repeat}`}
-          >
-            <Repeat size={16} />
-          </button>
-        </div>
-
-        <div className="w-full max-w-md flex items-center gap-3 text-xs text-zinc-400 tabular-nums group">
-          <span className="w-10 text-right">{formatTime(positionMs)}</span>
-          <div className="flex-1 relative h-1.5 rounded-full bg-zinc-800 overflow-hidden cursor-pointer">
-            <div
-              className="h-full bg-gradient-to-r from-brand-600 to-brand-400 rounded-full transition-[width] duration-100"
-              style={{ width: `${progress}%` }}
-            />
-            <input
-              type="range"
-              min={0}
-              max={durationMs || 0}
-              value={positionMs}
-              onChange={(e) => void seek(Number(e.target.value))}
-              disabled={!hasTrack}
-              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
-              aria-label="Seek"
-            />
-            <div
-              className="absolute h-2.5 w-2.5 rounded-full bg-brand-400 shadow border border-white/30 top-1/2 -translate-y-1/2 pointer-events-none transition-opacity duration-150 opacity-0 group-hover:opacity-100"
-              style={{ left: `calc(${progress}% - 5px)` }}
-            />
-          </div>
-          <span className="w-10">{formatTime(durationMs)}</span>
-        </div>
-
+      <div className="flex flex-col items-center gap-1 w-1/3">
+        <TransportControls variant="compact" />
         {error && (
           <p className="text-xs text-red-400 bg-red-500/10 px-2 py-0.5 rounded animate-scale-in">
             {error}

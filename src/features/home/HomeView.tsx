@@ -1,9 +1,10 @@
 import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, Library, Settings, Disc, Music, ArrowRight } from 'lucide-react';
-import { useAppInfo } from '@/hooks/useAppInfo';
-import { useAppStore } from '@/stores/appStore';
+import { Disc3, ArrowRight, Music2 } from 'lucide-react';
+import { HeroPlayer } from '@/features/home/HeroPlayer';
 import { useSourcesStore } from '@/stores/sourcesStore';
+import { useAppStore } from '@/stores/appStore';
+import { useAppInfo } from '@/hooks/useAppInfo';
 
 export function HomeView(): JSX.Element {
   useAppInfo();
@@ -17,121 +18,54 @@ export function HomeView(): JSX.Element {
   }, [refresh]);
 
   const enabled = registrations.filter((r) => r.enabled);
-  const searchSources = enabled.filter((r) => r.capabilities.canSearch);
+  const browseable = enabled.filter(
+    (r) =>
+      r.capabilities.canGetPlaylists ||
+      r.capabilities.canGetLikedTracks ||
+      (r.capabilities.canSearch && r.capabilities.canStream),
+  );
 
   return (
-    <div className="p-8 max-w-4xl">
-      <header className="mb-8 animate-fade-in">
-        <h1 className="text-3xl font-bold text-white">Welcome to Harmonix</h1>
-        <p className="text-zinc-400 mt-2">
-          A unified cross-source music player.{' '}
-          <span className="text-brand-400 font-medium">{enabled.length}</span> of{' '}
-          {registrations.length} sources enabled.
-        </p>
-      </header>
-
-      <section className="grid grid-cols-2 gap-4 mb-8">
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 hover:border-zinc-700 transition-colors">
-          <p className="text-xs text-zinc-500 uppercase tracking-wide">Version</p>
-          <p className="text-2xl font-mono text-white mt-1">v{version}</p>
-        </div>
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 hover:border-zinc-700 transition-colors">
-          <p className="text-xs text-zinc-500 uppercase tracking-wide">Platform</p>
-          <p className="text-2xl font-mono text-white mt-1">{platform ?? 'detecting…'}</p>
-        </div>
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 hover:border-zinc-700 transition-colors">
-          <p className="text-xs text-zinc-500 uppercase tracking-wide">Sources enabled</p>
-          <p className="text-2xl font-mono text-white mt-1">
-            {enabled.length} / {registrations.length}
-          </p>
-        </div>
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 hover:border-zinc-700 transition-colors">
-          <p className="text-xs text-zinc-500 uppercase tracking-wide">Searchable</p>
-          <p className="text-2xl font-mono text-white mt-1">{searchSources.length} sources</p>
-        </div>
+    <div className="h-full flex flex-col overflow-y-auto">
+      <section className="flex-1 min-h-0">
+        <HeroPlayer playlistName="Harmonix Favorites" />
       </section>
 
-      <section className="mb-8">
-        <h2 className="text-lg font-semibold text-white mb-3">Quick Actions</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <Link
-            to="/search"
-            className="group p-4 bg-zinc-900 border border-zinc-800 rounded-xl hover:border-brand-500/50 hover:bg-zinc-900/80 transition-all duration-150 active:scale-[0.98]"
-          >
-            <div className="flex items-center gap-3 mb-2">
-              <Search size={18} className="text-brand-400" />
-              <p className="text-sm font-medium text-white">Search</p>
-            </div>
-            <p className="text-xs text-zinc-400">
-              Find tracks across {searchSources.length} enabled source
-              {searchSources.length === 1 ? '' : 's'}.
-            </p>
-          </Link>
-          <Link
-            to="/library"
-            className="group p-4 bg-zinc-900 border border-zinc-800 rounded-xl hover:border-brand-500/50 hover:bg-zinc-900/80 transition-all duration-150 active:scale-[0.98]"
-          >
-            <div className="flex items-center gap-3 mb-2">
-              <Library size={18} className="text-brand-400" />
-              <p className="text-sm font-medium text-white">Local Library</p>
-            </div>
-            <p className="text-xs text-zinc-400">Manage scanned folders and tracks.</p>
-          </Link>
-          <Link
-            to="/settings"
-            className="group p-4 bg-zinc-900 border border-zinc-800 rounded-xl hover:border-brand-500/50 hover:bg-zinc-900/80 transition-all duration-150 active:scale-[0.98]"
-          >
-            <div className="flex items-center gap-3 mb-2">
-              <Settings size={18} className="text-brand-400" />
-              <p className="text-sm font-medium text-white">Settings</p>
-            </div>
-            <p className="text-xs text-zinc-400">Configure sources, equalizer, theme.</p>
-          </Link>
-        </div>
-      </section>
-
-      <section className="mb-8">
-        <h2 className="text-lg font-semibold text-white mb-3">Enabled Sources</h2>
-        {enabled.length === 0 ? (
-          <div className="text-zinc-400 text-sm py-12 text-center border border-dashed border-zinc-700 rounded-xl animate-fade-in">
-            <Disc size={24} className="mx-auto mb-3 opacity-50" />
-            <p>No sources enabled. Open Settings to enable one.</p>
+      {browseable.length > 0 && (
+        <section className="px-8 pb-8 border-t border-zinc-800/60 pt-6">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-zinc-200 uppercase tracking-wider">
+              Sources
+            </h3>
+            <Link
+              to="/settings"
+              className="text-xs text-zinc-500 hover:text-brand-400 inline-flex items-center gap-1 transition-colors"
+            >
+              Manage <ArrowRight size={12} />
+            </Link>
           </div>
-        ) : (
-          <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {enabled.map((s) => (
-              <li
-                key={s.id}
-                className="flex items-center justify-between gap-2 p-3 bg-zinc-900 border border-zinc-800 rounded-lg hover:border-zinc-700 transition-all duration-150"
-              >
-                <div className="flex items-center gap-3 min-w-0 flex-1">
-                  <Music size={16} className="text-brand-400 shrink-0 opacity-70" />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm text-zinc-100 truncate">{s.name}</p>
-                    <p className="text-xs text-zinc-500 truncate">
-                      {[
-                        s.capabilities.canSearch && 'search',
-                        s.capabilities.canStream && 'stream',
-                        s.capabilities.canGetPlaylists && 'playlists',
-                        s.capabilities.canGetLikedTracks && 'liked',
-                      ]
-                        .filter(Boolean)
-                        .join(' · ') || 'no capabilities'}
-                    </p>
-                  </div>
-                </div>
-                {s.capabilities.canGetPlaylists || s.capabilities.canGetLikedTracks ? (
-                  <Link
-                    to={`/source/${s.id}`}
-                    className="text-xs text-brand-400 hover:text-brand-300 shrink-0 inline-flex items-center gap-1 transition-colors"
-                  >
-                    Browse <ArrowRight size={12} />
-                  </Link>
-                ) : null}
+          <ul className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+            {browseable.slice(0, 8).map((s) => (
+              <li key={s.id}>
+                <Link
+                  to={`/source/${s.id}`}
+                  className="flex items-center gap-2 p-2.5 bg-zinc-900/60 border border-zinc-800 rounded-lg hover:border-brand-500/40 transition-colors"
+                >
+                  <Music2 size={14} className="text-brand-400 shrink-0" />
+                  <span className="text-sm text-zinc-100 truncate">{s.name}</span>
+                </Link>
               </li>
             ))}
           </ul>
-        )}
+        </section>
+      )}
+
+      <section className="px-8 pb-6 text-xs text-zinc-600 flex items-center gap-3">
+        <Disc3 size={12} className="text-brand-500" />
+        <span>
+          Harmonix v{version} · {platform ?? 'detecting…'} · {enabled.length} of{' '}
+          {registrations.length} sources enabled
+        </span>
       </section>
     </div>
   );

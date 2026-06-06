@@ -3,6 +3,8 @@ import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { PlayerBar } from '@/components/layout/PlayerBar';
+import { TopBar } from '@/components/layout/TopBar';
+import { RightRail } from '@/components/layout/RightRail';
 import { AnimatedBackground } from '@/components/layout/AnimatedBackground';
 import { AudioReactiveBackground } from '@/components/layout/AudioReactiveBackground';
 import { HomeView } from '@/features/home/HomeView';
@@ -60,16 +62,34 @@ function MainApp(): JSX.Element {
 
   const isNowPlaying = location.pathname === '/now-playing';
   const isHome = location.pathname === '/';
+  const isSearch = location.pathname.startsWith('/search');
+  const showRightRail = isHome || isSearch;
+  const showTopBar = !isNowPlaying;
+
+  if (isNowPlaying) {
+    return (
+      <div className="h-screen flex flex-col text-zinc-100">
+        <YtMusicDisclaimer />
+        <AudioReactiveBackground />
+        <div className="flex-1 overflow-hidden">
+          <Routes location={location}>
+            <Route path="/now-playing" element={<NowPlayingView />} />
+          </Routes>
+        </div>
+        <ToastContainer />
+      </div>
+    );
+  }
 
   return (
     <div className="h-screen flex flex-col text-zinc-100">
       <YtMusicDisclaimer />
-      {!isNowPlaying && <AnimatedBackground />}
-      {isNowPlaying && <AudioReactiveBackground />}
+      <AnimatedBackground />
       {isHome && <AudioReactiveBackground />}
+      {showTopBar && <TopBar />}
       <div className="flex-1 flex overflow-hidden">
-        {!isNowPlaying && <Sidebar />}
-        <main className="flex-1 overflow-y-auto">
+        <Sidebar />
+        <main className="flex-1 overflow-y-auto min-w-0">
           <AnimatePresence mode="wait" initial={false}>
             <Routes location={location} key={location.pathname}>
               <Route
@@ -134,13 +154,30 @@ function MainApp(): JSX.Element {
                   </PageTransition>
                 }
               />
+              <Route
+                path="/explore"
+                element={
+                  <PageTransition>
+                    <LibraryView />
+                  </PageTransition>
+                }
+              />
+              <Route
+                path="/favorites"
+                element={
+                  <PageTransition>
+                    <LibraryView />
+                  </PageTransition>
+                }
+              />
               <Route path="/now-playing" element={<NowPlayingView />} />
               <Route path="/mini" element={<MiniPlayerView />} />
             </Routes>
           </AnimatePresence>
         </main>
+        {showRightRail && <RightRail />}
       </div>
-      {!isNowPlaying && <PlayerBar />}
+      <PlayerBar />
       <ToastContainer />
     </div>
   );
