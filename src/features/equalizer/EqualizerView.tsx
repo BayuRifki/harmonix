@@ -1,11 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useEqualizerStore } from '@/stores/equalizerStore';
-import {
-  EQ_BAND_FREQUENCIES,
-  EQ_BAND_LABELS,
-  EQ_MIN_GAIN,
-  EQ_MAX_GAIN,
-} from '@/lib/audio/presets';
+import { EQ_BAND_FREQUENCIES, EQ_BAND_LABELS, EQ_MIN_GAIN, EQ_MAX_GAIN } from '@/lib/audio/presets';
 
 export function EqualizerView(): JSX.Element {
   const builtin = useEqualizerStore((s) => s.builtinPresets);
@@ -58,7 +53,8 @@ export function EqualizerView(): JSX.Element {
     <div className="p-8">
       <h1 className="text-2xl font-bold text-white mb-2">Equalizer</h1>
       <p className="text-zinc-400 mb-6 text-sm">
-        10-band parametric EQ for local and YouTube Music playback. Settings persist across sessions.
+        10-band parametric EQ for local and YouTube Music playback. Settings persist across
+        sessions.
       </p>
 
       <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6 mb-4">
@@ -97,15 +93,14 @@ export function EqualizerView(): JSX.Element {
           >
             Save as…
           </button>
-          {activePreset &&
-            custom.some((p) => p.name === activePreset) && (
-              <button
-                onClick={() => void deleteCustom(activePreset)}
-                className="px-3 py-1.5 text-sm bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded"
-              >
-                Delete custom
-              </button>
-            )}
+          {activePreset && custom.some((p) => p.name === activePreset) && (
+            <button
+              onClick={() => void deleteCustom(activePreset)}
+              className="px-3 py-1.5 text-sm bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded"
+            >
+              Delete custom
+            </button>
+          )}
           <button
             onClick={() => void reset()}
             className="px-3 py-1.5 text-sm bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded"
@@ -144,7 +139,11 @@ export function EqualizerView(): JSX.Element {
                     value={gain}
                     onChange={(e) => void setBandGain(i, Number(e.target.value))}
                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                    style={{ writingMode: 'vertical-lr' as const, WebkitAppearance: 'slider-vertical' as const }}
+                    style={{
+                      writingMode: 'vertical-lr' as const,
+                      WebkitAppearance: 'slider-vertical' as const,
+                      direction: 'rtl' as const,
+                    }}
                     aria-label={`${freq} Hz band`}
                   />
                   <div
@@ -174,9 +173,8 @@ export function EqualizerView(): JSX.Element {
           Web Audio API.
         </p>
         <p>
-          It does <span className="text-white">not</span> apply to Spotify Web Playback SDK
-          streams — Spotify controls the audio output directly and the EQ cannot be inserted in
-          that path.
+          It does <span className="text-white">not</span> apply to Spotify Web Playback SDK streams
+          — Spotify controls the audio output directly and the EQ cannot be inserted in that path.
         </p>
       </div>
 

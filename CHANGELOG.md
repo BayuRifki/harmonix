@@ -40,11 +40,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Player bar no longer shows a `🎵` placeholder when no track is playing.
 - Volume slider and seek bar now use the user's chosen accent color rather than the hard-coded brand color.
 - `useKeyboardShortcuts` correctly skips `contenteditable` elements (attribute fallback added for jsdom and older browsers).
+- **Equalizer is now actually wired into the Web Audio graph.** The 10-band BiquadFilter chain is inserted between the engine's gain node and the destination inside `AudioEngine.ensureContext()`, so slider changes reach the audio. Previously the engine created `gainNode → destination` and never connected the equalizer at all (an orphaned `Equalizer.connect()` call in `sourceResolver.ts` ran too late and would have left a Y-splitter anyway); the chain has been moved into the engine, made idempotent, and given a `disconnect()` cleanup path in `destroy()`.
+- **Equalizer slider direction corrected.** The native range input is now given `direction: 'rtl'` alongside its `writing-mode: vertical-lr` so clicks at the top of a band = max gain (+12 dB) and clicks at the bottom = min gain (−12 dB), matching the visible thumb and fill.
 
 ### Tests
 
 - 23 new unit tests for `colorExtractor` (RGB→HSL math, hue-bucket clustering edge cases, CORS/empty/gray inputs, saturation/lightness clamping, `hslToString` rounding) and `useKeyboardShortcuts` (input/textarea/select/contenteditable detection, all six shortcut mappings including mute toggle and 0.8-restore fallback). Total: **314 tests** across **26 files**, all passing.
 - 18 new unit tests for the mini-player: 11 for `PlayerStateBus` + `applyPlayerAction` reducer (play/pause/toggle/seek/next/prev/volume/shuffle/repeat, subscriber notifications, listener error isolation, singleton bus) and 7 for `clampToDisplayBounds` (right/bottom/left/top edge clamping, offset displays, minimum visibility guarantee). Total: **355 tests** across **29 files**, all passing.
+- 14 new unit tests for the equalizer: 5 wiring tests in `equalizerWiring.test.ts` (engine calls `equalizer.connect()` on first `load()`, the gain node is never connected directly to destination so no Y-splitter, the last filter is connected to destination, `destroy()` tears the chain down, `createGain` is called only once across multiple loads) and 9 new tests in `equalizer.test.ts` (idempotent reconnect, stored gains survive a re-`connect()`, `setBandGain` works before `connect()`, `isConnected()` before/after, `disconnect()` clears state, plus 3 wiring-connection assertions). Total: **369 tests** across **30 files**, all passing.
 
 #### Phase 0 — Foundation
 

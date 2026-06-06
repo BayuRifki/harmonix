@@ -6,18 +6,30 @@ const MAX_GAIN = 12;
 export type EqGains = number[];
 
 export class Equalizer {
-  private filters: BiquadFilterNode[];
+  private filters: BiquadFilterNode[] = [];
+  private input: AudioNode | null = null;
   private output: AudioNode | null = null;
-  private gains: number[];
+  private gains: number[] = BANDS.map(() => 0);
 
-  constructor() {
-    this.filters = [];
-    this.gains = BANDS.map(() => 0);
+  bands(): readonly number[] {
+    return BANDS;
+  }
+
+  isConnected(): boolean {
+    return this.input !== null && this.output !== null && this.filters.length === BANDS.length;
   }
 
   connect(input: AudioNode, output: AudioNode): void {
+    if (this.isConnected()) {
+      this.disconnect();
+    }
+    try {
+      input.disconnect(output);
+    } catch {
+      // no prior direct connection — fine
+    }
+    this.input = input;
     this.output = output;
-    if (this.filters.length > 0) return;
     const ctx = input.context;
     let prev: AudioNode = input;
     for (const freq of BANDS) {
@@ -31,17 +43,22 @@ export class Equalizer {
       this.filters.push(filter);
     }
     prev.connect(output);
+    for (let i = 0; i < this.filters.length; i++) {
+      this.filters[i].gain.value = this.gains[i];
+    }
   }
 
   setBandGain(index: number, gainDb: number): void {
-    if (index < 0 || index >= this.filters.length) return;
+    if (index < 0 || index >= BANDS.length) return;
     const clamped = Math.max(MIN_GAIN, Math.min(MAX_GAIN, gainDb));
-    this.filters[index].gain.value = clamped;
     this.gains[index] = clamped;
+    if (this.filters[index]) {
+      this.filters[index].gain.value = clamped;
+    }
   }
 
   setAllGains(gains: EqGains): void {
-    if (gains.length !== this.filters.length) return;
+    if (gains.length !== BANDS.length) return;
     gains.forEach((g, i) => this.setBandGain(i, g));
   }
 
@@ -50,25 +67,22 @@ export class Equalizer {
   }
 
   reset(): void {
-    this.filters.forEach((f) => {
-      f.gain.value = 0;
-    });
     this.gains = this.gains.map(() => 0);
-  }
-
-  bands(): readonly number[] {
-    return BANDS;
+    for (const f of this.filters) {
+      f.gain.value = 0;
+    }
   }
 
   disconnect(): void {
-    if (this.filters.length > 0 && this.output) {
+    for (const f of this.filters) {
       try {
-        this.filters[this.filters.length - 1].disconnect(this.output);
+        f.disconnect();
       } catch {
         // ignore
       }
     }
     this.filters = [];
+    this.input = null;
     this.output = null;
   }
 }

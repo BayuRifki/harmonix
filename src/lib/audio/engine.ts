@@ -1,3 +1,5 @@
+import { equalizer } from './equalizer';
+
 type PlaybackState = 'idle' | 'loading' | 'playing' | 'paused' | 'error';
 
 export interface AudioEngineEvents {
@@ -26,7 +28,7 @@ export class AudioEngine {
     if (!this.ctx) {
       this.ctx = new AudioContext();
       this.gainNode = this.ctx.createGain();
-      this.gainNode.connect(this.ctx.destination);
+      equalizer.connect(this.gainNode, this.ctx.destination);
     }
     return this.ctx;
   }
@@ -172,6 +174,7 @@ export class AudioEngine {
       }
       this.sourceNode = null;
     }
+    equalizer.disconnect();
     if (this.ctx) {
       void this.ctx.close();
       this.ctx = null;
