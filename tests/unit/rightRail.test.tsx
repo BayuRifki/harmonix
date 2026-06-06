@@ -60,6 +60,7 @@ describe('RightRail', () => {
       entries: [
         {
           id: 'r1',
+          sourceId: 'r1',
           title: 'Recent Track',
           artist: 'Recent Artist',
           album: null,

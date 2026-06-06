@@ -37,10 +37,26 @@ describe('listeningHistoryStore', () => {
     const entries = useListeningHistoryStore.getState().entries;
     expect(entries).toHaveLength(1);
     expect(entries[0]!.id).toBe('t1');
+    expect(entries[0]!.sourceId).toBe('spotify:t1');
     expect(entries[0]!.title).toBe('Hello');
     expect(entries[0]!.artist).toBe('Test Artist');
     expect(entries[0]!.album).toBe('Test Album');
     expect(entries[0]!.artworkUrl).toBe('https://example.com/art.jpg');
+  });
+
+  it('preserves ytmusic sourceId distinct from prefixed id', () => {
+    useListeningHistoryStore.getState().add(
+      makeTrack({
+        id: 'ytmusic:qu0k38VMaV4',
+        source: 'ytmusic',
+        sourceId: 'qu0k38VMaV4',
+        title: 'yt track',
+      }),
+    );
+    const entry = useListeningHistoryStore.getState().entries[0]!;
+    expect(entry.id).toBe('ytmusic:qu0k38VMaV4');
+    expect(entry.sourceId).toBe('qu0k38VMaV4');
+    expect(entry.source).toBe('ytmusic');
   });
 
   it('deduplicates by id (most recent wins)', () => {
@@ -112,6 +128,7 @@ describe('listeningHistoryStore', () => {
     const parsed = JSON.parse(raw!);
     expect(parsed).toHaveLength(1);
     expect(parsed[0].id).toBe('persist');
+    expect(parsed[0].sourceId).toBe('spotify:t1');
   });
 
   it('clears entries and localStorage', () => {

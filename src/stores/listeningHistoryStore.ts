@@ -6,6 +6,7 @@ const MAX_ENTRIES = 20;
 
 export interface HistoryEntry {
   id: string;
+  sourceId: string;
   title: string;
   artist: string;
   album: string | null;
@@ -25,6 +26,7 @@ interface ListeningHistoryState {
 function trackToEntry(track: Track): HistoryEntry {
   return {
     id: track.id,
+    sourceId: track.sourceId,
     title: track.title,
     artist:
       track.artists
@@ -37,6 +39,11 @@ function trackToEntry(track: Track): HistoryEntry {
     durationMs: track.durationMs,
     playedAt: Date.now(),
   };
+}
+
+function stripSourcePrefix(id: string, source: string): string {
+  const prefix = `${source}:`;
+  return id.startsWith(prefix) ? id.slice(prefix.length) : id;
 }
 
 function load(): HistoryEntry[] {
@@ -54,6 +61,11 @@ function load(): HistoryEntry[] {
           typeof (e as HistoryEntry).id === 'string' &&
           typeof (e as HistoryEntry).title === 'string',
       )
+      .map((e) => {
+        if (typeof e.sourceId === 'string' && e.sourceId.length > 0) return e;
+        const source = typeof e.source === 'string' ? e.source : '';
+        return { ...e, sourceId: source ? stripSourcePrefix(e.id, source) : e.id };
+      })
       .slice(0, MAX_ENTRIES);
   } catch {
     return [];

@@ -53,6 +53,7 @@ function ArtworkThumb({
 const STARTER_RECOMMENDATIONS: HistoryEntry[] = [
   {
     id: 'starter-browse-library',
+    sourceId: 'starter-browse-library',
     title: 'Browse your Library',
     artist: 'Start with what you have',
     album: null,
@@ -63,6 +64,7 @@ const STARTER_RECOMMENDATIONS: HistoryEntry[] = [
   },
   {
     id: 'starter-search',
+    sourceId: 'starter-search',
     title: 'Search across sources',
     artist: 'Find new tracks',
     album: null,
@@ -101,7 +103,7 @@ export function RightRail({ onPlayHistoryEntry }: RightRailProps): JSX.Element {
     void play({
       id: entry.id,
       source: entry.source,
-      sourceId: entry.id,
+      sourceId: entry.sourceId,
       title: entry.title,
       artists: entry.artist.split(', ').map((name) => ({ id: name, name, source: entry.source })),
       durationMs: entry.durationMs,
