@@ -1,8 +1,8 @@
 # Harmonix
 
-> A unified cross-source music player for desktop — Spotify, YouTube Music, and local files in one place.
+> A unified cross-source music player for desktop — Spotify, YouTube Music, Deezer, Jamendo, Audius, SoundCloud, and local files in one place.
 
-> **Status**: ✅ Phase 9 (UI Integration) complete. All 8 sources now have first-class UI affordances: per-source landing views, capability-aware sidebar nav, source indicator badge on the player, per-source config dialog, and an updated home screen. 21 new component tests, **284/284 green across 24 test files**. Pending: code signing + first public release (v0.1.0). See [`docs/PLANNING.md`](docs/PLANNING.md) for the roadmap.
+> **Status**: ✅ Phase 13B (Soundora-inspired Layout Redesign) complete. Pink/magenta brand palette, 3-column shell (Sidebar + Main + RightRail), audio-reactive background, hero player with vinyl, and 423/423 tests passing across 38 test files. **M14 Done.** See [`docs/PLANNING.md`](docs/PLANNING.md) for the full roadmap.
 
 ---
 
@@ -10,73 +10,100 @@
 
 Most music players lock you into a single ecosystem. Harmonix breaks that wall:
 
-- **One search bar** for Spotify, YouTube Music, and your local library.
-- **One player** with cross-source queue and shuffle.
+- **One search bar** for Spotify, YouTube Music, Deezer, Jamendo, Audius, SoundCloud, and your local library.
+- **One player** with cross-source queue, shuffle, repeat, and 10-band EQ.
 - **One playlist** mixing tracks from any source.
-- **Equalizer & effects** for sources that support audio processing.
 - **Plugin-friendly**: add new sources without touching the core.
 
 ---
 
 ## Features
 
-### Available Now
+### Sources (8 integrated, 1 demo)
 
-- ✅ Local music library scan (Phase 1)
-- ✅ Plugin architecture with capability flags (Phase 2)
-- ✅ Spotify integration — OAuth PKCE, search/playlists/liked tracks, Premium via Web Playback SDK, Free 30s preview (Phase 3)
-- ✅ YouTube Music integration — `youtubei.js` search + `yt-dlp` stream resolution, mandatory disclaimer (Phase 4)
-- ✅ **Deezer integration** — 30s previews, no auth, search/track/album/playlist (Phase 8)
-- ✅ **Jamendo integration** — full CC-licensed indie streaming, free `client_id` works for read API, search/album/playlist/artist tracks (Phase 8)
-- ✅ **Audius integration** — decentralized, no auth, search/track/playlist/trending/artist tracks (Phase 8)
-- ✅ **SoundCloud integration** — public search + track info (requires `SOUNDCLOUD_CLIENT_ID` env var for full features, Artist Pro + app registration needed for OAuth) (Phase 8)
+- ✅ **Local library** — file scanner + metadata extraction (Phase 1)
+- ✅ **Spotify** — OAuth PKCE, search/playlists/liked tracks, Premium via Web Playback SDK, Free 30s preview (Phase 3)
+- ✅ **YouTube Music** — `youtubei.js` search + `yt-dlp` stream resolution, mandatory disclaimer (Phase 4)
+- ✅ **Deezer** — 30s previews, no auth, search/track/album/playlist (Phase 8)
+- ✅ **Jamendo** — full CC-licensed indie streaming, free `client_id` works for read API (Phase 8)
+- ✅ **Audius** — decentralized, no auth, search/track/playlist/trending/artist tracks (Phase 8)
+- ✅ **SoundCloud** — public search + track info, optional OAuth via `SOUNDCLOUD_CLIENT_ID` (Phase 8)
+- ✅ **Demo source** — hardcoded test tracks for offline development
+
+### Player & Audio
+
 - ✅ Cross-source unified search with parallel fan-out
-- ✅ Source enable/disable in Settings
-- ✅ 10-band equalizer foundation (Phase 1)
-- ✅ Cross-source playlists — create, rename, delete, drag-drop reorder, mix tracks from any source (Phase 5)
-- ✅ Queue panel — now playing + history + up next, drag-to-reorder, shuffle, repeat (Phase 5)
+- ✅ Cross-source queue — drag-to-reorder, shuffle, repeat (off/all/one)
 - ✅ 10-band equalizer with 7 presets (Flat, Rock, Pop, Bass Boost, Vocal, Classical, Jazz) + custom save/load, persisted across sessions (Phase 6)
-- ✅ Dark/light/system theme, app icon set (PNG + ICO), splash screen, virtualized TrackList (Phase 7)
+- ✅ Crossfade between tracks (Phase 13A)
+- ✅ Source enable/disable in Settings
+- ✅ Source indicator badge on the player bar (Phase 9)
+- ✅ Per-source config dialog (⚙ in Settings) for Spotify, Jamendo, Audius, SoundCloud (Phase 9)
+
+### Library & Playlists
+
+- ✅ Cross-source playlists — create, rename, delete, drag-drop reorder, mix tracks from any source (Phase 5)
+- ✅ Unresolved track details — playlists with broken tracks show which source each came from (Phase 9)
+- ✅ Listening history — last 20 played tracks, persisted to localStorage, drives "FOR YOU" recommendations (Phase 13B)
+- ✅ Search deep-linking — `/search?source=spotify` pre-selects the source; URL syncs with source pills (Phase 9)
+
+### UI / Shell
+
+- ✅ 3-column app shell — Sidebar (224px) + Main + RightRail (320px) with UP NEXT + FOR YOU (Phase 13B)
+- ✅ Top bar — global search + notifications + settings (Phase 13B)
+- ✅ Hero player — 288px artwork, peeking vinyl, pink radial glow, transport controls (Phase 13B)
+- ✅ `/now-playing` fullscreen fanout (Phase 13A) — artwork-led view with crossfade-aware transitions
+- ✅ Mini-player mode — 360×120 frameless floating window with click-to-focus; toggle from player bar, system tray, or `Ctrl/Cmd+Shift+M` (Phase 10)
+- ✅ System tray — Show main, Show/Hide mini, Quit, click-to-focus (Phase 10)
+- ✅ Window position persistence with display-bounds clamping for disconnected-monitor case (Phase 10)
+- ✅ Per-source landing views — `/source/:id` shows auth status, capability pills, search deep-link, Liked Tracks, Your Playlists (Phase 9)
+- ✅ Capability-aware sidebar — "Sources" sub-section lists all enabled sources (Phase 9)
+- ✅ Refreshed home view — version/platform cards, enabled source count, quick action grid (Phase 9)
+- ✅ Dark theme only with `framer-motion` transitions and cross-component glassmorphism (Phase 12 + 13A)
+- ✅ Audio-reactive background canvas — pink-magenta radial gradients driven by FFT analysis (Phase 13A, with perf hardening in latest fixes)
+- ✅ Animated ambient glow — soft pink conic-gradient blobs (Phase 13A + 13B palette)
+
+### Engineering / DX
+
+- ✅ Dark/light/system theme (Phase 7)
+- ✅ App icon set (PNG + ICO), splash screen, virtualized TrackList (Phase 7)
 - ✅ Memory optimization — Innertube singleton cache (no more ~250 MB leak per YT Music search), live memory panel with "Run GC" button, audio engine listener cleanup (Phase 7)
-- ✅ **Per-source landing views** — `/source/:id` route shows source name, id, auth status, capability pills, "Search this source" deep-link, "Liked Tracks" section, and "Your Playlists" with expandable track lists (Phase 9)
-- ✅ **Capability-aware sidebar** — "Sources" sub-section lists all enabled sources that support search/playlists/liked tracks, each linking to its landing view (Phase 9)
-- ✅ **Source indicator on player bar** — colored badge shows the active track's source (green=Spotify, red=YT Music, blue=Local, etc.) (Phase 9)
-- ✅ **Per-source config dialog** — ⚙ button in Settings opens a credentials editor for Spotify, Jamendo, Audius, and SoundCloud (Phase 9)
-- ✅ **Unresolved track details** — playlists with broken tracks now show which source each one came from (Phase 9)
-- ✅ **Search deep-linking** — `/search?source=spotify` pre-selects the source; toggling source pills updates the URL (Phase 9)
-- ✅ **Refreshed home view** — version/platform cards, enabled source count, quick action grid, and a browseable list of enabled sources (Phase 9)
-- ✅ **Mini-player mode** — compact 360×120 frameless floating window with current track, transport controls, clickable progress bar, and a right-click "always on top" toggle. Toggle from the player bar, the system tray, or `Ctrl/Cmd+Shift+M`. Playback stays in the main window; the mini is read-only and drives the engine via IPC (Phase 10)
-- ✅ **System tray** — right-click menu (Show main, Show/Hide mini-player, Quit) with click-to-focus behavior (Phase 10)
-- ✅ **Window position persistence** for the mini-player with display-bounds clamping (handles disconnected-monitor case) (Phase 10)
+- ✅ Renderer heap hardening (Phase 13B hotfix) — 30 FPS audio-reactive canvas, deferred initialization, DPR cap 1.5
+- ✅ Build pipeline hardening (latest fixes) — esbuild 0.28.0 with override, Node heap 8 GB for build/dev
+- ✅ 423 tests across 38 files, lint clean, typecheck clean
+- ✅ CI pipeline (lint + typecheck + test)
 
 ### Coming Next
 
 - 🔜 AI-powered playlist generation (Phase 11)
 - 🔜 Code signing + first public release (v0.1.0) — packaging finalization
 
-See [`docs/PLANNING.md`](docs/PLANNING.md) for the full roadmap and phase breakdown.
+> **Deferred (intentionally)**: mobile/PWA, lyrics, cloud sync, social features, podcast support. See [`docs/PLANNING.md`](docs/PLANNING.md) for the rationale.
 
 ---
 
 ## Tech Stack
 
-| Layer     | Choice                  |
-| --------- | ----------------------- |
-| Shell     | Electron 30+            |
-| UI        | React 18 + TypeScript 5 |
-| Styling   | Tailwind CSS            |
-| State     | Zustand                 |
-| Build     | Vite + electron-vite    |
-| Audio     | Web Audio API           |
-| Local DB  | better-sqlite3          |
-| Packaging | electron-builder        |
-| Testing   | Vitest + Playwright     |
+| Layer     | Choice               | Version                    |
+| --------- | -------------------- | -------------------------- |
+| Shell     | Electron             | 30+                        |
+| UI        | React + TypeScript   | 18 / 5.6                   |
+| Styling   | Tailwind CSS         | 3.4                        |
+| Animation | framer-motion        | 12                         |
+| State     | Zustand              | 5                          |
+| Build     | Vite + electron-vite | 5 / 2                      |
+| Bundler   | esbuild              | 0.28 (pinned via override) |
+| Audio     | Web Audio API        | native                     |
+| Local DB  | sql.js (SQLite WASM) | 1.12                       |
+| YT Music  | youtubei.js + yt-dlp | 17 / ext.                  |
+| Packaging | electron-builder     | 25                         |
+| Testing   | Vitest + Playwright  | 2 / 1.48                   |
 
 ---
 
 ## Quick Start
 
-> **Prerequisites**: Node.js 20+ and npm 10+.
+> **Prerequisites**: Node.js 20+ (tested on 24) and npm 10+. `yt-dlp` is optional — required only for YouTube Music streaming. Get it from [yt-dlp releases](https://github.com/yt-dlp/yt-dlp/releases) or `pip install yt-dlp`.
 
 ```bash
 # 1. Install dependencies
@@ -88,6 +115,8 @@ cp .env.example .env
 
 # 3. Run the app in development mode
 npm run dev
+#   -> Main + preload + renderer dev server
+#   -> Electron launches automatically when bundles are ready
 
 # 4. Lint and type-check
 npm run lint
@@ -102,6 +131,8 @@ npm run dist:mac   # macOS
 npm run dist:linux # Linux
 ```
 
+> **Memory note**: The dev/build/preview scripts pre-allocate a Node.js V8 heap of 8 GB. This matches the main process runtime config (`HARMONIX_MAX_HEAP_MB=3072` in `electron/main/index.ts`) plus a generous buffer for the build pipeline. If you need to lower it, edit the script flags in `package.json` — the minimum safe value is ~4 GB for full builds.
+
 ---
 
 ## Project Structure
@@ -109,32 +140,45 @@ npm run dist:linux # Linux
 ```
 harmonix/
 ├── docs/                  # All project documentation
-│   ├── PLANNING.md        # Roadmap & phases
+│   ├── PLANNING.md        # Roadmap & phases (single source of truth)
 │   ├── ARCHITECTURE.md    # System design
 │   ├── SOURCES.md         # How to add a new music source
 │   ├── LEGAL.md           # Disclaimers
 │   ├── CONTRIBUTING.md    # Contribution guide
 │   └── ADR/               # Architecture Decision Records
 ├── electron/              # Electron main process
-│   ├── main/              # Main process entry & modules
+│   ├── main/              # Main process entry, IPC, sources, DB
+│   │   ├── sources/       # SourceAdapter implementations (one per source)
+│   │   ├── db/            # SQL.js repository layer
+│   │   └── ipc/           # IPC handlers
 │   └── preload/           # contextBridge preload script
 ├── src/                   # React renderer
-│   ├── components/        # UI components
-│   ├── features/          # Feature modules (library, search, home, settings, playlist, source)
-│   ├── stores/            # Zustand stores
-│   └── lib/               # Audio engine & utilities
-├── resources/             # Static assets (icons, binaries)
-├── tests/                 # Tests
+│   ├── components/        # UI components (branding, layout, player, sidebar, recommendations)
+│   ├── features/          # Feature modules (home, search, library, settings, source, miniPlayer)
+│   ├── stores/            # Zustand stores (player, equalizer, playlists, listeningHistory, ...)
+│   ├── hooks/             # Custom React hooks
+│   ├── lib/               # Audio engine, IPC client, utilities
+│   └── types/             # Shared TypeScript types (cross-process)
+├── resources/             # Static assets (icons, splash)
+├── scripts/               # Build/utility scripts
+├── tests/                 # Vitest unit tests + Playwright e2e
 └── .github/               # GitHub templates & CI
 ```
 
 ---
 
-## Legal & Disclaimer
+## Recent Milestones
 
-Harmonix integrates with Spotify (official API) and YouTube Music (unofficial methods). Users are responsible for complying with the Terms of Service of each source. See [`docs/LEGAL.md`](docs/LEGAL.md) for the full disclaimer.
+| Milestone | Scope                                                                   | Status     |
+| --------- | ----------------------------------------------------------------------- | ---------- |
+| M1–M9     | Foundation, sources, player, EQ, library, UI integration                | ✅ Done    |
+| M10       | Mini-player mode + system tray                                          | ✅ Done    |
+| M11       | AI-powered playlist generation                                          | 🔜 Planned |
+| M12       | UI/UX polish (navigation, controls, micro-interactions)                 | ✅ Done    |
+| M13       | Visual immersion (palette, glassmorphism, audio-reactive, now-playing)  | ✅ Done    |
+| M14       | Layout redesign (3-column shell, pink palette, hero player, right rail) | ✅ Done    |
 
-**TL;DR**: Use the official Spotify app for full Spotify playback. YouTube Music integration relies on unofficial methods and may break at any time.
+See [`docs/PLANNING.md`](docs/PLANNING.md) for the full phase breakdown and decision log.
 
 ---
 
@@ -152,6 +196,14 @@ Contributions are welcome! Whether you're fixing a typo, adding a new source, or
 
 ---
 
+## Legal & Disclaimer
+
+Harmonix integrates with Spotify (official API) and YouTube Music (unofficial methods). Users are responsible for complying with the Terms of Service of each source. See [`docs/LEGAL.md`](docs/LEGAL.md) for the full disclaimer.
+
+**TL;DR**: Use the official Spotify app for full Spotify playback. YouTube Music integration relies on unofficial methods and may break at any time. Deezer/Jamendo/Audius/SoundCloud integrations use their public APIs under their respective terms.
+
+---
+
 ## License
 
 [MIT](LICENSE)
@@ -161,4 +213,5 @@ Contributions are welcome! Whether you're fixing a typo, adding a new source, or
 ## Acknowledgments
 
 - Inspired by players like [Nuclear](https://nuclear.js.org/) and [SpotTube](https://github.com/milesmanley/SpotTube).
+- Layout language inspired by [Soundora](https://soundora.com/) — design language only, no copied branding.
 - Built with amazing open-source libraries. See `package.json` for the full list.
