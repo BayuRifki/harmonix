@@ -221,4 +221,149 @@ describe('audioProxy', () => {
     const [, init] = mocks.fetch.mock.calls[0] as [string, { headers: Record<string, string> }];
     expect(init.headers['Range']).toBeUndefined();
   });
+
+  // ---- detectContentType ----
+
+  it('detectContentType: identifies WebM/EBML (1A 45 DF A3) → audio/webm', async () => {
+    const { detectContentType } = await loadFreshModule();
+    expect(detectContentType(new Uint8Array([0x1a, 0x45, 0xdf, 0xa3, 0x9f, 0x42, 0x86]))).toBe(
+      'audio/webm',
+    );
+  });
+
+  it('detectContentType: identifies OGG (OggS) → audio/ogg', async () => {
+    const { detectContentType } = await loadFreshModule();
+    expect(detectContentType(new Uint8Array([0x4f, 0x67, 0x67, 0x53, 0x00]))).toBe('audio/ogg');
+  });
+
+  it('detectContentType: identifies FLAC (fLaC) → audio/flac', async () => {
+    const { detectContentType } = await loadFreshModule();
+    expect(detectContentType(new Uint8Array([0x66, 0x4c, 0x61, 0x43, 0x00]))).toBe('audio/flac');
+  });
+
+  it('detectContentType: identifies MP4/M4A (ftyp box) → audio/mp4', async () => {
+    const { detectContentType } = await loadFreshModule();
+    // 4 bytes size + "ftyp" + "M4A " (brand)
+    const buf = new Uint8Array(16);
+    buf[4] = 0x66;
+    buf[5] = 0x74;
+    buf[6] = 0x79;
+    buf[7] = 0x70;
+    expect(detectContentType(buf)).toBe('audio/mp4');
+  });
+
+  it('detectContentType: identifies MP3 (0xFF 0xFB) → audio/mpeg', async () => {
+    const { detectContentType } = await loadFreshModule();
+    expect(detectContentType(new Uint8Array([0xff, 0xfb, 0x90, 0x00]))).toBe('audio/mpeg');
+  });
+
+  it('detectContentType: identifies WAV (RIFF...WAVE) → audio/wav', async () => {
+    const { detectContentType } = await loadFreshModule();
+    const buf = new Uint8Array(16);
+    buf[0] = 0x52;
+    buf[1] = 0x49;
+    buf[2] = 0x46;
+    buf[3] = 0x46;
+    buf[8] = 0x57;
+    buf[9] = 0x41;
+    buf[10] = 0x56;
+    buf[11] = 0x45;
+    expect(detectContentType(buf)).toBe('audio/wav');
+  });
+
+  it('detectContentType: returns null for unknown bytes', async () => {
+    const { detectContentType } = await loadFreshModule();
+    expect(detectContentType(new Uint8Array([0x00, 0x00, 0x00, 0x00]))).toBeNull();
+    expect(detectContentType(new Uint8Array(0))).toBeNull();
+    expect(detectContentType(new Uint8Array([0x47, 0x49, 0x46]))).toBeNull();
+  });
+
+  // ---- content-type override via sniff ----
+
+  it('overrides upstream application/octet-stream with sniffed Content-Type', async () => {
+    const mod = await loadFreshModule();
+    const id = mod.registerStream('https://example.com/yt-track.webm');
+    // Upstream returns 200 with octet-stream (typical of googlevideo CDN)
+    // and a body that starts with the WebM magic bytes.
+    const webmHeader = new Uint8Array([0x1a, 0x45, 0xdf, 0xa3, 0x9f, 0x42, 0x86, 0x81, 0x01]);
+    const restBody = new Uint8Array([0, 0, 0, 0]);
+    const fullBody = new Uint8Array(webmHeader.length + restBody.length);
+    fullBody.set(webmHeader, 0);
+    fullBody.set(restBody, webmHeader.length);
+    // Mock a Node Readable that emits these chunks
+    const { Readable } = await import('node:stream');
+    const nodeStream = Readable.from(
+      (async function* () {
+        yield webmHeader;
+        yield restBody;
+      })(),
+    );
+    mocks.fetch.mockResolvedValue({
+      status: 200,
+      statusText: 'OK',
+      headers: new Headers({ 'content-type': 'application/octet-stream' }),
+      body: nodeStream,
+    } as Response);
+    const handler = await setupHandler(mod);
+    const res = await handler({ url: `harmonix-media://stream/${id}` });
+    expect(res.status).toBe(200);
+    expect(res.headers.get('Content-Type')).toBe('audio/webm');
+  });
+
+  it('preserves upstream audio Content-Type when it is a proper audio type', async () => {
+    const mod = await loadFreshModule();
+    const id = mod.registerStream('https://example.com/good.mp3');
+    const mp3Header = new Uint8Array([0xff, 0xfb, 0x90, 0x00]);
+    const { Readable } = await import('node:stream');
+    const nodeStream = Readable.from(
+      (async function* () {
+        yield mp3Header;
+      })(),
+    );
+    mocks.fetch.mockResolvedValue({
+      status: 200,
+      statusText: 'OK',
+      headers: new Headers({ 'content-type': 'audio/mpeg' }),
+      body: nodeStream,
+    } as Response);
+    const handler = await setupHandler(mod);
+    const res = await handler({ url: `harmonix-media://stream/${id}` });
+    expect(res.headers.get('Content-Type')).toBe('audio/mpeg');
+  });
+
+  it('re-prepends the sniffed first chunk to the body so the audio element sees the full stream', async () => {
+    const mod = await loadFreshModule();
+    const id = mod.registerStream('https://example.com/sniff-body.webm');
+    const chunks = [
+      new Uint8Array([0x1a, 0x45, 0xdf, 0xa3, 0x9f, 0x42, 0x86, 0x81]),
+      new Uint8Array([0x01, 0x02, 0x03, 0x04]),
+      new Uint8Array([0x05, 0x06, 0x07, 0x08]),
+    ];
+    const { Readable } = await import('node:stream');
+    const nodeStream = Readable.from(
+      (async function* () {
+        for (const c of chunks) yield c;
+      })(),
+    );
+    mocks.fetch.mockResolvedValue({
+      status: 200,
+      statusText: 'OK',
+      headers: new Headers({ 'content-type': 'application/octet-stream' }),
+      body: nodeStream,
+    } as Response);
+    const handler = await setupHandler(mod);
+    const res = await handler({ url: `harmonix-media://stream/${id}` });
+    expect(res.status).toBe(200);
+    expect(res.headers.get('Content-Type')).toBe('audio/webm');
+    // Drain the response body and verify ALL bytes are present
+    const reader = res.body!.getReader();
+    const received: number[] = [];
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      for (const b of value) received.push(b);
+    }
+    const expected = chunks.flatMap((c) => Array.from(c));
+    expect(received).toEqual(expected);
+  });
 });

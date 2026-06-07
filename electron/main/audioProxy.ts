@@ -49,6 +49,69 @@ function evictOldest(): void {
   if (oldest) streamRegistry.delete(oldest[0]);
 }
 
+/**
+ * Magic-byte content-type sniffer. Returns the audio MIME type for
+ * known container formats, or `null` if the bytes don't match any
+ * known audio container. Used to fix `MEDIA_ERR_SRC_NOT_SUPPORTED`
+ * (Chromium's "Format error") when the upstream serves a generic
+ * `Content-Type: application/octet-stream` (common with Google's
+ * `googlevideo.com` CDN) or `video/webm` for an audio-only stream.
+ *
+ * Each detector inspects the first 4-12 bytes; all sample bytes are
+ * documented in the WHATWG / RFC specs.
+ */
+export function detectContentType(bytes: Uint8Array): string | null {
+  if (bytes.length < 4) return null;
+
+  // WebM / Matroska: 1A 45 DF A3 (EBML header)
+  if (bytes[0] === 0x1a && bytes[1] === 0x45 && bytes[2] === 0xdf && bytes[3] === 0xa3) {
+    return 'audio/webm';
+  }
+
+  // OGG / Opus / Vorbis: 4F 67 67 53 ("OggS")
+  if (bytes[0] === 0x4f && bytes[1] === 0x67 && bytes[2] === 0x67 && bytes[3] === 0x53) {
+    return 'audio/ogg';
+  }
+
+  // FLAC: 66 4C 61 43 ("fLaC")
+  if (bytes[0] === 0x66 && bytes[1] === 0x4c && bytes[2] === 0x61 && bytes[3] === 0x43) {
+    return 'audio/flac';
+  }
+
+  // MP4 / M4A: size (4 bytes) then 66 74 79 70 ("ftyp") at offset 4
+  if (
+    bytes.length >= 12 &&
+    bytes[4] === 0x66 &&
+    bytes[5] === 0x74 &&
+    bytes[6] === 0x79 &&
+    bytes[7] === 0x70
+  ) {
+    return 'audio/mp4';
+  }
+
+  // MP3: 0xFF sync byte + 0xFB / 0xF3 / 0xF2 (MPEG-1/2 Layer 3/2/1)
+  if (bytes[0] === 0xff && (bytes[1] === 0xfb || bytes[1] === 0xf3 || bytes[1] === 0xf2)) {
+    return 'audio/mpeg';
+  }
+
+  // WAV: 52 49 46 46 ("RIFF") ... 57 41 56 45 ("WAVE") at offset 8
+  if (
+    bytes[0] === 0x52 &&
+    bytes[1] === 0x49 &&
+    bytes[2] === 0x46 &&
+    bytes[3] === 0x46 &&
+    bytes.length >= 12 &&
+    bytes[8] === 0x57 &&
+    bytes[9] === 0x41 &&
+    bytes[10] === 0x56 &&
+    bytes[11] === 0x45
+  ) {
+    return 'audio/wav';
+  }
+
+  return null;
+}
+
 export interface RegisterStreamOptions {
   headers?: Record<string, string>;
 }
@@ -132,23 +195,78 @@ export function registerAudioProxyProtocol(session: Session | null = null): void
       outHeaders.set('Cache-Control', 'no-store');
       outHeaders.set('X-Proxy-Source', 'harmonix-media');
 
-      // Electron's `net.fetch` returns the response body as a Node
-      // `Readable` stream. `new Response(nodeReadable)` accepts a web
-      // `ReadableStream` as the body — passing the Node stream directly
-      // makes the body un-readable for the audio element (Chromium
-      // raises `MEDIA_ERR_DECODE` because it can't see any bytes).
-      // `Readable.toWeb` converts the Node stream to a web stream.
-      if (upstream.body) {
-        const webBody = Readable.toWeb(
-          upstream.body as unknown as Readable,
-        ) as unknown as ConstructorParameters<typeof Response>[0];
-        return new Response(webBody, {
+      if (!upstream.body) {
+        return new Response(null, {
           status: upstream.status,
           statusText: upstream.statusText,
           headers: outHeaders,
         });
       }
-      return new Response(null, {
+
+      // Electron's `net.fetch` returns the response body as a Node
+      // `Readable` stream. We convert to a web `ReadableStream` with
+      // `Readable.toWeb`, but FIRST we read the first chunk to:
+      //   1. Sniff the actual audio format from the magic bytes
+      //      (upstream often serves `application/octet-stream` or
+      //      `video/webm` even for audio-only YT Music streams; the
+      //      audio element refuses to decode without a proper
+      //      `audio/<format>` Content-Type → `MEDIA_ERR_SRC_NOT_SUPPORTED`)
+      //   2. Re-prepend the sniffed bytes to the stream so the audio
+      //      element sees the full body (no missing-prefix)
+      //   3. Release the first reader before reading the rest, so
+      //      there's no stream lock contention
+      const originalWeb = Readable.toWeb(
+        upstream.body as unknown as Readable,
+      ) as unknown as ReadableStream<Uint8Array>;
+
+      const peekReader = originalWeb.getReader();
+      const first = await peekReader.read();
+      peekReader.releaseLock();
+
+      let firstChunk: Uint8Array | null = null;
+      if (!first.done && first.value) {
+        firstChunk = first.value;
+        const sniffed = detectContentType(firstChunk);
+        if (sniffed) {
+          const current = outHeaders.get('Content-Type');
+          // Only override when the upstream type is missing or
+          // generic (e.g. `application/octet-stream`, `*/*`).
+          // Trust a proper audio type from the upstream.
+          if (
+            !current ||
+            current.includes('application/octet-stream') ||
+            current.includes('*/*') ||
+            current.startsWith('video/') // video/webm contains an audio-only stream sometimes
+          ) {
+            outHeaders.set('Content-Type', sniffed);
+          }
+        }
+      }
+
+      // Reassemble the body: first chunk + the rest of the stream.
+      const bodyStream: ReadableStream<Uint8Array> = new ReadableStream<Uint8Array>({
+        async start(controller) {
+          if (firstChunk) {
+            controller.enqueue(firstChunk);
+          }
+          const rest = originalWeb.getReader();
+          try {
+            for (;;) {
+              const { value, done } = await rest.read();
+              if (done) break;
+              controller.enqueue(value);
+            }
+            controller.close();
+          } catch (err) {
+            controller.error(err);
+          }
+        },
+        cancel(reason) {
+          originalWeb.cancel(reason).catch(() => undefined);
+        },
+      });
+
+      return new Response(bodyStream as unknown as ConstructorParameters<typeof Response>[0], {
         status: upstream.status,
         statusText: upstream.statusText,
         headers: outHeaders,

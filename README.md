@@ -81,6 +81,7 @@ Most music players lock you into a single ecosystem. Harmonix breaks that wall:
 - ✅ 465 tests across 44 files (after audio proxy + always-on MediaElementSource — EQ now works on YT Music + all remote sources), lint clean, typecheck clean
 - ✅ 466 tests across 44 files (after proxy fix: registerSchemesAsPrivileged + fallback to direct URL + better error reporting), lint clean, typecheck clean
 - ✅ 468 tests across 44 files (after format error fix: Node Readable → web stream + Range header forwarding), lint clean, typecheck clean
+- ✅ 478 tests across 44 files (after content-type sniffing: WebM/MP3/MP4/OGG/WAV/FLAC magic-byte detection, override generic upstream Content-Type), lint clean, typecheck clean
 - ✅ Brand mark in sidebar (public/logo.png served at `/logo.png`)
 - ✅ Splash screen on app open (logo + wordmark + tagline + spinner)
 - ✅ Gapless playback (pre-buffered next track, no gap between songs)

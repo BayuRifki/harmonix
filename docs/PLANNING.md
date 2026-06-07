@@ -741,6 +741,18 @@ Chronological log of incremental progress. Most recent first.
   - `npm run typecheck` clean
   - `npm run build` clean
 
+- **Source-not-supported fix: magic-byte content-type sniffing** — After the body conversion + Range fix, the next regression was `MEDIA_ERR_SRC_NOT_SUPPORTED: MEDIA_ELEMENT_ERROR: Format error`. The body now reaches the audio element fine, but Chromium still can't pick a decoder because the upstream serves `Content-Type: application/octet-stream` (typical of googlevideo CDN) or `video/webm` for an audio-only stream — neither tells Chromium to pick an audio decoder. Fix:
+  - **`detectContentType(bytes)` helper** in `audioProxy.ts` — inspects the first 4-12 bytes for known audio container signatures: WebM/EBML (`1A 45 DF A3`), OGG (`OggS`), FLAC (`fLaC`), MP4/M4A (`ftyp` at offset 4), MP3 (`FF FB`/`F3`/`F2`), WAV (`RIFF...WAVE`).
+  - **Peek + re-prepend the first chunk** — `Readable.toWeb` converts the Node stream, then the handler reads the first chunk (releases the lock, reads the rest with a fresh reader), runs the sniff, and re-prepends the sniffed bytes to the streamed body so the audio element sees the full stream with no missing prefix.
+  - **Override Content-Type when upstream is generic** — if the upstream sends `application/octet-stream`, `*/*`, or `video/*` (video/webm often contains an audio-only stream when `-f bestaudio` is used by yt-dlp), the handler substitutes the sniffed `audio/<format>` MIME type. A proper upstream audio type (`audio/webm`, `audio/mp4`, etc.) is trusted as-is.
+- Tests
+  - `tests/unit/audioProxy.test.ts` (+10 cases, 23 total): 7 detector cases (one per format + null + edge cases), 1 override case (upstream `application/octet-stream` + WebM body → `audio/webm` in response), 1 preserve case (upstream `audio/mpeg` is kept), 1 body-integrity case (3-chunk body, drain and verify all bytes present in order).
+  - 478/478 tests pass.
+- Verified
+  - `npm run lint` clean
+  - `npm run typecheck` clean
+  - `npm run build` clean
+
 ## 10. Progress Log (active session) — continued
 
 - **Sources section removed (UI cleanup)** — Per user feedback referencing `docs/perbaiki-nanti/`: Sidebar no longer renders the per-source "Sources" sub-nav, and HomeView no longer renders the "Sources" quick-access grid. Source management stays exclusively in Settings → SourcePicker. Footer still shows enabled source count for transparency.
@@ -752,7 +764,7 @@ Chronological log of incremental progress. Most recent first.
 
 ---
 
-**Last updated**: Phase 12 (UI/UX Polish), Phase 13A (Visual Immersion), and Phase 13B (Soundora-inspired Layout Redesign) shipped. Phase 11 (AI-Powered Playlist Generation) still planned. 468 tests passing.
+**Last updated**: Phase 12 (UI/UX Polish), Phase 13A (Visual Immersion), and Phase 13B (Soundora-inspired Layout Redesign) shipped. Phase 11 (AI-Powered Playlist Generation) still planned. 478 tests passing.
 
 - **DB swap: sql.js → better-sqlite3** (Phase A of gapless plan) — Replaced the WASM-based `sql.js` with `better-sqlite3` (sync, native, no server, no WASM). The DB file `<userData>/data/harmonix.db` is the same SQLite; only the driver changed. Refactored `electron/main/db/database.ts` (init, pragmas `journal_mode=WAL`, `foreign_keys=ON`, `synchronous=NORMAL`; `persist()` now a WAL checkpoint since better-sqlite3 auto-syncs), `migrations.ts` (now uses `db.prepare(...).get()` + `db.transaction()`), and all 5 repositories (`settingsRepository`, `folderRepository`, `eqRepository`, `playlistRepository`, `trackRepository`) to use prepared statements `.get()`/`.all()`/`.run()`. Removed `resources/sql-wasm.wasm` (no longer needed) and the `electron-builder.yml` `extraResources` entry that bundled it. The `electron-builder install-app-deps` postinstall already rebuilds the native binary for Electron's Node ABI. For tests, added `pretest` → `npm rebuild better-sqlite3` (rebuilds for system Node's ABI so vitest can load it) and `predev`/`prebuild` → `npx @electron/rebuild -f -w better-sqlite3` (rebuilds back for Electron's ABI for dev/build). 446/446 tests pass. This sets up the IPC latency win needed for Phase B (gapless pre-buffer).
 
