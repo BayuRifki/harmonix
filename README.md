@@ -2,7 +2,7 @@
 
 > A unified cross-source music player for desktop — Spotify, YouTube Music, Deezer, Jamendo, Audius, SoundCloud, and local files in one place.
 
-> **Status**: ✅ Phase 13B (Soundora-inspired Layout Redesign) complete. Pink/magenta brand palette, 3-column shell (Sidebar + Main + RightRail), audio-reactive background, hero player with vinyl, and 423/423 tests passing across 38 test files. **M14 Done.** See [`docs/PLANNING.md`](docs/PLANNING.md) for the full roadmap.
+> **Status**: ✅ Phase 13B (Soundora-inspired Layout Redesign) complete. ✅ **Phase 14.1 + 14.2 shipped** — `⌘K` command palette, breadcrumbs, smart sidebar, adaptive theming (3-tone palette + HSL interpolation), glassmorphism system, audio visualizers (frequency bars + waveform ring), shared element artwork transitions, artwork-blur backgrounds. 557/557 tests passing across 51 test files. **M14 Done, M15 (Phase 14) shipping in 3 increments** (14.1 + 14.2 done, 14.3 next). See [`docs/PLANNING.md`](docs/PLANNING.md) for the full roadmap.
 
 ---
 
@@ -50,7 +50,7 @@ Most music players lock you into a single ecosystem. Harmonix breaks that wall:
 ### UI / Shell
 
 - ✅ 3-column app shell — Sidebar (224px) + Main + RightRail (320px) with UP NEXT + FOR YOU (Phase 13B)
-- ✅ Top bar — global search + notifications + settings (Phase 13B)
+- ✅ Top bar — global search + notifications + settings + breadcrumbs + `⌘K` hint (Phase 13B + 14.1)
 - ✅ Hero player — 288px artwork, peeking vinyl, pink radial glow, transport controls (Phase 13B)
 - ✅ `/now-playing` fullscreen fanout (Phase 13A) — artwork-led view with crossfade-aware transitions
 - ✅ Mini-player mode — 360×120 frameless floating window with click-to-focus; toggle from player bar, system tray, or `Ctrl/Cmd+Shift+M` (Phase 10)
@@ -62,6 +62,16 @@ Most music players lock you into a single ecosystem. Harmonix breaks that wall:
 - ✅ Dark theme only with `framer-motion` transitions and cross-component glassmorphism (Phase 12 + 13A)
 - ✅ Audio-reactive background canvas — pink-magenta radial gradients driven by FFT analysis (Phase 13A, with perf hardening in latest fixes)
 - ✅ Animated ambient glow — soft pink conic-gradient blobs (Phase 13A + 13B palette)
+- ✅ **Command palette** — `⌘K` / `Ctrl+K` global shortcut, fuzzy search across tracks/artists/albums/playlists/actions, recents + history sections, keyboard navigation (Phase 14.1)
+- ✅ **Smart sidebar** — collapsible Playlists + Recents sections, Now Playing mini-card, command palette trigger, auto-recents (last 4 routes) (Phase 14.1)
+- ✅ **Dynamic breadcrumbs** — per-route crumbs in TopBar (`Library › Albums`, `Sources › Spotify`, etc.) with `aria-current="page"` (Phase 14.1)
+- ✅ **Global `uiStore`** — Zustand state for command palette, sidebar sections, recents, reduced motion, gestures (persisted to localStorage) (Phase 14.1)
+- ✅ **Custom fuzzy matcher** — character-level scoring with consecutive + word-boundary bonuses, `highlightMatches` for inline match highlighting (Phase 14.1, no external dep)
+- ✅ **Adaptive theming** — 3-tone palette (vibrant/muted/accent) extracted from current artwork, HSL interpolation between track changes (600ms), CSS vars injected as `--accent`, `--accent-vibrant`, `--accent-muted` (Phase 14.2)
+- ✅ **Audio visualizers** — `FrequencyBars` (16-bar FFT-driven, 30 FPS) and `WaveformRing` (circular waveform synced to bass + mid), both respect `prefers-reduced-motion` and `uiStore.reducedMotion` (Phase 14.2)
+- ✅ **Shared element transitions** — `layoutId="current-artwork"` on PlayerBar + HeroPlayer + NowPlayingView for seamless cross-route artwork morph (Phase 14.2)
+- ✅ **Artwork-blur background** — scaled, blurred current artwork as ambient background layer behind the entire app (Phase 14.2)
+- ✅ **Glassmorphism system** — `.glass-thin` / `.glass` / `.glass-heavy` Tailwind tokens with light-theme parity, applied to Sidebar / TopBar / PlayerBar / RightRail (Phase 14.2)
 
 ### Engineering / DX
 
@@ -85,6 +95,8 @@ Most music players lock you into a single ecosystem. Harmonix breaks that wall:
 - ✅ 478 tests across 44 files (after defensive Web Audio: ensureContext + createMediaElementSource + equalizer.connect all wrapped in try/catch, audio always plays with or without EQ), lint clean, typecheck clean
 - ✅ 478 tests across 44 files (after the real root cause: `media-src` CSP in `index.html` missing `harmonix-media:` — added + comprehensive diagnostic logging in proxy + engine), lint clean, typecheck clean
 - ✅ 479 tests across 44 files (after asWebStream helper: Electron 33+ net.fetch body is a web ReadableStream, not Node Readable; production case now covered by a test), lint clean, typecheck clean
+- ✅ **533 tests across 48 files** (Phase 14.1 Navigation Intelligence: `+55` — CommandPalette 15, uiStore 14, fuzzyMatch 19, Breadcrumb 7), lint clean, typecheck clean
+- ✅ **557 tests across 51 files** (Phase 14.2 Living Visuals: `+24` — adaptivePalette 11, audioVisualizer 9, artworkBlurBackground 3 + 1 from colorExtractor), lint clean, typecheck clean, build clean
 - ✅ Brand mark in sidebar (public/logo.png served at `/logo.png`)
 - ✅ Splash screen on app open (logo + wordmark + tagline + spinner)
 - ✅ Gapless playback (pre-buffered next track, no gap between songs)
@@ -93,6 +105,7 @@ Most music players lock you into a single ecosystem. Harmonix breaks that wall:
 
 ### Coming Next
 
+- 🔜 **Phase 14.3 — Player Mastery** (planned, see `docs/PLANNING.md` §14.3): expandable PlayerBar, NowPlaying v2, MiniPlayer v2, QueueDrawer, gestures, media session
 - 🔜 AI-powered playlist generation (Phase 11)
 - 🔜 Code signing + first public release (v0.1.0) — packaging finalization
 
@@ -187,17 +200,20 @@ harmonix/
 
 ## Recent Milestones
 
-| Milestone | Scope                                                                   | Status     |
-| --------- | ----------------------------------------------------------------------- | ---------- |
-| M1–M9     | Foundation, sources, player, EQ, library, UI integration                | ✅ Done    |
-| M10       | Mini-player mode + system tray                                          | ✅ Done    |
-| M11       | AI-powered playlist generation                                          | 🔜 Planned |
-| M12       | UI/UX polish (navigation, controls, micro-interactions)                 | ✅ Done    |
-| M13       | Visual immersion (palette, glassmorphism, audio-reactive, now-playing)  | ✅ Done    |
-| M14       | Layout redesign (3-column shell, pink palette, hero player, right rail) | ✅ Done    |
+| Milestone | Scope                                                                   | Status                     |
+| --------- | ----------------------------------------------------------------------- | -------------------------- |
+| M1–M9     | Foundation, sources, player, EQ, library, UI integration                | ✅ Done                    |
+| M10       | Mini-player mode + system tray                                          | ✅ Done                    |
+| M11       | AI-powered playlist generation                                          | 🔜 Planned                 |
+| M12       | UI/UX polish (navigation, controls, micro-interactions)                 | ✅ Done                    |
+| M13       | Visual immersion (palette, glassmorphism, audio-reactive, now-playing)  | ✅ Done                    |
+| M14       | Layout redesign (3-column shell, pink palette, hero player, right rail) | ✅ Done                    |
+| M15       | Advanced UI/UX polish — Phase 14 (3 increments)                         | 🚧 In Progress (14.1 done) |
 
 ## Recent Progress (active session)
 
+- **Phase 14.2 — Living Visuals shipped** — 3-tone adaptive palette (vibrant/muted/accent) extracted from current artwork with HSL interpolation (600ms easing) between track changes, audio visualizers (`FrequencyBars` for compact contexts, `WaveformRing` for immersive), shared element transitions (`layoutId="current-artwork"`) across PlayerBar → HeroPlayer → NowPlayingView, glassmorphism system (`.glass-thin` / `.glass` / `.glass-heavy` with light-theme parity), and artwork-blur background that lives behind the entire app. Implementation: `src/lib/colorExtractor.ts` (palette + interpolation helpers), `src/hooks/useAdaptiveAccent.ts` (rewritten with `requestAnimationFrame` interpolation), `src/components/visualizers/AudioVisualizer.tsx` (frequency bars + waveform ring + `useAudioAnalyser` hook), `src/components/layout/ArtworkBlurBackground.tsx`, `src/index.css` (glass tokens + light-theme parity), `tailwind.config.ts` (new `artworkPulse` + `sharedMorph` keyframes, `glass-inner` shadow, `backdrop-blur-4xl`). Glass applied to Sidebar, TopBar, PlayerBar, RightRail. Mini equalizer animation on PlayerBar artwork when playing. **557/557 tests pass** (+24: 11 adaptivePalette, 9 audioVisualizer, 3 artworkBlurBackground, 1 colorExtractor). Lint clean, typecheck clean, build clean. Next: Phase 14.3 (Player Mastery).
+- **Phase 14.1 — Navigation Intelligence shipped** — `⌘K` / `Ctrl+K` command palette with custom fuzzy matcher (no external dep, ~90 LOC), smart sidebar (now-playing mini-card, collapsible Playlists + Recents sections, command-palette trigger, auto-recents for last 4 routes), dynamic breadcrumbs in TopBar, and a new `uiStore` (Zustand) for global UI state. The palette searches tracks/artists/albums/playlists/actions with inline match highlighting, keyboard navigation (`↑`/`↓`/`Enter`/`Esc`), and a 25-item limit. Implementation: `src/stores/uiStore.ts`, `src/components/command/CommandPalette.tsx` + `fuzzyMatch.ts`, `src/components/layout/Breadcrumb.tsx`; `Sidebar.tsx` + `TopBar.tsx` refactored. **533/533 tests pass** (+55: 14 uiStore, 19 fuzzyMatch, 7 Breadcrumb, 15 CommandPalette). Next: Phase 14.2 (Living Visuals). Full plan in `docs/PLANNING.md` §14.
 - **Bundled `yt-dlp.exe`** — `resources/yt-dlp.exe` (v2026.03.17) shipped in-repo. No external install, no `YT_DLP_PATH` env var. Resolution order: `YT_DLP_PATH` env → `resources/yt-dlp[.exe]` (dev & packaged unpacked) → `process.resourcesPath/yt-dlp[.exe]` → PATH. Settings → YouTube Music → "Check for update" runs `yt-dlp -U` and shows commit reminder when version bumps. See `docs/PLANNING.md` §10 for the full progress log.
 - **Sources section removed + Home For You** — Sidebar and Home no longer render a Sources sub-nav/grid; the global TopBar search is the single entry point across all enabled sources. Home now shows a 6-card "For You" grid sourced from listening history (with starter cards for new users). Shared `ForYouSection` component drives both Home (grid) and RightRail (list).
 - **Splash screen on app open** — Frameless 360×360 always-on-top window shows the brand mark + "HARMONIX" wordmark + tagline + spinner while the main window initializes. Closes on main window `ready-to-show`. 15s safety auto-close. Implementation in `electron/main/splashWindow.ts`; HTML inlined as a `data:` URL, logo URL passed as a hash fragment so Vite-served assets resolve at runtime.
@@ -237,5 +253,5 @@ Harmonix integrates with Spotify (official API) and YouTube Music (unofficial me
 ## Acknowledgments
 
 - Inspired by players like [Nuclear](https://nuclear.js.org/) and [SpotTube](https://github.com/milesmanley/SpotTube).
-- Layout language inspired by [Soundora](https://soundora.com/) — design language only, no copied branding.
+- Layout language and command-palette patterns inspired by [Soundora](https://soundora.com/) and [Linear](https://linear.app/) — design language only, no copied branding.
 - Built with amazing open-source libraries. See `package.json` for the full list.

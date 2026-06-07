@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, Bell, Settings as SettingsIcon } from 'lucide-react';
+import { Breadcrumb } from '@/components/layout/Breadcrumb';
+import { useUiStore } from '@/stores/uiStore';
 
 const SEARCH_DEBOUNCE_MS = 400;
 
@@ -9,6 +11,10 @@ export function TopBar(): JSX.Element {
   const [hasNotification, setHasNotification] = useState(false);
   const navigate = useNavigate();
   const debounceRef = useRef<number | null>(null);
+  const openCommandPalette = useUiStore((s) => s.openCommandPalette);
+  const isMac =
+    typeof navigator !== 'undefined' && /Mac|iPhone|iPad/i.test(navigator.userAgent || '');
+  const modKey = isMac ? '⌘' : 'Ctrl';
 
   useEffect(
     () => () => {
@@ -51,7 +57,9 @@ export function TopBar(): JSX.Element {
   };
 
   return (
-    <div className="h-14 border-b border-zinc-800 bg-zinc-950/60 backdrop-blur flex items-center gap-4 px-6">
+    <div className="h-14 border-b border-zinc-800/60 glass flex items-center gap-4 px-6">
+      <Breadcrumb />
+
       <form onSubmit={onSubmit} className="flex-1 max-w-2xl">
         <div className="relative group">
           <Search
@@ -64,9 +72,20 @@ export function TopBar(): JSX.Element {
             value={query}
             onChange={onChange}
             placeholder="Search for songs, artists, albums…"
-            className="w-full bg-zinc-900/80 border border-zinc-800 rounded-full pl-10 pr-4 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:border-brand-500/50 focus:bg-zinc-900 focus:ring-1 focus:ring-brand-500/30 transition-all"
+            className="w-full bg-zinc-900/80 border border-zinc-800 rounded-full pl-10 pr-20 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:border-brand-500/50 focus:bg-zinc-900 focus:ring-1 focus:ring-brand-500/30 transition-all"
             aria-label="Search"
           />
+          <button
+            type="button"
+            onClick={openCommandPalette}
+            className="absolute right-2 top-1/2 -translate-y-1/2 hidden sm:inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] text-zinc-500 bg-zinc-800/80 hover:bg-zinc-700/80 hover:text-zinc-200 border border-zinc-700/60 rounded transition-colors"
+            aria-label="Open command palette"
+            title="Command palette"
+            data-testid="topbar-command-palette-trigger"
+          >
+            <kbd className="font-mono">{modKey}</kbd>
+            <kbd className="font-mono">K</kbd>
+          </button>
         </div>
       </form>
 

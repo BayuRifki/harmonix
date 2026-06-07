@@ -4,6 +4,12 @@ export interface HslColor {
   l: number;
 }
 
+export interface AdaptivePalette {
+  vibrant: HslColor;
+  muted: HslColor;
+  accent: HslColor;
+}
+
 export function rgbToHsl(r: number, g: number, b: number): HslColor {
   const rn = r / 255;
   const gn = g / 255;
@@ -93,6 +99,58 @@ export function hslToString(c: HslColor): string {
   const s = Math.max(0, Math.min(100, Math.round(c.s)));
   const l = Math.max(0, Math.min(100, Math.round(c.l)));
   return `hsl(${h}, ${s}%, ${l}%)`;
+}
+
+function clampHue(h: number): number {
+  return ((h % 360) + 360) % 360;
+}
+
+function clampPercent(v: number): number {
+  return Math.max(0, Math.min(100, v));
+}
+
+export function buildPalette(accent: HslColor): AdaptivePalette {
+  const h = clampHue(accent.h);
+  const s = clampPercent(accent.s);
+  const l = clampPercent(accent.l);
+  return {
+    vibrant: { h, s: Math.min(95, Math.max(55, s + 5)), l: Math.min(60, Math.max(48, l - 4)) },
+    muted: { h, s: Math.min(45, Math.max(20, s * 0.45)), l: Math.min(28, Math.max(18, l * 0.42)) },
+    accent: { h, s, l },
+  };
+}
+
+export function interpolateHsl(a: HslColor, b: HslColor, t: number): HslColor {
+  const clampedT = Math.max(0, Math.min(1, t));
+  let dh = b.h - a.h;
+  if (dh > 180) dh -= 360;
+  else if (dh < -180) dh += 360;
+  return {
+    h: clampHue(a.h + dh * clampedT),
+    s: a.s + (b.s - a.s) * clampedT,
+    l: a.l + (b.l - a.l) * clampedT,
+  };
+}
+
+export function interpolatePalette(
+  from: AdaptivePalette,
+  to: AdaptivePalette,
+  t: number,
+): AdaptivePalette {
+  return {
+    vibrant: interpolateHsl(from.vibrant, to.vibrant, t),
+    muted: interpolateHsl(from.muted, to.muted, t),
+    accent: interpolateHsl(from.accent, to.accent, t),
+  };
+}
+
+export function paletteToCssVars(palette: AdaptivePalette): Record<string, string> {
+  return {
+    '--accent': hslToString(palette.accent),
+    '--accent-hover': hslToString({ ...palette.accent, l: Math.max(35, palette.accent.l - 6) }),
+    '--accent-vibrant': hslToString(palette.vibrant),
+    '--accent-muted': hslToString(palette.muted),
+  };
 }
 
 const DOWNSAMPLE_SIZE = 50;

@@ -33,6 +33,7 @@ const config: Config = {
       },
       backdropBlur: {
         xs: '2px',
+        '4xl': '64px',
       },
       boxShadow: {
         glow: '0 0 8px rgba(236, 72, 153, 0.35), 0 0 24px rgba(236, 72, 153, 0.18)',
@@ -40,6 +41,7 @@ const config: Config = {
         'glow-lg': '0 0 16px rgba(236, 72, 153, 0.45), 0 0 48px rgba(236, 72, 153, 0.22)',
         'glow-pink': '0 0 8px rgba(244, 114, 182, 0.4), 0 0 24px rgba(244, 114, 182, 0.2)',
         depth: 'inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 4px 12px rgba(0, 0, 0, 0.4)',
+        'glass-inner': 'inset 0 1px 0 rgba(255, 255, 255, 0.06), inset 0 -1px 0 rgba(0, 0, 0, 0.2)',
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],
@@ -57,6 +59,8 @@ const config: Config = {
         'vinyl-spin': 'vinylSpin 8s linear infinite',
         'bounce-subtle': 'bounceSubtle 0.3s ease-in-out',
         'gradient-shift': 'gradientShift 15s ease infinite',
+        'artwork-pulse': 'artworkPulse 4s ease-in-out infinite',
+        'shared-morph': 'sharedMorph 350ms cubic-bezier(0.2, 0.7, 0.3, 1)',
       },
       keyframes: {
         pulseSoft: {
@@ -91,6 +95,14 @@ const config: Config = {
         gradientShift: {
           '0%, 100%': { 'background-position': '0% 50%' },
           '50%': { 'background-position': '100% 50%' },
+        },
+        artworkPulse: {
+          '0%, 100%': { transform: 'scale(1)' },
+          '50%': { transform: 'scale(1.01)' },
+        },
+        sharedMorph: {
+          '0%': { transform: 'scale(0.96)', opacity: '0.8' },
+          '100%': { transform: 'scale(1)', opacity: '1' },
         },
       },
     },

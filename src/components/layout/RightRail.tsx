@@ -70,7 +70,7 @@ export function RightRail({ onPlayHistoryEntry }: RightRailProps): JSX.Element {
   };
 
   return (
-    <aside className="w-80 border-l border-zinc-800 bg-zinc-950/60 backdrop-blur flex flex-col overflow-hidden">
+    <aside className="w-80 border-l border-zinc-800/60 glass flex flex-col overflow-hidden">
       <section className="p-4 border-b border-zinc-800">
         <header className="flex items-center justify-between mb-3">
           <h2 className="text-[11px] font-semibold text-zinc-300 tracking-wider uppercase">

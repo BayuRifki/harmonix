@@ -83,6 +83,13 @@ out/
 esbuild-version.txt
 esbuild-err.txt
 test-output.txt
+git-status.txt
+status.txt
+
+# Reference images (design references used during planning, not part of the app)
+ChatGPT Image*.png
+*reference*.png
+ref-*.png
 
 # OS
 .DS_Store

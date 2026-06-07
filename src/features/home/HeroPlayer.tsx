@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { Music, Heart, MoreHorizontal, Disc3 } from 'lucide-react';
 import { usePlayerStore } from '@/stores/playerStore';
 import { useSourcesStore } from '@/stores/sourcesStore';
@@ -25,12 +26,14 @@ function ArtworkImage({ url, alt }: { url: string; alt: string }): JSX.Element {
     );
   }
   return (
-    <img
+    <motion.img
+      layoutId="current-artwork"
       src={url}
       alt={alt}
       className="w-full h-full object-cover animate-fade-in"
       onError={() => setFailed(true)}
       draggable={false}
+      transition={{ type: 'spring', stiffness: 260, damping: 28 }}
     />
   );
 }

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { usePlayerStore } from '@/stores/playerStore';
 import { useSourcesStore } from '@/stores/sourcesStore';
 import { TransportControls } from '@/components/player/TransportControls';
@@ -43,6 +44,7 @@ interface ArtworkProps {
 function Artwork({ url, alt }: ArtworkProps): JSX.Element {
   const [failed, setFailed] = useState(false);
   const [hovered, setHovered] = useState(false);
+  const isPlaying = usePlayerStore((s) => s.isPlaying);
 
   useEffect(() => {
     setFailed(false);
@@ -65,18 +67,37 @@ function Artwork({ url, alt }: ArtworkProps): JSX.Element {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      <img
+      <motion.img
+        layoutId="current-artwork"
         src={url}
         alt={alt}
         className="w-full h-full object-cover animate-fade-in"
         onError={() => setFailed(true)}
         draggable={false}
+        transition={{ type: 'spring', stiffness: 260, damping: 28 }}
       />
-      {hovered && (
+      {hovered ? (
         <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center animate-scale-in">
           <Play size={16} className="text-white fill-white" />
         </div>
-      )}
+      ) : isPlaying ? (
+        <div className="absolute inset-x-0 bottom-0 h-3 bg-black/30 backdrop-blur-[1px] flex items-end justify-center gap-0.5 px-2 pb-0.5 pointer-events-none">
+          {[0, 1, 2].map((i) => (
+            <motion.span
+              key={i}
+              className="w-0.5 bg-white rounded-full"
+              animate={{ height: ['30%', '90%', '40%', '70%', '30%'] }}
+              transition={{
+                duration: 0.9 + i * 0.15,
+                repeat: Infinity,
+                ease: 'easeInOut',
+                delay: i * 0.1,
+              }}
+              style={{ height: '30%' }}
+            />
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -107,7 +128,7 @@ export function PlayerBar(): JSX.Element {
   const trackKey = currentTrack?.id ?? 'empty';
 
   return (
-    <footer className="h-20 border-t border-zinc-800 bg-zinc-950 flex items-center px-4 gap-4">
+    <footer className="h-20 border-t border-zinc-800/60 glass flex items-center px-4 gap-4">
       {/* Left: Track info */}
       <div className="flex items-center gap-3 w-1/3 min-w-0">
         {artworkUrl ? (

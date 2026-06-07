@@ -91,12 +91,13 @@ export function NowPlayingView(): JSX.Element {
         <div className="flex-1 flex flex-col items-center justify-center px-8 pb-32 text-center">
           {artworkUrl ? (
             <motion.img
+              layoutId="current-artwork"
               key={artworkUrl}
               src={artworkUrl}
               alt={currentTrack?.title ?? ''}
               initial={{ scale: 0.92, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              transition={{ type: 'spring', stiffness: 180, damping: 22 }}
+              transition={{ type: 'spring', stiffness: 220, damping: 28 }}
               className="w-72 h-72 rounded-2xl object-cover shadow-glow-lg mb-8 ring-1 ring-white/10"
             />
           ) : (

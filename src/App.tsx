@@ -7,6 +7,7 @@ import { TopBar } from '@/components/layout/TopBar';
 import { RightRail } from '@/components/layout/RightRail';
 import { AnimatedBackground } from '@/components/layout/AnimatedBackground';
 import { AudioReactiveBackground } from '@/components/layout/AudioReactiveBackground';
+import { ArtworkBlurBackground } from '@/components/layout/ArtworkBlurBackground';
 import { HomeView } from '@/features/home/HomeView';
 import { SearchView } from '@/features/search/SearchView';
 import { ExploreView } from '@/features/explore/ExploreView';
@@ -20,10 +21,12 @@ import { MiniPlayerView } from '@/features/miniPlayer/MiniPlayerView';
 import { NowPlayingView } from '@/features/nowPlaying/NowPlayingView';
 import { useEqualizerStore } from '@/stores/equalizerStore';
 import { useThemeStore } from '@/stores/themeStore';
+import { useUiStore } from '@/stores/uiStore';
 import { useAdaptiveAccent } from '@/hooks/useAdaptiveAccent';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { usePlayerStateSync } from '@/hooks/usePlayerStateSync';
 import { ToastContainer } from '@/components/ui/Toast';
+import { CommandPalette } from '@/components/command/CommandPalette';
 
 function PageTransition({ children }: { children: ReactNode }): JSX.Element {
   return (
@@ -51,6 +54,8 @@ function MainApp(): JSX.Element {
   const [selectedPlaylistId, setSelectedPlaylistId] = useState<number | null>(null);
   const eqLoad = useEqualizerStore((s) => s.load);
   const themeLoad = useThemeStore((s) => s.load);
+  const uiLoad = useUiStore((s) => s.load);
+  const pushRecent = useUiStore((s) => s.pushRecent);
 
   useAdaptiveAccent();
   useKeyboardShortcuts();
@@ -59,7 +64,12 @@ function MainApp(): JSX.Element {
   useEffect(() => {
     themeLoad();
     void eqLoad();
-  }, [themeLoad, eqLoad]);
+    uiLoad();
+  }, [themeLoad, eqLoad, uiLoad]);
+
+  useEffect(() => {
+    pushRecent(location.pathname);
+  }, [location.pathname, pushRecent]);
 
   const isNowPlaying = location.pathname === '/now-playing';
   const isHome = location.pathname === '/';
@@ -78,6 +88,7 @@ function MainApp(): JSX.Element {
           </Routes>
         </div>
         <ToastContainer />
+        <CommandPalette />
       </div>
     );
   }
@@ -87,6 +98,7 @@ function MainApp(): JSX.Element {
       <YtMusicDisclaimer />
       <AnimatedBackground />
       {isHome && <AudioReactiveBackground />}
+      <ArtworkBlurBackground opacity={0.18} />
       {showTopBar && <TopBar />}
       <div className="flex-1 flex overflow-hidden">
         <Sidebar />
@@ -180,6 +192,7 @@ function MainApp(): JSX.Element {
       </div>
       <PlayerBar />
       <ToastContainer />
+      <CommandPalette />
     </div>
   );
 }

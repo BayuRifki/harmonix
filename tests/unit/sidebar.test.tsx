@@ -63,7 +63,7 @@ describe('Sidebar', () => {
     installMockWindowApi();
     renderWithRouter();
     expect(screen.getByText('Harmonix')).toBeInTheDocument();
-    expect(screen.getByText(/Phase 13B/)).toBeInTheDocument();
+    expect(screen.getByText(/Phase 14/)).toBeInTheDocument();
   });
 
   it('renders all static nav items', () => {
