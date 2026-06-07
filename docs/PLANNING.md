@@ -573,7 +573,7 @@ Reimagines the app shell as a **3-column layout** (sidebar + main + right rail) 
 
 ---
 
-### Phase 14 — Advanced UI/UX Polish: "Immersive Intelligence" ✅ Shipped (14.1 + 14.2 + 14.3)
+### Phase 14 — Advanced UI/UX Polish: "Immersive Intelligence" ✅ Shipped (14.1 + 14.2 + 14.3 + 14.4 + 14.5)
 
 Transform the already-solid Phase 13B Soundora-inspired shell into a **best-in-class desktop music experience** with intuitive navigation, living visual feedback, buttery-smooth media controls, and immersive interaction. User intent: make Harmonix feel as polished as commercial players (Spotify, Apple Music, Soundora) while preserving the cross-source identity and the pink/magenta brand language.
 
@@ -800,7 +800,30 @@ Every interaction feels alive. **First pass shipped**: ScrollShadow, rich toasts
   - [ ] **Optimistic UI**: playlist create, track add → show immediately; rollback on error
   - [ ] **Progress toasts** for long ops (library scan, source import)
 
-#### 14.5 — Data Visualization & "Delight" Features
+#### 14.5 — Navigation & Player polish (Phase 14.5 first pass — shipped)
+
+Catches up the remaining 14.1 + 14.2 + 14.3 + 14.4 todos that
+were deferred to "14.5" in the first-pass plans. Plus a few
+follow-ups that were already due.
+
+- [x] **Animated sidebar active border indicator** (`src/components/layout/Sidebar.tsx`) — Framer Motion `layoutId="sidebar-active-indicator"` springs between routes with brand glow; replaces static `border-l-2` class. `data-testid="sidebar-active-indicator"`.
+- [x] **Search history dropdown in TopBar** (`src/hooks/useSearchHistory.ts` + `TopBar.tsx`) — last 8 queries persisted to `localStorage`; dropdown shows on focus with fuzzy-matched recent queries, click-to-rerun, per-item remove, "Clear all" button, ARIA combobox semantics.
+- [x] **Focus restoration on route change** (`src/hooks/useFocusRestoration.ts` + `App.tsx`) — per-route focus + scroll position remembered in `sessionStorage`, restored on navigation back. Mounted alongside `useScrollRestoration('main, [role="main"]')`.
+- [x] **NowPlaying visualizer toggle** (`src/features/nowPlaying/NowPlayingView.tsx`) — radiogroup toggles None / FrequencyBars / WaveformRing behind artwork with `AnimatePresence` fade. State persisted to `localStorage` key `harmonix.np.visualizer`. `data-testid="now-playing-visualizer-toggle"`.
+- [x] **Mesh gradient breathing background** (`src/components/layout/AnimatedBackground.tsx`) — rewritten with 3 stacked conic-gradient blobs + central radial halo. Uses `audioEngine.getGainNode()` for bass-pulse sampling at 60 FPS, scales blobs by `1.02 + bass * 0.04` when playing. Reads `--accent` CSS var live (album-aware overlay). Respects `prefers-reduced-motion` + `uiStore.reducedMotion`.
+- [x] **NowPlaying theme override** (`NowPlayingView.tsx`) — "Match artwork" vs "Brand pink" toggle with `setProperty('--accent', ...)` writes. State in `localStorage` key `harmonix.np.theme`. `data-testid="now-playing-theme-toggle"`.
+- [x] **Queue history collapsible section** (`src/features/player/QueueDrawer.tsx`) — queue list split into `historyItems` (indices < queueIndex) and `upcomingItems` (>= queueIndex). History renders in a collapsible section with `RotateCcw` icon + count badge + `aria-expanded`/`aria-controls`. `data-testid="queue-history-section"`.
+- [x] **Crossfade tooltip on indicator** (`src/components/player/CrossfadeIndicator.tsx`) — wrapper `group` + `role="tooltip"` div with `opacity-0 group-hover:opacity-100` transition showing "Crossfade: 5.0s" + native `title` attribute as fallback. `data-testid="crossfade-tooltip"`.
+- [x] **Source health click-to-expand** (`src/components/layout/Sidebar.tsx`) — health dots wrap a button with `aria-expanded`; expanded panel shows per-source `timeAgo(ts)` timestamps. `data-testid="source-health-details-panel"`.
+- [x] **Glass audit** (`src/components/command/CommandPalette.tsx`) — replaced `bg-zinc-900/95` with `.glass-heavy` for stronger blur and light-theme parity.
+- [x] **Skip-to-content link** (`src/components/a11y/SkipToContent.tsx`) — visually hidden, becomes visible on focus, jumps to `#main-content` (added to `<main>` in App.tsx). `data-testid="skip-to-content"`.
+- [x] **aria-live for queue changes** (`src/components/a11y/PlayerAnnouncer.tsx`) — debounced 600ms `role="status" aria-live="polite"` announcer that surfaces track/artist changes from `usePlayerStore`. `data-testid="player-announcer"`.
+- [x] **Expandable PlayerBar** (`src/components/layout/PlayerBar.tsx`) — wrapper div with `onMouseEnter/Leave` for hover-expand; AnimatePresence height 0→96 slide-in shows "Up next" 3-card queue preview + `FrequencyBars` EQ. Pin via `uiStore.playerBarPinned` (persisted). `data-testid="player-bar-pin-toggle"`.
+- [x] **Mini-player shared element transition** (`src/features/miniPlayer/MiniPlayerView.tsx`) — added `motion.img layoutId="current-artwork"` to the mini-player artwork, so the artwork morphs smoothly from PlayerBar → HeroPlayer → NowPlayingView → MiniPlayer.
+- [x] **Magnetic hover + click ripples** (`src/components/ui/MicroInteractions.tsx`) — `MagneticButton` (cursor-tracked translate + scale via CSS variables) and `Ripple` (Material-style expanding circle via framer-motion AnimatePresence). Both respect `useReducedMotion`. `data-testid` provided on both.
+- [x] **Route change indicator** (`src/components/a11y/RouteLoader.tsx`) — `RouteChangeIndicator` flashes a brand-gradient progress bar at the top of the page for 350ms on navigation. `RouteLoaderSkeleton` (placeholder grid) ready for future `lazy()` routes. Mounted in `App.tsx` for both Main and NowPlaying shells.
+
+#### 14.6 — Data Visualization & "Delight" Features
 
 Insight and personality.
 
@@ -985,6 +1008,7 @@ See [Section 8](#8-backlog--future-ideas).
 | M14: Layout redesign (3-column shell, pink palette, hero player, right rail)         | Phase 13B complete  | ✅ Done                                   |
 | M15: Advanced UI/UX polish (navigation, living visuals, player mastery)              | Phase 14 complete   | ✅ Done (14.1 + 14.2 + 14.3 first passes) |
 | M16: Micro-interactions & Polish (14.4)                                              | Phase 14.4 complete | ✅ Done (first pass)                      |
+| M17: Navigation & Player polish (14.5)                                               | Phase 14.5 complete | ✅ Done (first pass)                      |
 
 ---
 
@@ -1161,7 +1185,7 @@ Chronological log of incremental progress. Most recent first.
 
 ---
 
-**Last updated**: **Phase 14.1 + 14.2 + 14.3 first passes shipped** — `⌘K` command palette, breadcrumbs, smart sidebar, adaptive 3-tone palette + HSL interpolation, glassmorphism system, shared element artwork transitions, audio visualizers (frequency bars + waveform ring), artwork-blur background, crossfade visual indicator, OS Media Session, source health indicator, NowPlaying v2 (parallax + similar tracks + credits), QueueDrawer (slide-over + multi-select + save as playlist + search), MiniPlayer Pin badge. See §14.1, §14.2, and §14.3 for shipped-vs-pending breakdowns. Phases 12, 13A, 13B still complete. Phase 11 (AI-Powered Playlist Generation) still planned. **578 tests passing** (was 478, +100).
+**Last updated**: **Phase 14.1 + 14.2 + 14.3 + 14.4 + 14.5 first passes all shipped** — `⌘K` command palette, breadcrumbs, smart sidebar (animated indicator), adaptive 3-tone palette + HSL interpolation, glassmorphism system, shared element artwork transitions, audio visualizers, artwork-blur background, crossfade visual indicator (with tooltip), OS Media Session, source health indicator (click-to-expand), NowPlaying v2 (parallax + similar tracks + credits + visualizer toggle + theme override), QueueDrawer (slide-over + multi-select + save as playlist + search + collapsible history), MiniPlayer (Pin badge + shared transition), ScrollShadow, rich toasts v2, stagger animations, scroll + focus restoration, accessibility (focus-ring, reduced-motion, high-contrast, skip-to-content, aria-live announcer, route change indicator, prefers-contrast), Performance + Navigation settings panels, search history dropdown, mesh gradient breathing background, expandable PlayerBar, magnetic hover + click ripples, route loader skeleton. See §14.1, §14.2, §14.3, §14.4, §14.5 for shipped-vs-pending breakdowns. Phases 12, 13A, 13B still complete. Phase 11 (AI-Powered Playlist Generation) still planned. **578 tests passing**.
 
 - **The ACTUAL root cause: `media-src` CSP missing `harmonix-media:`** — User reported the same `MEDIA_ERR_SRC_NOT_SUPPORTED: Format error` after every fix. The defensive Web Audio fallback should have made the audio play via direct HTMLAudioElement playback. It didn't. User suggested checking "CORS header di server" and "format file tidak didukung browser" — that was the right direction. The real bug was in the **renderer's Content Security Policy** in `index.html`:
   ```html

@@ -202,12 +202,24 @@
   }
 }
 
+@keyframes harmonix-route-progress {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
 @layer utilities {
   .animate-track-in {
     animation: harmonix-track-in 0.4s cubic-bezier(0.2, 0.7, 0.3, 1) both;
   }
   .animate-pulse-soft {
     animation: harmonix-pulse-soft 1.4s ease-in-out infinite;
+  }
+  .animate-route-progress {
+    animation: harmonix-route-progress 0.35s linear infinite;
   }
 
   .focus-ring {

@@ -1,15 +1,36 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion, useMotionValue, useSpring } from 'framer-motion';
-import { X, Music, ChevronDown, ChevronUp, Sparkles } from 'lucide-react';
+import { motion, useMotionValue, useSpring, AnimatePresence } from 'framer-motion';
+import { X, Music, ChevronDown, ChevronUp, Sparkles, BarChart3, Circle, Eye } from 'lucide-react';
 import { usePlayerStore } from '@/stores/playerStore';
 import { useSourcesStore } from '@/stores/sourcesStore';
 import { useListeningHistoryStore } from '@/stores/listeningHistoryStore';
 import { useLibraryStore } from '@/stores/libraryStore';
 import { AudioReactiveBackground } from '@/components/layout/AudioReactiveBackground';
 import { CrossfadeIndicator } from '@/components/player/CrossfadeIndicator';
+import { FrequencyBars, WaveformRing } from '@/components/visualizers/AudioVisualizer';
 import { Button } from '@/components/ui/Button';
 import type { Track } from '@/types/global';
+
+const VISUALIZER_STORAGE_KEY = 'harmonix.np.visualizer';
+type VisualizerMode = 'none' | 'bars' | 'ring';
+
+function loadVisualizerMode(): VisualizerMode {
+  if (typeof localStorage === 'undefined') return 'none';
+  const v = localStorage.getItem(VISUALIZER_STORAGE_KEY);
+  if (v === 'bars' || v === 'ring' || v === 'none') return v;
+  return 'none';
+}
+
+const THEME_STORAGE_KEY = 'harmonix.np.theme';
+type ThemeMode = 'match-artwork' | 'brand-pink';
+
+function loadThemeMode(): ThemeMode {
+  if (typeof localStorage === 'undefined') return 'match-artwork';
+  const v = localStorage.getItem(THEME_STORAGE_KEY);
+  if (v === 'match-artwork' || v === 'brand-pink') return v;
+  return 'match-artwork';
+}
 
 const SOURCE_BADGE_COLORS: Record<string, string> = {
   local: 'bg-blue-500/20 text-blue-300 border-blue-500/40',
@@ -101,8 +122,35 @@ export function NowPlayingView(): JSX.Element {
 
   const parallax = useMouseParallax(12);
   const [creditsOpen, setCreditsOpen] = useState(false);
+  const [visualizer, setVisualizer] = useState<VisualizerMode>(() => loadVisualizerMode());
+  const [theme, setTheme] = useState<ThemeMode>(() => loadThemeMode());
   const lastSimilarTrackId = useRef<string | null>(null);
   const [similar, setSimilar] = useState<Track[]>([]);
+
+  useEffect(() => {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(VISUALIZER_STORAGE_KEY, visualizer);
+    }
+  }, [visualizer]);
+
+  useEffect(() => {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(THEME_STORAGE_KEY, theme);
+    }
+  }, [theme]);
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    if (theme === 'brand-pink') {
+      document.documentElement.style.setProperty('--accent', 'hsl(322, 81%, 60%)');
+      document.documentElement.style.setProperty('--accent-hover', 'hsl(322, 81%, 52%)');
+      document.documentElement.style.setProperty('--accent-vibrant', 'hsl(322, 81%, 65%)');
+      document.documentElement.style.setProperty('--accent-muted', 'hsl(322, 40%, 30%)');
+    }
+    return (): void => {
+      // CSS vars are already updated by useAdaptiveAccent when artwork changes
+    };
+  }, [theme]);
 
   const artworkUrl = currentTrack?.artworkUrl ?? currentTrack?.album?.artworkUrl ?? null;
   const progress = durationMs > 0 ? (positionMs / durationMs) * 100 : 0;
@@ -176,17 +224,39 @@ export function NowPlayingView(): JSX.Element {
 
         <div className="flex-1 flex flex-col items-center justify-center px-8 pb-32 text-center">
           {artworkUrl ? (
-            <motion.img
-              layoutId="current-artwork"
-              key={artworkUrl}
-              src={artworkUrl}
-              alt={currentTrack?.title ?? ''}
-              initial={{ scale: 0.92, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ type: 'spring', stiffness: 220, damping: 28 }}
-              style={parallax.style}
-              className="w-72 h-72 rounded-2xl object-cover shadow-glow-lg mb-8 ring-1 ring-white/10 will-change-transform"
-            />
+            <div className="relative mb-8">
+              <AnimatePresence>
+                {visualizer !== 'none' && (
+                  <motion.div
+                    key="visualizer-overlay"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 0.6 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.3 }}
+                    className="absolute inset-0 z-0 flex items-center justify-center pointer-events-none"
+                    aria-hidden
+                    data-testid="now-playing-visualizer-canvas"
+                  >
+                    {visualizer === 'bars' ? (
+                      <FrequencyBars bars={24} height={260} />
+                    ) : (
+                      <WaveformRing size={300} />
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+              <motion.img
+                layoutId="current-artwork"
+                key={artworkUrl}
+                src={artworkUrl}
+                alt={currentTrack?.title ?? ''}
+                initial={{ scale: 0.92, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ type: 'spring', stiffness: 220, damping: 28 }}
+                style={parallax.style}
+                className="relative z-10 w-72 h-72 rounded-2xl object-cover shadow-glow-lg ring-1 ring-white/10 will-change-transform"
+              />
+            </div>
           ) : (
             <motion.div
               style={parallax.style}
@@ -234,17 +304,70 @@ export function NowPlayingView(): JSX.Element {
           )}
 
           {currentTrack && (
-            <button
-              type="button"
-              onClick={() => setCreditsOpen((v) => !v)}
-              className="mt-3 inline-flex items-center gap-1 text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
-              aria-expanded={creditsOpen}
-              aria-controls="now-playing-credits"
-            >
-              <Sparkles size={11} aria-hidden />
-              Credits
-              {creditsOpen ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
-            </button>
+            <div className="mt-3 flex items-center justify-center gap-3 text-xs">
+              <button
+                type="button"
+                onClick={() => setCreditsOpen((v) => !v)}
+                className="inline-flex items-center gap-1 text-zinc-500 hover:text-zinc-300 transition-colors"
+                aria-expanded={creditsOpen}
+                aria-controls="now-playing-credits"
+              >
+                <Sparkles size={11} aria-hidden />
+                Credits
+                {creditsOpen ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
+              </button>
+              <span className="text-zinc-700">·</span>
+              <div
+                role="radiogroup"
+                aria-label="Background visualizer"
+                className="inline-flex items-center gap-0.5 p-0.5 bg-zinc-900/60 border border-zinc-800/60 rounded-full"
+                data-testid="now-playing-visualizer-toggle"
+              >
+                {(
+                  [
+                    { mode: 'none', icon: Eye, label: 'None' },
+                    { mode: 'bars', icon: BarChart3, label: 'Frequency bars' },
+                    { mode: 'ring', icon: Circle, label: 'Waveform ring' },
+                  ] as { mode: VisualizerMode; icon: typeof Eye; label: string }[]
+                ).map(({ mode, icon: Icon, label }) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    role="radio"
+                    aria-checked={visualizer === mode}
+                    onClick={() => setVisualizer(mode)}
+                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] uppercase tracking-wider transition-colors ${
+                      visualizer === mode
+                        ? 'bg-brand-500/20 text-brand-300'
+                        : 'text-zinc-500 hover:text-zinc-300'
+                    }`}
+                    title={label}
+                    data-testid={`np-visualizer-${mode}`}
+                  >
+                    <Icon size={10} aria-hidden />
+                  </button>
+                ))}
+              </div>
+              <span className="text-zinc-700">·</span>
+              <button
+                type="button"
+                onClick={() => setTheme(theme === 'match-artwork' ? 'brand-pink' : 'match-artwork')}
+                className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider text-zinc-500 hover:text-zinc-300 transition-colors"
+                title={`Theme: ${theme === 'match-artwork' ? 'Match artwork' : 'Brand pink'}`}
+                data-testid="now-playing-theme-toggle"
+                aria-label={`Theme mode: ${theme === 'match-artwork' ? 'match artwork' : 'brand pink'}. Click to switch.`}
+              >
+                {theme === 'match-artwork' ? (
+                  <span
+                    className="w-2 h-2 rounded-full bg-gradient-to-br from-pink-400 to-purple-400"
+                    aria-hidden
+                  />
+                ) : (
+                  <span className="w-2 h-2 rounded-full bg-brand-400" aria-hidden />
+                )}
+                {theme === 'match-artwork' ? 'Art' : 'Pink'}
+              </button>
+            </div>
           )}
 
           {creditsOpen && currentTrack && (

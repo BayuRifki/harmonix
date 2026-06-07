@@ -1,4 +1,5 @@
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef, useCallback, type SyntheticEvent } from 'react';
+import { motion } from 'framer-motion';
 import type {
   MiniPlayerStateSnapshot,
   MiniPlayerAction,
@@ -167,14 +168,16 @@ export function MiniPlayerView(): JSX.Element {
         )}
         <div className="w-14 h-14 bg-zinc-900 rounded shrink-0 overflow-hidden flex items-center justify-center text-zinc-700">
           {snapshot.artworkUrl ? (
-            <img
+            <motion.img
+              layoutId="current-artwork"
               src={snapshot.artworkUrl}
               alt=""
               className="w-full h-full object-cover"
               draggable={false}
-              onError={(e): void => {
+              onError={(e: SyntheticEvent<HTMLImageElement>): void => {
                 e.currentTarget.style.display = 'none';
               }}
+              transition={{ type: 'spring', stiffness: 260, damping: 28 }}
             />
           ) : (
             <span className="text-xl" aria-hidden>

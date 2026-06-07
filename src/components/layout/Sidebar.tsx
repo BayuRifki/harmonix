@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import {
   Home,
   Compass,
@@ -77,6 +78,14 @@ export function Sidebar(): JSX.Element {
   const clearRecents = useUiStore((s) => s.clearRecents);
 
   const health = useSourceHealth();
+  const [healthExpanded, setHealthExpanded] = useState(false);
+
+  function timeAgo(ts: number): string {
+    const ms = Date.now() - ts;
+    if (ms < 60_000) return 'just now';
+    if (ms < 3_600_000) return `${Math.floor(ms / 60_000)}m ago`;
+    return `${Math.floor(ms / 3_600_000)}h ago`;
+  }
 
   useEffect(() => {
     void refreshLibrary();
@@ -170,16 +179,32 @@ export function Sidebar(): JSX.Element {
               to={item.to}
               end={item.to === '/'}
               className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all duration-150 mt-0.5 animate-slide-in ${
+                `relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all duration-150 mt-0.5 animate-slide-in ${
                   isActive
-                    ? 'bg-zinc-800/60 text-white border-l-2 border-brand-400'
+                    ? 'bg-zinc-800/60 text-white'
                     : 'text-zinc-400 hover:bg-zinc-900/60 hover:text-zinc-100 active:scale-[0.98]'
                 }`
               }
               style={{ animationDelay: `${index * 50}ms` }}
             >
-              <Icon size={18} strokeWidth={1.5} className="shrink-0" aria-hidden />
-              <span>{item.label}</span>
+              {({ isActive }) => (
+                <>
+                  {isActive && (
+                    <motion.span
+                      layoutId="sidebar-active-indicator"
+                      className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-r-full bg-brand-400"
+                      style={{
+                        boxShadow:
+                          '0 0 8px rgba(236, 72, 153, 0.6), 0 0 16px rgba(236, 72, 153, 0.3)',
+                      }}
+                      transition={{ type: 'spring', stiffness: 350, damping: 30 }}
+                      data-testid="sidebar-active-indicator"
+                    />
+                  )}
+                  <Icon size={18} strokeWidth={1.5} className="shrink-0" aria-hidden />
+                  <span>{item.label}</span>
+                </>
+              )}
             </NavLink>
           );
         })}
@@ -317,33 +342,59 @@ export function Sidebar(): JSX.Element {
         <p>v0.1.0 — Phase 14</p>
         <p className="mt-1">{enabledCount} sources enabled</p>
         {enabledCount > 0 && (
-          <div
-            className="mt-2 flex flex-wrap items-center gap-1.5"
-            data-testid="source-health-dots"
-            title={Object.entries(health)
-              .map(([id, h]) => `${id}: ${HEALTH_DOT_LABELS[h.status]}`)
-              .join(' · ')}
-          >
-            {registrations
-              .filter((r) => r.enabled)
-              .map((r) => {
-                const status = health[r.id]?.status ?? 'unknown';
-                return (
-                  <span
-                    key={r.id}
-                    className="inline-flex items-center gap-1 text-[10px] text-zinc-500"
-                    title={`${r.name}: ${HEALTH_DOT_LABELS[status]}`}
-                  >
+          <div data-testid="source-health-dots">
+            <button
+              type="button"
+              onClick={() => setHealthExpanded((v) => !v)}
+              className="w-full mt-2 flex flex-wrap items-center gap-1.5 text-left"
+              aria-expanded={healthExpanded}
+              aria-controls="source-health-details"
+            >
+              {registrations
+                .filter((r) => r.enabled)
+                .map((r) => {
+                  const status = health[r.id]?.status ?? 'unknown';
+                  return (
                     <span
-                      className={`w-1.5 h-1.5 rounded-full ${HEALTH_DOT_COLORS[status]} ${
-                        status === 'healthy' ? 'animate-pulse-soft' : ''
-                      }`}
-                      aria-hidden
-                    />
-                    <span className="truncate max-w-[60px]">{r.name}</span>
-                  </span>
-                );
-              })}
+                      key={r.id}
+                      className="inline-flex items-center gap-1 text-[10px] text-zinc-500"
+                      title={`${r.name}: ${HEALTH_DOT_LABELS[status]}`}
+                    >
+                      <span
+                        className={`w-1.5 h-1.5 rounded-full ${HEALTH_DOT_COLORS[status]} ${
+                          status === 'healthy' ? 'animate-pulse-soft' : ''
+                        }`}
+                        aria-hidden
+                      />
+                      <span className="truncate max-w-[60px]">{r.name}</span>
+                    </span>
+                  );
+                })}
+            </button>
+            {healthExpanded && (
+              <div
+                id="source-health-details"
+                className="mt-1.5 p-1.5 bg-zinc-900/60 border border-zinc-800/60 rounded text-[10px] text-zinc-400 space-y-0.5"
+                data-testid="source-health-details-panel"
+              >
+                {registrations
+                  .filter((r) => r.enabled)
+                  .map((r) => {
+                    const h = health[r.id];
+                    const status = h?.status ?? 'unknown';
+                    return (
+                      <div key={r.id} className="flex items-center gap-1.5">
+                        <span
+                          className={`w-1.5 h-1.5 rounded-full shrink-0 ${HEALTH_DOT_COLORS[status]}`}
+                          aria-hidden
+                        />
+                        <span className="truncate flex-1">{r.name}</span>
+                        <span className="text-zinc-600">{h ? timeAgo(h.lastCheckedAt) : '—'}</span>
+                      </div>
+                    );
+                  })}
+              </div>
+            )}
           </div>
         )}
       </div>

@@ -1,6 +1,17 @@
 import { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Search, Save, ListMusic, Trash2, XCircle, Check } from 'lucide-react';
+import {
+  X,
+  Search,
+  Save,
+  ListMusic,
+  Trash2,
+  XCircle,
+  Check,
+  ChevronUp,
+  ChevronDown,
+  RotateCcw,
+} from 'lucide-react';
 import { usePlayerStore } from '@/stores/playerStore';
 import { usePlaylistsStore } from '@/stores/playlistsStore';
 import { useToastStore } from '@/components/ui/toastStore';
@@ -133,6 +144,7 @@ export function QueueDrawer({ open, onClose }: QueueDrawerProps): JSX.Element | 
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [selectionMode, setSelectionMode] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [dragging, setDragging] = useState<number | null>(null);
   const [dragOver, setDragOver] = useState<number | null>(null);
 
@@ -141,6 +153,7 @@ export function QueueDrawer({ open, onClose }: QueueDrawerProps): JSX.Element | 
       setQuery('');
       setSelected(new Set());
       setSelectionMode(false);
+      setHistoryOpen(false);
       setDragging(null);
       setDragOver(null);
     }
@@ -156,6 +169,16 @@ export function QueueDrawer({ open, onClose }: QueueDrawerProps): JSX.Element | 
       200,
     ).map((m) => ({ track: m.item.track, originalIndex: m.item.originalIndex }));
   }, [queue, query]);
+
+  const { historyItems, upcomingItems } = useMemo(() => {
+    const hist: typeof filtered = [];
+    const up: typeof filtered = [];
+    for (const it of filtered) {
+      if (it.originalIndex < queueIndex) hist.push(it);
+      else up.push(it);
+    }
+    return { historyItems: hist, upcomingItems: up };
+  }, [filtered, queueIndex]);
 
   const toggleSelect = (id: string): void => {
     setSelected((prev) => {
@@ -403,41 +426,102 @@ export function QueueDrawer({ open, onClose }: QueueDrawerProps): JSX.Element | 
                 </div>
               ) : (
                 <ScrollShadow>
-                  <ul className="p-2 space-y-0.5">
-                    {filtered.map(({ track, originalIndex }) => {
-                      const isCurrent = originalIndex === queueIndex;
-                      const isPlayed = originalIndex < queueIndex;
-                      const isSelected = selected.has(track.id);
-                      return (
-                        <QueueRow
-                          key={track.id}
-                          track={track}
-                          index={originalIndex}
-                          isCurrent={isCurrent}
-                          isPlayed={isPlayed}
-                          isSelected={isSelected}
-                          selectable={selectionMode && !isCurrent}
-                          onClick={() => {
-                            if (selectionMode && !isCurrent) {
-                              toggleSelect(track.id);
-                            } else {
-                              playAt(originalIndex);
-                            }
-                          }}
-                          onToggleSelect={() => toggleSelect(track.id)}
-                          onDragStart={(i) => setDragging(i)}
-                          onDragOver={(i) => setDragOver(i)}
-                          onDrop={(i) => {
-                            if (dragging !== null) moveInQueue(dragging, i);
-                            setDragging(null);
-                            setDragOver(null);
-                          }}
-                          isDragOver={dragOver === originalIndex}
-                          isDragging={dragging === originalIndex}
-                        />
-                      );
-                    })}
-                  </ul>
+                  <div className="p-2 space-y-0.5">
+                    {historyItems.length > 0 && (
+                      <div
+                        className="border-b border-zinc-800/40 mb-1"
+                        data-testid="queue-history-section"
+                      >
+                        <button
+                          type="button"
+                          onClick={() => setHistoryOpen((v) => !v)}
+                          aria-expanded={historyOpen}
+                          aria-controls="queue-history-list"
+                          className="w-full flex items-center justify-between px-2 py-1.5 text-[10px] uppercase tracking-wider text-zinc-500 hover:text-zinc-300"
+                        >
+                          <span className="inline-flex items-center gap-1.5 font-semibold">
+                            <RotateCcw size={10} aria-hidden />
+                            History ({historyItems.length})
+                          </span>
+                          {historyOpen ? (
+                            <ChevronUp size={11} aria-hidden />
+                          ) : (
+                            <ChevronDown size={11} aria-hidden />
+                          )}
+                        </button>
+                        {historyOpen && (
+                          <ul id="queue-history-list" className="space-y-0.5 pb-1">
+                            {historyItems.map(({ track, originalIndex }) => {
+                              const isSelected = selected.has(track.id);
+                              return (
+                                <QueueRow
+                                  key={track.id}
+                                  track={track}
+                                  index={originalIndex}
+                                  isCurrent={false}
+                                  isPlayed
+                                  isSelected={isSelected}
+                                  selectable={selectionMode}
+                                  onClick={() => {
+                                    if (selectionMode) toggleSelect(track.id);
+                                    else playAt(originalIndex);
+                                  }}
+                                  onToggleSelect={() => toggleSelect(track.id)}
+                                  onDragStart={() => {}}
+                                  onDragOver={() => {}}
+                                  onDrop={() => {}}
+                                  isDragOver={false}
+                                  isDragging={false}
+                                />
+                              );
+                            })}
+                          </ul>
+                        )}
+                      </div>
+                    )}
+                    {upcomingItems.length > 0 ? (
+                      <ul className="space-y-0.5">
+                        {upcomingItems.map(({ track, originalIndex }) => {
+                          const isCurrent = originalIndex === queueIndex;
+                          const isSelected = selected.has(track.id);
+                          return (
+                            <QueueRow
+                              key={track.id}
+                              track={track}
+                              index={originalIndex}
+                              isCurrent={isCurrent}
+                              isPlayed={false}
+                              isSelected={isSelected}
+                              selectable={selectionMode && !isCurrent}
+                              onClick={() => {
+                                if (selectionMode && !isCurrent) {
+                                  toggleSelect(track.id);
+                                } else {
+                                  playAt(originalIndex);
+                                }
+                              }}
+                              onToggleSelect={() => toggleSelect(track.id)}
+                              onDragStart={(i) => setDragging(i)}
+                              onDragOver={(i) => setDragOver(i)}
+                              onDrop={(i) => {
+                                if (dragging !== null) moveInQueue(dragging, i);
+                                setDragging(null);
+                                setDragOver(null);
+                              }}
+                              isDragOver={dragOver === originalIndex}
+                              isDragging={dragging === originalIndex}
+                            />
+                          );
+                        })}
+                      </ul>
+                    ) : (
+                      historyItems.length > 0 && (
+                        <p className="px-2 py-6 text-center text-xs text-zinc-500">
+                          All queued tracks have played
+                        </p>
+                      )
+                    )}
+                  </div>
                 </ScrollShadow>
               )}
             </div>

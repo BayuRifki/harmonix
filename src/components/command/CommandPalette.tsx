@@ -417,7 +417,7 @@ export function CommandPalette(): JSX.Element | null {
         className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fade-in"
         onClick={close}
       />
-      <div className="relative w-full max-w-xl bg-zinc-900/95 border border-zinc-800 rounded-2xl shadow-2xl ring-1 ring-white/5 overflow-hidden animate-scale-in">
+      <div className="relative w-full max-w-xl glass-heavy border border-zinc-800/60 rounded-2xl shadow-2xl ring-1 ring-white/5 overflow-hidden animate-scale-in">
         <div className="flex items-center gap-3 px-4 py-3 border-b border-zinc-800">
           <Search size={16} className="text-zinc-500 shrink-0" aria-hidden />
           <input

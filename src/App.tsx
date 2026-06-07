@@ -26,8 +26,13 @@ import { useAdaptiveAccent } from '@/hooks/useAdaptiveAccent';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { useMediaSession } from '@/hooks/useMediaSession';
 import { usePlayerStateSync } from '@/hooks/usePlayerStateSync';
+import { useFocusRestoration } from '@/hooks/useFocusRestoration';
+import { useScrollRestoration } from '@/hooks/useScrollRestoration';
 import { ToastContainer } from '@/components/ui/Toast';
 import { CommandPalette } from '@/components/command/CommandPalette';
+import { PlayerAnnouncer } from '@/components/a11y/PlayerAnnouncer';
+import { SkipToContent } from '@/components/a11y/SkipToContent';
+import { RouteChangeIndicator } from '@/components/a11y/RouteLoader';
 
 function PageTransition({ children }: { children: ReactNode }): JSX.Element {
   return (
@@ -62,6 +67,8 @@ function MainApp(): JSX.Element {
   useKeyboardShortcuts();
   useMediaSession();
   usePlayerStateSync();
+  useFocusRestoration();
+  useScrollRestoration('main, [role="main"]');
 
   useEffect(() => {
     themeLoad();
@@ -82,6 +89,8 @@ function MainApp(): JSX.Element {
   if (isNowPlaying) {
     return (
       <div className="h-screen flex flex-col text-zinc-100">
+        <SkipToContent />
+        <PlayerAnnouncer />
         <YtMusicDisclaimer />
         <AudioReactiveBackground />
         <div className="flex-1 overflow-hidden">
@@ -97,6 +106,9 @@ function MainApp(): JSX.Element {
 
   return (
     <div className="h-screen flex flex-col text-zinc-100">
+      <SkipToContent />
+      <PlayerAnnouncer />
+      <RouteChangeIndicator />
       <YtMusicDisclaimer />
       <AnimatedBackground />
       {isHome && <AudioReactiveBackground />}
@@ -104,7 +116,7 @@ function MainApp(): JSX.Element {
       {showTopBar && <TopBar />}
       <div className="flex-1 flex overflow-hidden">
         <Sidebar />
-        <main className="flex-1 overflow-y-auto min-w-0">
+        <main id="main-content" className="flex-1 overflow-y-auto min-w-0">
           <AnimatePresence mode="wait" initial={false}>
             <Routes location={location} key={location.pathname}>
               <Route
