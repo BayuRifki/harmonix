@@ -211,6 +211,14 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
       set({ currentTrack: track, error: null, loading: true, preloadTriggeredTrackId: null });
       try {
         const stream = await window.api.sources.playTrack({ track });
+        // eslint-disable-next-line no-console
+        console.log(
+          `[player] playTrack(${track.id}) ` +
+            `url=${stream.url.slice(0, 80)}… ` +
+            `protocol=${stream.protocol} ` +
+            `requiresProxy=${stream.requiresProxy ?? false} ` +
+            `fallbackUrl=${stream.fallbackUrl ? 'yes' : 'no'}`,
+        );
         set({ stream });
         try {
           await playTrack(track, stream);

@@ -136,11 +136,17 @@ export class AudioEngine {
     // configurations), fall back to direct HTMLAudioElement playback —
     // the audio plays, just without EQ / gain processing.
     const tryWireSource = (target: HTMLAudioElement): void => {
-      if (!ctx || !this.gainNode) return;
+      if (!ctx || !this.gainNode) {
+        // eslint-disable-next-line no-console
+        console.log(`[audioEngine] no Web Audio context/gainNode; playing ${url} directly`);
+        return;
+      }
       try {
         const node = ctx.createMediaElementSource(target);
         node.connect(this.gainNode);
         this.sourceNode = node;
+        // eslint-disable-next-line no-console
+        console.log(`[audioEngine] wired MediaElementSource for ${url} (Web Audio active)`);
       } catch (err) {
         // eslint-disable-next-line no-console
         console.warn(
@@ -150,6 +156,11 @@ export class AudioEngine {
         this.sourceNode = null;
       }
     };
+
+    // eslint-disable-next-line no-console
+    console.log(
+      `[audioEngine] load(${url}) src=${url.startsWith('harmonix-media://') ? 'PROXY' : 'DIRECT'}`,
+    );
 
     // Fast path: a preload of this exact URL is already warm.
     if (this.preloadedAudio && this.preloadedUrl === url) {
@@ -192,6 +203,10 @@ export class AudioEngine {
     audio.preload = 'auto';
     audio.src = url;
     this.currentAudio = audio;
+    // eslint-disable-next-line no-console
+    console.log(
+      `[audioEngine] audio.src=${audio.src.slice(0, 80)}… crossOrigin=${audio.crossOrigin}`,
+    );
 
     // Route through AudioContext if available (best-effort).
     tryWireSource(audio);
@@ -200,6 +215,8 @@ export class AudioEngine {
 
     return new Promise((resolve, reject) => {
       const onCanPlay = (): void => {
+        // eslint-disable-next-line no-console
+        console.log(`[audioEngine] canplay ${url} readyState=${audio.readyState}`);
         audio.removeEventListener('canplay', onCanPlay);
         audio.removeEventListener('error', onError);
         resolve();
@@ -217,7 +234,13 @@ export class AudioEngine {
         const reason = err ? (codeMap[err.code] ?? `code ${err.code}`) : 'unknown';
         const message = err?.message ? `: ${err.message}` : '';
         // eslint-disable-next-line no-console
-        console.error(`[audioEngine] load failed (${reason}) for ${url}${message}`);
+        console.error(
+          `[audioEngine] load failed (${reason}) for ${url}${message} ` +
+            `src=${audio.src.slice(0, 80)}… ` +
+            `crossOrigin=${audio.crossOrigin} ` +
+            `networkState=${audio.networkState} ` +
+            `readyState=${audio.readyState}`,
+        );
         reject(new Error(`Failed to load audio (${reason})${message}`));
       };
       audio.addEventListener('canplay', onCanPlay);

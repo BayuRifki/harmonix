@@ -151,18 +151,31 @@ export function registerAudioProxyProtocol(session: Session | null = null): void
     : protocol.handle.bind(protocol);
 
   handle(PROXY_SCHEME, async (request) => {
+    const reqLog = {
+      url: request.url,
+      method: request.method,
+      range: request.headers?.get('range') ?? null,
+    };
+    // eslint-disable-next-line no-console
+    console.log('[audioProxy] → request', JSON.stringify(reqLog));
     try {
       const url = new URL(request.url);
       const id = url.pathname.replace(/^\//, '');
       if (!id) {
+        // eslint-disable-next-line no-console
+        console.log('[audioProxy] 400 empty id');
         return new Response('Bad request', { status: 400 });
       }
       const entry = streamRegistry.get(id);
       if (!entry) {
+        // eslint-disable-next-line no-console
+        console.log(`[audioProxy] 404 unknown stream id=${id}`);
         return new Response('Stream not found', { status: 404 });
       }
       if (Date.now() - entry.createdAt > STREAM_TTL_MS) {
         streamRegistry.delete(id);
+        // eslint-disable-next-line no-console
+        console.log(`[audioProxy] 410 expired id=${id}`);
         return new Response('Stream expired', { status: 410 });
       }
 
@@ -181,6 +194,15 @@ export function registerAudioProxyProtocol(session: Session | null = null): void
 
       const upstream = await net.fetch(entry.realUrl, { headers: fetchHeaders });
 
+      // eslint-disable-next-line no-console
+      console.log(
+        `[audioProxy] upstream ${upstream.status} ${upstream.statusText} ` +
+          `ct=${upstream.headers.get('content-type')} ` +
+          `cl=${upstream.headers.get('content-length')} ` +
+          `cr=${upstream.headers.get('content-range') ?? '-'} ` +
+          `ar=${upstream.headers.get('accept-ranges') ?? '-'}`,
+      );
+
       const outHeaders = new Headers();
       // Preserve upstream content-type / content-length / content-range
       // / accept-ranges so the audio element knows the codec, total size,
@@ -196,6 +218,8 @@ export function registerAudioProxyProtocol(session: Session | null = null): void
       outHeaders.set('X-Proxy-Source', 'harmonix-media');
 
       if (!upstream.body) {
+        // eslint-disable-next-line no-console
+        console.log('[audioProxy] no body, returning empty Response');
         return new Response(null, {
           status: upstream.status,
           statusText: upstream.statusText,
@@ -224,8 +248,14 @@ export function registerAudioProxyProtocol(session: Session | null = null): void
       peekReader.releaseLock();
 
       let firstChunk: Uint8Array | null = null;
+      let firstChunkHex = '';
       if (!first.done && first.value) {
         firstChunk = first.value;
+        // Log the first 16 bytes as hex so we can verify the body
+        // isn't corrupt in the user's environment.
+        firstChunkHex = Array.from(firstChunk.slice(0, Math.min(16, firstChunk.length)))
+          .map((b) => b.toString(16).padStart(2, '0'))
+          .join(' ');
         const sniffed = detectContentType(firstChunk);
         if (sniffed) {
           const current = outHeaders.get('Content-Type');
@@ -238,9 +268,20 @@ export function registerAudioProxyProtocol(session: Session | null = null): void
             current.includes('*/*') ||
             current.startsWith('video/') // video/webm contains an audio-only stream sometimes
           ) {
+            // eslint-disable-next-line no-console
+            console.log(
+              `[audioProxy] sniffed ${sniffed} from ${firstChunkHex} ` +
+                `(was ct=${current ?? 'unset'})`,
+            );
             outHeaders.set('Content-Type', sniffed);
           }
+        } else {
+          // eslint-disable-next-line no-console
+          console.log(`[audioProxy] first bytes ${firstChunkHex} (no audio format match)`);
         }
+      } else {
+        // eslint-disable-next-line no-console
+        console.log('[audioProxy] upstream body had no first chunk!');
       }
 
       // Reassemble the body: first chunk + the rest of the stream.
@@ -266,6 +307,12 @@ export function registerAudioProxyProtocol(session: Session | null = null): void
         },
       });
 
+      // eslint-disable-next-line no-console
+      console.log(
+        `[audioProxy] ← ${upstream.status} ct=${outHeaders.get('Content-Type')} ` +
+          `cl=${outHeaders.get('Content-Length') ?? '-'} ` +
+          `body=stream(1st=${firstChunk?.length ?? 0}B)`,
+      );
       return new Response(bodyStream as unknown as ConstructorParameters<typeof Response>[0], {
         status: upstream.status,
         statusText: upstream.statusText,

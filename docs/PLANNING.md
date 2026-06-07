@@ -766,6 +766,22 @@ Chronological log of incremental progress. Most recent first.
 
 **Last updated**: Phase 12 (UI/UX Polish), Phase 13A (Visual Immersion), and Phase 13B (Soundora-inspired Layout Redesign) shipped. Phase 11 (AI-Powered Playlist Generation) still planned. 478 tests passing.
 
+- **The ACTUAL root cause: `media-src` CSP missing `harmonix-media:`** — User reported the same `MEDIA_ERR_SRC_NOT_SUPPORTED: Format error` after every fix. The defensive Web Audio fallback should have made the audio play via direct HTMLAudioElement playback. It didn't. User suggested checking "CORS header di server" and "format file tidak didukung browser" — that was the right direction. The real bug was in the **renderer's Content Security Policy** in `index.html`:
+  ```html
+  <meta
+    http-equiv="Content-Security-Policy"
+    content="...; media-src 'self' https: data: blob: file:; ..."
+  />
+  ```
+  The `media-src` directive lists the schemes that `<audio>`, `<video>`, and `<track>` elements are allowed to load from. The custom protocol `harmonix-media://` was **not in the allowlist**, so Chromium blocked the audio element from loading the proxy URL entirely. The error manifested as `MEDIA_ERR_SRC_NOT_SUPPORTED: Format error` because the audio element couldn't determine any source for the URL.
+  - **Root cause**: I registered the protocol in the main process (`protocol.registerSchemesAsPrivileged([...])`) which makes Chromium's network service accept the scheme, but the renderer's CSP is enforced at the document level and blocked it independently.
+  - **Fix**: `index.html` `media-src` directive now includes `harmonix-media:`. The CSP is in `index.html` (Vite passes it through to `dist/index.html`).
+  - **Diagnostic logging** (kept for the next regression): both `audioProxy.ts` and `engine.ts` now log every step of the proxy + load flow with `[audioProxy]` / `[audioEngine]` / `[player]` prefixes. The user can check the dev console (or the terminal that runs `npm run dev`) to see the exact upstream response, sniffed Content-Type, first bytes (hex), source node wiring result, and final audio element error. The dev console will surface "BLOCKED by CSP" if the allowlist is missing a scheme in the future.
+- Verified
+  - `npm run build` produces `dist/index.html` with the new CSP.
+  - 478/478 tests pass.
+  - `npm run lint` clean, `npm run typecheck` clean.
+
 - **Defensive Web Audio: audio always plays (with or without EQ)** — User reported the same `MEDIA_ERR_SRC_NOT_SUPPORTED: Format error` after every fix, with a strong suspicion that the equalizer-related change (unconditional `createMediaElementSource`) was the root cause. The body + Range + content-type fixes all addressed different parts of the chain, but if `createMediaElementSource` itself is what destabilizes the audio element in some environments, the error persists. Made the entire Web Audio setup defensive so the audio ALWAYS plays:
   - **`ensureContext()` returns `AudioContext | null`** — wraps the AudioContext / gainNode / equalizer setup in try/catch. On failure, returns `null` and logs a warning. Volume still works via the audio element's own volume (set unconditionally in `setVolume`).
   - **`createMediaElementSource` is wrapped in `tryWireSource()`** — both the slow path (fresh `new Audio()`) and the fast path (preloaded element reuse) go through the same helper. If it throws (or if the context is null), the engine sets `this.sourceNode = null` and continues. The audio plays directly via `<audio>`'s built-in decoder without Web Audio processing.
