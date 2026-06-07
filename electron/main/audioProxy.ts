@@ -1,4 +1,5 @@
 import { net, protocol, type Session } from 'electron';
+import { Readable } from 'node:stream';
 
 const PROXY_SCHEME = 'harmonix-media';
 const STREAM_TTL_MS = 10 * 60 * 1000;
@@ -102,27 +103,46 @@ export function registerAudioProxyProtocol(session: Session | null = null): void
         return new Response('Stream expired', { status: 410 });
       }
 
+      // Forward Range requests (the audio element does partial-content
+      // fetches when starting playback). Without this, the upstream
+      // returns the full body on every range probe and the audio
+      // element chokes on the "200 OK" where it expected "206 Partial".
       const fetchHeaders: Record<string, string> = {
         'User-Agent': DEFAULT_USER_AGENT,
         ...entry.headers,
       };
+      const rangeHeader = request.headers?.get('range');
+      if (rangeHeader) {
+        fetchHeaders['Range'] = rangeHeader;
+      }
 
       const upstream = await net.fetch(entry.realUrl, { headers: fetchHeaders });
 
       const outHeaders = new Headers();
-      const upstreamType = upstream.headers.get('content-type');
-      if (upstreamType) outHeaders.set('Content-Type', upstreamType);
-      const upstreamLength = upstream.headers.get('content-length');
-      if (upstreamLength) outHeaders.set('Content-Length', upstreamLength);
+      // Preserve upstream content-type / content-length / content-range
+      // / accept-ranges so the audio element knows the codec, total size,
+      // and the byte range of partial responses.
+      for (const name of ['content-type', 'content-length', 'content-range', 'accept-ranges']) {
+        const value = upstream.headers.get(name);
+        if (value) outHeaders.set(name, value);
+      }
       outHeaders.set('Access-Control-Allow-Origin', '*');
+      outHeaders.set('Access-Control-Allow-Headers', 'Range');
+      outHeaders.set('Access-Control-Expose-Headers', 'Content-Length, Content-Range');
       outHeaders.set('Cache-Control', 'no-store');
       outHeaders.set('X-Proxy-Source', 'harmonix-media');
 
-      // Stream the upstream body straight through; the renderer can
-      // start playback as soon as bytes arrive (no full-file buffering).
+      // Electron's `net.fetch` returns the response body as a Node
+      // `Readable` stream. `new Response(nodeReadable)` accepts a web
+      // `ReadableStream` as the body — passing the Node stream directly
+      // makes the body un-readable for the audio element (Chromium
+      // raises `MEDIA_ERR_DECODE` because it can't see any bytes).
+      // `Readable.toWeb` converts the Node stream to a web stream.
       if (upstream.body) {
-        const body = upstream.body as unknown as ConstructorParameters<typeof Response>[0];
-        return new Response(body, {
+        const webBody = Readable.toWeb(
+          upstream.body as unknown as Readable,
+        ) as unknown as ConstructorParameters<typeof Response>[0];
+        return new Response(webBody, {
           status: upstream.status,
           statusText: upstream.statusText,
           headers: outHeaders,

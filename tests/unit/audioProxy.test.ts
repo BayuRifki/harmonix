@@ -14,7 +14,10 @@ vi.mock('electron', () => ({
   },
 }));
 
-type HandlerFn = (req: { url: string }) => Promise<Response>;
+type HandlerFn = (req: {
+  url: string;
+  headers?: { get(name: string): string | null };
+}) => Promise<Response>;
 type Mod = typeof import('../../electron/main/audioProxy');
 
 async function loadFreshModule(): Promise<Mod> {
@@ -172,5 +175,50 @@ describe('audioProxy', () => {
         },
       },
     ]);
+  });
+
+  it('forwards the Range header from the request to the upstream fetch', async () => {
+    const mod = await loadFreshModule();
+    const id = mod.registerStream('https://example.com/partial.mp3');
+    mockUpstreamResponse({
+      status: 206,
+      statusText: 'Partial Content',
+      headers: new Headers({
+        'content-type': 'audio/mpeg',
+        'content-range': 'bytes 0-1023/5678',
+        'accept-ranges': 'bytes',
+      }),
+    });
+    const handler = await setupHandler(mod);
+    // Plain object with a get() method instead of new Headers({...}) —
+    // vitest's jsdom Headers polyfill filters 'range' as a forbidden
+    // request-header name, but real Chromium Headers accept it.
+    const requestHeaders = {
+      get: (name: string): string | null =>
+        name.toLowerCase() === 'range' ? 'bytes=0-1023' : null,
+    };
+    const res = await handler({
+      url: `harmonix-media://stream/${id}`,
+      headers: requestHeaders,
+    });
+    expect(res.status).toBe(206);
+    const [, init] = mocks.fetch.mock.calls[0] as [string, { headers: Record<string, string> }];
+    expect(init.headers['Range']).toBe('bytes=0-1023');
+    expect(res.headers.get('Content-Range')).toBe('bytes 0-1023/5678');
+    expect(res.headers.get('Accept-Ranges')).toBe('bytes');
+    expect(res.headers.get('Access-Control-Allow-Headers')).toBe('Range');
+    expect(res.headers.get('Access-Control-Expose-Headers')).toContain('Content-Range');
+  });
+
+  it('handles missing request.headers gracefully (no Range to forward)', async () => {
+    const mod = await loadFreshModule();
+    const id = mod.registerStream('https://example.com/full.mp3');
+    mockUpstreamResponse();
+    const handler = await setupHandler(mod);
+    // Note: no headers in the request
+    const res = await handler({ url: `harmonix-media://stream/${id}` });
+    expect(res.status).toBe(200);
+    const [, init] = mocks.fetch.mock.calls[0] as [string, { headers: Record<string, string> }];
+    expect(init.headers['Range']).toBeUndefined();
   });
 });

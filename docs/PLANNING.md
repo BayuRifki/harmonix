@@ -730,6 +730,17 @@ Chronological log of incremental progress. Most recent first.
   - `npm run typecheck` clean
   - `npm run build` clean
 
+- **Format error fix: Node Readable → web stream + Range forwarding** — After the privileged-scheme fix, the next error was `MEDIA_ERR_DECODE: MEDIA_ELEMENT_ERROR: Format error`. Two more bugs in the proxy:
+  - **`net.fetch`'s body is a Node Readable, not a web ReadableStream.** Electron's `net.fetch` returns the response body as a Node `Readable` stream (per the Electron docs). Passing a Node `Readable` directly to `new Response(body, ...)` makes the body un-readable for the audio element — Chromium raises `MEDIA_ERR_DECODE` because it sees no bytes. Fix: `Readable.toWeb(upstream.body)` to convert the Node stream to a web stream before constructing the Response.
+  - **Range requests not forwarded.** The `<audio>` element does a partial-content fetch (Range: bytes=0-XXXX) when starting playback. The proxy was ignoring the Range header, so the upstream returned `200 OK` with the full body, and the audio element choked. Fix: forward `request.headers.get('range')` to `net.fetch`, and preserve the upstream `content-range` + `accept-ranges` headers in the response. Added `Access-Control-Allow-Headers: Range` and `Access-Control-Expose-Headers: Content-Range, Content-Length` so Chromium can read them.
+- Tests
+  - `tests/unit/audioProxy.test.ts` (+2 cases, 13 total): the new Range forward case (uses a plain object with a `.get()` method instead of `new Headers({...})` because vitest's jsdom `Headers` polyfill filters `range` as a forbidden request-header — real Chromium Headers accept it just fine) and a "no request headers" case to verify the missing-headers path doesn't crash.
+  - 468/468 tests pass.
+- Verified
+  - `npm run lint` clean
+  - `npm run typecheck` clean
+  - `npm run build` clean
+
 ## 10. Progress Log (active session) — continued
 
 - **Sources section removed (UI cleanup)** — Per user feedback referencing `docs/perbaiki-nanti/`: Sidebar no longer renders the per-source "Sources" sub-nav, and HomeView no longer renders the "Sources" quick-access grid. Source management stays exclusively in Settings → SourcePicker. Footer still shows enabled source count for transparency.
@@ -741,7 +752,7 @@ Chronological log of incremental progress. Most recent first.
 
 ---
 
-**Last updated**: Phase 12 (UI/UX Polish), Phase 13A (Visual Immersion), and Phase 13B (Soundora-inspired Layout Redesign) shipped. Phase 11 (AI-Powered Playlist Generation) still planned. 466 tests passing.
+**Last updated**: Phase 12 (UI/UX Polish), Phase 13A (Visual Immersion), and Phase 13B (Soundora-inspired Layout Redesign) shipped. Phase 11 (AI-Powered Playlist Generation) still planned. 468 tests passing.
 
 - **DB swap: sql.js → better-sqlite3** (Phase A of gapless plan) — Replaced the WASM-based `sql.js` with `better-sqlite3` (sync, native, no server, no WASM). The DB file `<userData>/data/harmonix.db` is the same SQLite; only the driver changed. Refactored `electron/main/db/database.ts` (init, pragmas `journal_mode=WAL`, `foreign_keys=ON`, `synchronous=NORMAL`; `persist()` now a WAL checkpoint since better-sqlite3 auto-syncs), `migrations.ts` (now uses `db.prepare(...).get()` + `db.transaction()`), and all 5 repositories (`settingsRepository`, `folderRepository`, `eqRepository`, `playlistRepository`, `trackRepository`) to use prepared statements `.get()`/`.all()`/`.run()`. Removed `resources/sql-wasm.wasm` (no longer needed) and the `electron-builder.yml` `extraResources` entry that bundled it. The `electron-builder install-app-deps` postinstall already rebuilds the native binary for Electron's Node ABI. For tests, added `pretest` → `npm rebuild better-sqlite3` (rebuilds for system Node's ABI so vitest can load it) and `predev`/`prebuild` → `npx @electron/rebuild -f -w better-sqlite3` (rebuilds back for Electron's ABI for dev/build). 446/446 tests pass. This sets up the IPC latency win needed for Phase B (gapless pre-buffer).
 
