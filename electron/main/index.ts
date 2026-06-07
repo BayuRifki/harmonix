@@ -30,6 +30,7 @@ import {
   setQuitting,
 } from './windowManager';
 import { createSplashWindow, closeSplashWindow } from './splashWindow';
+import { registerAudioProxyProtocol } from './audioProxy';
 import { createTray, destroyTray } from './tray';
 import { getSetting, setSetting } from './db/settingsRepository';
 
@@ -161,6 +162,7 @@ if (!gotLock) {
     mainWin.once('ready-to-show', () => {
       closeSplashWindow();
     });
+    registerAudioProxyProtocol();
     setupAutoUpdater();
     createTray();
 

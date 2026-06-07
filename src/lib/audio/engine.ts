@@ -120,10 +120,12 @@ export class AudioEngine {
       this.cleanupCurrentAudio();
       this.currentAudio = reused;
 
-      if (url.startsWith('file://')) {
-        this.sourceNode = ctx.createMediaElementSource(reused);
-        this.sourceNode.connect(this.gainNode!);
-      }
+      // Always route the audio element through the AudioContext graph
+      // (gain + 10-band EQ). Previously this was only done for
+      // file:// URLs, which silently bypassed the EQ for HTTP streams
+      // like YT Music (via googlevideo.com) and Jamendo.
+      this.sourceNode = ctx.createMediaElementSource(reused);
+      this.sourceNode.connect(this.gainNode!);
 
       this.attachAllListeners(reused);
       this.emit('time', 0, Math.round(reused.duration * 1000));
@@ -147,18 +149,18 @@ export class AudioEngine {
     // Slow path: full new Audio init
     this.cleanupCurrentAudio();
     const audio = new Audio();
-    const isLocalFile = url.startsWith('file://');
-    if (isLocalFile) {
-      audio.crossOrigin = 'anonymous';
-    }
+    // crossOrigin='anonymous' is required when the audio element is
+    // wired into a Web Audio source node, otherwise the source is
+    // CORS-tainted and the audio is silent. For local file:// URLs
+    // the attribute is irrelevant.
+    audio.crossOrigin = 'anonymous';
     audio.preload = 'auto';
     audio.src = url;
     this.currentAudio = audio;
 
-    if (isLocalFile) {
-      this.sourceNode = ctx.createMediaElementSource(audio);
-      this.sourceNode.connect(this.gainNode!);
-    }
+    // Always route through AudioContext. See note above.
+    this.sourceNode = ctx.createMediaElementSource(audio);
+    this.sourceNode.connect(this.gainNode!);
 
     this.attachAllListeners(audio);
 

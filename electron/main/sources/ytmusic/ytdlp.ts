@@ -101,6 +101,7 @@ export interface ResolvedStream {
   expiresAt: number;
   format: string;
   contentLength?: number;
+  requiresProxy?: boolean;
 }
 
 const PREFLIGHT_HOST = 'music.youtube.com';
@@ -223,6 +224,14 @@ export async function resolveStreamUrl(
         protocol,
         expiresAt: Date.now() + 6 * 60 * 60 * 1000,
         format: options.format ?? 'best',
+        // yt-dlp streams come from googlevideo.com which doesn't send
+        // CORS headers. The audio element can play the URL directly,
+        // but the moment we route it through MediaElementSource for
+        // EQ/gain processing the audio is CORS-tainted and goes
+        // silent. The main process proxies the URL through the
+        // `harmonix-media` custom protocol with explicit
+        // Access-Control-Allow-Origin so the source node can process it.
+        requiresProxy: true,
       });
     });
   });

@@ -6,6 +6,7 @@ import {
   listRegistrations,
 } from '../sources/registry';
 import { getSetting, setSetting } from '../db';
+import { registerStream, proxyUrlFor } from '../audioProxy';
 import type {
   SearchOptions,
   SearchResult,
@@ -152,7 +153,12 @@ export function registerSourceHandlers(): void {
     async (_evt, payload: { track: Track }): Promise<StreamInfo> => {
       const src = getSource(payload.track.source);
       if (!src) throw new Error(`Source '${payload.track.source}' not found`);
-      return src.getStreamUrl(payload.track);
+      const stream = await src.getStreamUrl(payload.track);
+      if (stream.requiresProxy) {
+        const streamId = registerStream(stream.url, stream.headers);
+        return { ...stream, url: proxyUrlFor(streamId) };
+      }
+      return stream;
     },
   );
 
