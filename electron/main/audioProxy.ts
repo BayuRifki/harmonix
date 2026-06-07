@@ -50,6 +50,24 @@ function evictOldest(): void {
 }
 
 /**
+ * Normalize Electron's `net.fetch()` response body to a web
+ * `ReadableStream<Uint8Array>`. Older Electron versions return a
+ * Node `stream.Readable`; newer versions (33+) return a web
+ * `ReadableStream` directly. `Readable.toWeb()` throws if the input
+ * is already a web stream, so we duck-type on `getReader` to
+ * detect it and pass through.
+ */
+function asWebStream(
+  body: ReadableStream<Uint8Array> | Readable | null,
+): ReadableStream<Uint8Array> | null {
+  if (!body) return null;
+  if (typeof (body as ReadableStream<Uint8Array>).getReader === 'function') {
+    return body as ReadableStream<Uint8Array>;
+  }
+  return Readable.toWeb(body as Readable) as unknown as ReadableStream<Uint8Array>;
+}
+
+/**
  * Magic-byte content-type sniffer. Returns the audio MIME type for
  * known container formats, or `null` if the bytes don't match any
  * known audio container. Used to fix `MEDIA_ERR_SRC_NOT_SUPPORTED`
@@ -227,21 +245,20 @@ export function registerAudioProxyProtocol(session: Session | null = null): void
         });
       }
 
-      // Electron's `net.fetch` returns the response body as a Node
-      // `Readable` stream. We convert to a web `ReadableStream` with
-      // `Readable.toWeb`, but FIRST we read the first chunk to:
-      //   1. Sniff the actual audio format from the magic bytes
-      //      (upstream often serves `application/octet-stream` or
-      //      `video/webm` even for audio-only YT Music streams; the
-      //      audio element refuses to decode without a proper
-      //      `audio/<format>` Content-Type → `MEDIA_ERR_SRC_NOT_SUPPORTED`)
-      //   2. Re-prepend the sniffed bytes to the stream so the audio
-      //      element sees the full body (no missing-prefix)
-      //   3. Release the first reader before reading the rest, so
-      //      there's no stream lock contention
-      const originalWeb = Readable.toWeb(
-        upstream.body as unknown as Readable,
-      ) as unknown as ReadableStream<Uint8Array>;
+      // Normalize the body to a web ReadableStream. Electron 33+
+      // returns a web ReadableStream directly from net.fetch (not
+      // a Node Readable); older versions returned a Node Readable.
+      // The asWebStream helper handles both.
+      const originalWeb = asWebStream(upstream.body);
+      if (!originalWeb) {
+        // eslint-disable-next-line no-console
+        console.log('[audioProxy] no web stream after normalization, returning empty Response');
+        return new Response(null, {
+          status: upstream.status,
+          statusText: upstream.statusText,
+          headers: outHeaders,
+        });
+      }
 
       const peekReader = originalWeb.getReader();
       const first = await peekReader.read();

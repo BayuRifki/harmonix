@@ -366,4 +366,42 @@ describe('audioProxy', () => {
     const expected = chunks.flatMap((c) => Array.from(c));
     expect(received).toEqual(expected);
   });
+
+  it('handles Electron 33+ web ReadableStream body (the production case)', async () => {
+    const mod = await loadFreshModule();
+    const id = mod.registerStream('https://example.com/yt.webm');
+    const chunks = [
+      new Uint8Array([0x1a, 0x45, 0xdf, 0xa3, 0x9f, 0x42, 0x86, 0x81]),
+      new Uint8Array([0x01, 0x02, 0x03, 0x04]),
+    ];
+    // Electron 33+ returns the body as a web ReadableStream, not
+    // a Node Readable. Mock that case to verify asWebStream passes
+    // it through (instead of calling Readable.toWeb which would
+    // throw on a web stream).
+    const webBody = new ReadableStream<Uint8Array>({
+      start(controller) {
+        for (const c of chunks) controller.enqueue(c);
+        controller.close();
+      },
+    });
+    mocks.fetch.mockResolvedValue({
+      status: 200,
+      statusText: 'OK',
+      headers: new Headers({ 'content-type': 'video/webm' }),
+      body: webBody,
+    } as unknown as Response);
+    const handler = await setupHandler(mod);
+    const res = await handler({ url: `harmonix-media://stream/${id}` });
+    expect(res.status).toBe(200);
+    expect(res.headers.get('Content-Type')).toBe('audio/webm');
+    const reader = res.body!.getReader();
+    const received: number[] = [];
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      for (const b of value) received.push(b);
+    }
+    const expected = chunks.flatMap((c) => Array.from(c));
+    expect(received).toEqual(expected);
+  });
 });

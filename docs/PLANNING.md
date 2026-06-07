@@ -785,6 +785,20 @@ Chronological log of incremental progress. Most recent first.
 - **Defensive Web Audio: audio always plays (with or without EQ)** — User reported the same `MEDIA_ERR_SRC_NOT_SUPPORTED: Format error` after every fix, with a strong suspicion that the equalizer-related change (unconditional `createMediaElementSource`) was the root cause. The body + Range + content-type fixes all addressed different parts of the chain, but if `createMediaElementSource` itself is what destabilizes the audio element in some environments, the error persists. Made the entire Web Audio setup defensive so the audio ALWAYS plays:
   - **`ensureContext()` returns `AudioContext | null`** — wraps the AudioContext / gainNode / equalizer setup in try/catch. On failure, returns `null` and logs a warning. Volume still works via the audio element's own volume (set unconditionally in `setVolume`).
   - **`createMediaElementSource` is wrapped in `tryWireSource()`** — both the slow path (fresh `new Audio()`) and the fast path (preloaded element reuse) go through the same helper. If it throws (or if the context is null), the engine sets `this.sourceNode = null` and continues. The audio plays directly via `<audio>`'s built-in decoder without Web Audio processing.
+
+- **The ACTUAL root cause: `net.fetch()` body is a web `ReadableStream` in Electron 33+, not a Node `Readable`** — Despite all the above fixes, the audio element still threw `MEDIA_ERR_SRC_NOT_SUPPORTED: Format error`. The user reported a new terminal error that gave it away:
+  ```
+  [audioProxy] error: The "streamReadable" argument must be an stream.Readable.
+  Received an instance of ReadableStream<...>
+  ```
+  This is Node's `Readable.toWeb()` complaining that we passed it a **web** `ReadableStream`, not a Node `stream.Readable`. Electron's `net.fetch()` API changed in newer versions: the Response body is now a `ReadableStream<Uint8Array>` (web), not a Node `Readable`. Our previous assumption (still documented in older Electron docs) was wrong.
+  - **Fix**: new `asWebStream(body)` helper in `audioProxy.ts`. Duck-types on `getReader()` — if the body is already a web `ReadableStream` (Electron 33+ production case), it's used directly; if it's a Node `Readable` (older Electron / test mocks), `Readable.toWeb()` converts it. The proxy works in both environments.
+  - **Test coverage**: existing tests cover the Node `Readable` body case (via `Readable.from()`); new test `handles Electron 33+ web ReadableStream body (the production case)` covers the web `ReadableStream` case via `new ReadableStream({ start(c) { ... } })`. Body integrity (chunks in order, magic bytes intact) is asserted for both.
+  - 479/479 tests pass.
+- Verified
+  - `npm run lint` clean
+  - `npm run typecheck` clean
+  - `npm run build` clean
   - **`equalizer.connect()` is wrapped in try/catch** — independent of the source node, the EQ setup itself can fail (e.g., context mismatch in some envs). The engine logs a warning and continues without EQ.
   - **`destroy()` is null-safe** — `equalizer.disconnect()` is wrapped in try/catch, `if (this.ctx)` guard.
   - **New `isWebAudioActive()` API** — returns `true` only when both `sourceNode` AND `gainNode` are present. The player store / UI can show a "Direct playback (EQ disabled)" badge when false so the user understands why EQ isn't working.

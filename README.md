@@ -84,6 +84,7 @@ Most music players lock you into a single ecosystem. Harmonix breaks that wall:
 - ✅ 478 tests across 44 files (after content-type sniffing: WebM/MP3/MP4/OGG/WAV/FLAC magic-byte detection, override generic upstream Content-Type), lint clean, typecheck clean
 - ✅ 478 tests across 44 files (after defensive Web Audio: ensureContext + createMediaElementSource + equalizer.connect all wrapped in try/catch, audio always plays with or without EQ), lint clean, typecheck clean
 - ✅ 478 tests across 44 files (after the real root cause: `media-src` CSP in `index.html` missing `harmonix-media:` — added + comprehensive diagnostic logging in proxy + engine), lint clean, typecheck clean
+- ✅ 479 tests across 44 files (after asWebStream helper: Electron 33+ net.fetch body is a web ReadableStream, not Node Readable; production case now covered by a test), lint clean, typecheck clean
 - ✅ Brand mark in sidebar (public/logo.png served at `/logo.png`)
 - ✅ Splash screen on app open (logo + wordmark + tagline + spinner)
 - ✅ Gapless playback (pre-buffered next track, no gap between songs)
