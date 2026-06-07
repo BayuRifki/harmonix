@@ -51,6 +51,13 @@ export interface StreamInfo {
   expiresAt?: number;
   requiresProxy?: boolean;
   headers?: Record<string, string>;
+  /**
+   * The un-proxied URL when `requiresProxy` is true and the IPC
+   * handler swaps `url` for a `harmonix-media://` URL. The renderer
+   * uses this to fall back to direct playback (no EQ) if the proxy
+   * fails. Undefined for sources that don't need proxying.
+   */
+  fallbackUrl?: string;
 }
 
 export interface SearchResult {

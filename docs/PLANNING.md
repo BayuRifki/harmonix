@@ -711,8 +711,24 @@ Chronological log of incremental progress. Most recent first.
   - **`electron/main/index.ts`**: registers the proxy protocol during `app.whenReady()`, before any audio playback.
   - Net effect: YT Music audio now flows `[audio element] → [MediaElementSource] → [10-band EQ] → [GainNode] → [destination]`. EQ changes are audibly applied.
 - Tests
-  - **`tests/unit/audioProxy.test.ts`** (10 cases): registry CRUD, URL format, request-header pass-through, 200/400/404/410/502 response codes, CORS + content headers in response, idempotent `registerAudioProxyProtocol`. Uses `vi.resetModules` per test to isolate the module-level registry.
-  - 465/465 tests pass (was 455, +10).
+  - **`tests/unit/audioProxy.test.ts`** (11 cases): registry CRUD, URL format, request-header pass-through, 200/400/404/410/502 response codes, CORS + content headers in response, idempotent `registerAudioProxyProtocol`, `registerSchemesAsPrivileged` is called once at import with the right flags. Uses `vi.resetModules` per test to isolate the module-level registry.
+  - 466/466 tests pass (was 455, +11).
+
+- **Proxy fix: privileged scheme + graceful fallback** — Initial audio proxy went through a regression where YT Music would fail with "Failed to load audio" instead of playing. Two real bugs fixed:
+  - **`registerSchemesAsPrivileged` was missing.** Without `standard: true` + `secure: true` + `stream: true` on the `harmonix-media://` scheme, Chromium refuses to load a `<audio>` element whose `src` is a custom non-privileged scheme. Audio element would get a "MEDIA_ERR_SRC_NOT_SUPPORTED" instantly. The fix calls `protocol.registerSchemesAsPrivileged([...])` at module load time (before `app.whenReady()`), which is a side effect of importing `audioProxy.ts` from `electron/main/index.ts`.
+  - **No fallback when the proxy failed.** The audio element would error out and the user saw a generic "Failed to load audio" with no path to recovery. Two parts:
+    1. **`electron/main/sources/types.ts`**: added `fallbackUrl?: string` to `StreamInfo`. The IPC handler in `electron/main/ipc/sources.ts` populates it with the pre-proxy URL whenever `requiresProxy: true` is set, so the renderer has the direct URL available as a last resort.
+    2. **`src/stores/playerStore.ts`**: `play(track)` now wraps `playTrack(...)` in a try/catch. On load failure AND when `stream.fallbackUrl` is set, it retries with the fallback (no EQ but at least the audio plays). Logs a `console.warn` so the user/dev sees the degradation.
+  - **`src/lib/audio/engine.ts`**: improved the load error message from the generic "Failed to load audio" to include the `MediaError.code` (`MEDIA_ERR_NETWORK`, `MEDIA_ERR_SRC_NOT_SUPPORTED`, etc.) and a `[audioEngine]` console.error so the next regression is debuggable in the dev console.
+  - **`electron/main/sources/ytmusic/index.ts`**: the `getStreamUrl` adapter now also forwards `Referer: https://music.youtube.com/` and `Origin: https://music.youtube.com` headers in the `StreamInfo.headers` field, so the proxy can pass them through to `googlevideo.com`. Some variants of the CDN reject requests without the right referer.
+  - **Net effect**: YT Music (and any other proxied source) either plays through the EQ as intended, or falls back to direct playback with a clear warning. No more "Failed to load audio" with no path forward.
+- Tests
+  - `tests/unit/audioProxy.test.ts` gained 1 case for `registerSchemesAsPrivileged` (11 total).
+  - 466/466 tests pass.
+- Verified
+  - `npm run lint` clean
+  - `npm run typecheck` clean
+  - `npm run build` clean
 
 ## 10. Progress Log (active session) — continued
 
@@ -725,7 +741,7 @@ Chronological log of incremental progress. Most recent first.
 
 ---
 
-**Last updated**: Phase 12 (UI/UX Polish), Phase 13A (Visual Immersion), and Phase 13B (Soundora-inspired Layout Redesign) shipped. Phase 11 (AI-Powered Playlist Generation) still planned. 465 tests passing.
+**Last updated**: Phase 12 (UI/UX Polish), Phase 13A (Visual Immersion), and Phase 13B (Soundora-inspired Layout Redesign) shipped. Phase 11 (AI-Powered Playlist Generation) still planned. 466 tests passing.
 
 - **DB swap: sql.js → better-sqlite3** (Phase A of gapless plan) — Replaced the WASM-based `sql.js` with `better-sqlite3` (sync, native, no server, no WASM). The DB file `<userData>/data/harmonix.db` is the same SQLite; only the driver changed. Refactored `electron/main/db/database.ts` (init, pragmas `journal_mode=WAL`, `foreign_keys=ON`, `synchronous=NORMAL`; `persist()` now a WAL checkpoint since better-sqlite3 auto-syncs), `migrations.ts` (now uses `db.prepare(...).get()` + `db.transaction()`), and all 5 repositories (`settingsRepository`, `folderRepository`, `eqRepository`, `playlistRepository`, `trackRepository`) to use prepared statements `.get()`/`.all()`/`.run()`. Removed `resources/sql-wasm.wasm` (no longer needed) and the `electron-builder.yml` `extraResources` entry that bundled it. The `electron-builder install-app-deps` postinstall already rebuilds the native binary for Electron's Node ABI. For tests, added `pretest` → `npm rebuild better-sqlite3` (rebuilds for system Node's ABI so vitest can load it) and `predev`/`prebuild` → `npx @electron/rebuild -f -w better-sqlite3` (rebuilds back for Electron's ABI for dev/build). 446/446 tests pass. This sets up the IPC latency win needed for Phase B (gapless pre-buffer).
 

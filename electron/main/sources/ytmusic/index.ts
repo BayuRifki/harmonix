@@ -185,6 +185,14 @@ export class YouTubeMusicSource extends SourceAdapter {
       url: stream.url,
       protocol: 'youtube',
       expiresAt: stream.expiresAt,
+      // googlevideo.com URLs don't ship CORS, so the IPC layer
+      // wraps them in the `harmonix-media://` proxy. The proxy
+      // uses these headers to actually fetch the audio bytes.
+      headers: {
+        Referer: 'https://music.youtube.com/',
+        Origin: 'https://music.youtube.com',
+      },
+      requiresProxy: true,
     };
   }
 }

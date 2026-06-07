@@ -15,6 +15,33 @@ interface StreamEntry {
 const streamRegistry = new Map<string, StreamEntry>();
 let registered = false;
 
+/**
+ * Mark the custom protocol as privileged so Chromium allows it to be
+ * used in places that normally require a "standard" + "secure" scheme:
+ *   - HTMLMediaElement (audio/video) `src` attribute
+ *   - Web Audio API (MediaElementSource) — needs CORS-clean media
+ *   - `<img>`, `<script>`, fetch from "no-cors" contexts
+ *
+ * Must be called BEFORE `app.whenReady()` fires (per Electron docs)
+ * and can only be called once. The file-import side effect in
+ * `electron/main/index.ts` (before any other electron code) handles
+ * the ordering.
+ */
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: PROXY_SCHEME,
+    privileges: {
+      standard: true,
+      secure: true,
+      supportFetchAPI: true,
+      stream: true,
+      bypassCSP: false,
+      codeCache: false,
+      corsEnabled: true,
+    },
+  },
+]);
+
 function evictOldest(): void {
   if (streamRegistry.size < MAX_STREAMS) return;
   const oldest = [...streamRegistry.entries()].sort((a, b) => a[1].createdAt - b[1].createdAt)[0];

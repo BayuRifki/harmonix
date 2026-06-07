@@ -79,6 +79,7 @@ Most music players lock you into a single ecosystem. Harmonix breaks that wall:
 - ✅ 446 tests across 42 files (after DB swap sql.js → better-sqlite3, sync SQLite), lint clean, typecheck clean
 - ✅ 455 tests across 43 files (after gapless pre-buffer: AudioEngine.preload + playerStore 80% trigger), lint clean, typecheck clean
 - ✅ 465 tests across 44 files (after audio proxy + always-on MediaElementSource — EQ now works on YT Music + all remote sources), lint clean, typecheck clean
+- ✅ 466 tests across 44 files (after proxy fix: registerSchemesAsPrivileged + fallback to direct URL + better error reporting), lint clean, typecheck clean
 - ✅ Brand mark in sidebar (public/logo.png served at `/logo.png`)
 - ✅ Splash screen on app open (logo + wordmark + tagline + spinner)
 - ✅ Gapless playback (pre-buffered next track, no gap between songs)

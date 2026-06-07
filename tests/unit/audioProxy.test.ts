@@ -3,11 +3,15 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const mocks = vi.hoisted(() => ({
   fetch: vi.fn(),
   handle: vi.fn(),
+  registerSchemesAsPrivileged: vi.fn(),
 }));
 
 vi.mock('electron', () => ({
   net: { fetch: mocks.fetch },
-  protocol: { handle: mocks.handle },
+  protocol: {
+    handle: mocks.handle,
+    registerSchemesAsPrivileged: mocks.registerSchemesAsPrivileged,
+  },
 }));
 
 type HandlerFn = (req: { url: string }) => Promise<Response>;
@@ -149,5 +153,24 @@ describe('audioProxy', () => {
     mod.registerAudioProxyProtocol();
     mod.registerAudioProxyProtocol();
     expect(mocks.handle).toHaveBeenCalledTimes(1);
+  });
+
+  it('registerSchemesAsPrivileged is called once at module import with the right flags', async () => {
+    await loadFreshModule();
+    expect(mocks.registerSchemesAsPrivileged).toHaveBeenCalledTimes(1);
+    expect(mocks.registerSchemesAsPrivileged).toHaveBeenCalledWith([
+      {
+        scheme: 'harmonix-media',
+        privileges: {
+          standard: true,
+          secure: true,
+          supportFetchAPI: true,
+          stream: true,
+          bypassCSP: false,
+          codeCache: false,
+          corsEnabled: true,
+        },
+      },
+    ]);
   });
 });

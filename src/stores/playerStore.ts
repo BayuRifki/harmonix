@@ -212,7 +212,23 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
       try {
         const stream = await window.api.sources.playTrack({ track });
         set({ stream });
-        await playTrack(track, stream);
+        try {
+          await playTrack(track, stream);
+        } catch (loadErr) {
+          // If the proxied URL fails, retry once with the direct URL
+          // (no EQ but at least the audio plays). The IPC handler
+          // returns both URLs in StreamInfo for this exact case.
+          if (stream.fallbackUrl && stream.fallbackUrl !== stream.url) {
+            console.warn(
+              `[player] proxy load failed (${(loadErr as Error).message}); falling back to direct URL`,
+            );
+            const fallback = { ...stream, url: stream.fallbackUrl };
+            set({ stream: fallback });
+            await playTrack(track, fallback);
+          } else {
+            throw loadErr;
+          }
+        }
         audioEngine.setVolume(get().volume);
         // Pre-buffer the next track for gapless transition (Phase B).
         // Fires immediately on play so by the time the current track

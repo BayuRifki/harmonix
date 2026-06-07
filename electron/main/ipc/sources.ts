@@ -156,7 +156,11 @@ export function registerSourceHandlers(): void {
       const stream = await src.getStreamUrl(payload.track);
       if (stream.requiresProxy) {
         const streamId = registerStream(stream.url, stream.headers);
-        return { ...stream, url: proxyUrlFor(streamId) };
+        return {
+          ...stream,
+          url: proxyUrlFor(streamId),
+          fallbackUrl: stream.url,
+        };
       }
       return stream;
     },

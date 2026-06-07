@@ -173,7 +173,18 @@ export class AudioEngine {
       const onError = (): void => {
         audio.removeEventListener('canplay', onCanPlay);
         audio.removeEventListener('error', onError);
-        reject(new Error('Failed to load audio'));
+        const err = audio.error;
+        const codeMap: Record<number, string> = {
+          1: 'MEDIA_ERR_ABORTED',
+          2: 'MEDIA_ERR_NETWORK',
+          3: 'MEDIA_ERR_DECODE',
+          4: 'MEDIA_ERR_SRC_NOT_SUPPORTED',
+        };
+        const reason = err ? (codeMap[err.code] ?? `code ${err.code}`) : 'unknown';
+        const message = err?.message ? `: ${err.message}` : '';
+        // eslint-disable-next-line no-console
+        console.error(`[audioEngine] load failed (${reason}) for ${url}${message}`);
+        reject(new Error(`Failed to load audio (${reason})${message}`));
       };
       audio.addEventListener('canplay', onCanPlay);
       audio.addEventListener('error', onError);
