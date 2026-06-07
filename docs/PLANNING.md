@@ -753,46 +753,48 @@ Seamless media controls across PlayerBar, NowPlaying, MiniPlayer, and queue mana
   - [ ] OS-level "Now Playing" controls via Electron main `chrome.mediaSession` (Windows SMTC, macOS Now Playing) — **deferred to 14.4** (would need a main-process IPC + state push from renderer; the Web API is already widely supported in Electron and shows up in OS UI on most platforms)
   - [x] 2 unit tests (graceful no-op when API missing + handlers registered when present)
 
-#### 14.4 — Micro-interactions & Tactile Feedback
+#### 14.4 — Micro-interactions & Tactile Feedback 🚧 Partially Shipped (first pass)
 
-Every interaction feels alive.
+Every interaction feels alive. **First pass shipped**: ScrollShadow, rich toasts v2, stagger animations for TrackList, scroll restoration, accessibility upgrades (focus-ring, reduced-motion, high-contrast, light-mode glass), Performance + Navigation settings panels. Magnetic hover, click ripples, DnD with dnd-kit, ImageLoader blur-up, route-level loading, exit animations remain for 14.5.
 
-- [ ] **Magnetic hover** (`src/components/ui/MagneticButton.tsx`):
+- [ ] **Magnetic hover** (`src/components/ui/MagneticButton.tsx`): — **deferred to 14.5**
   - [ ] Cursor-tracked `useTransform` (Framer Motion) on primary CTAs (play button, "Create playlist", etc.)
   - [ ] Subtle 1.05× scale + 4px translation toward cursor on hover
   - [ ] Reset on mouse leave with spring physics
   - [ ] `prefers-reduced-motion` skips the effect (static scale only)
-- [ ] **Click ripples** (`src/components/ui/Ripple.tsx`):
+- [ ] **Click ripples** (`src/components/ui/Ripple.tsx`): — **deferred to 14.5**
   - [ ] Material-style ripple on button click
   - [ ] Origin at click coordinates; fades out 600ms
   - [ ] Disabled by default; opt-in per-button
-- [ ] **Custom drag-and-drop** (`@dnd-kit/core`):
+- [ ] **Custom drag-and-drop** (`@dnd-kit/core`): — **deferred to 14.5**
   - [ ] **Tracks → playlist**: drag a track row onto a Sidebar playlist card to add it
   - [ ] **Queue reorder**: replace existing HTML5 DnD with `dnd-kit` for smoother animation
   - [ ] **Artwork → mini-player**: drag album art to the floating mini-player to swap tracks
   - [ ] **File → library**: drag audio files from OS into the Library view to add them
   - [ ] **Sortable lists** (playlists, albums, artists) with `dnd-kit/sortable`
-- [ ] **Image loading** (`src/components/ui/ImageLoader.tsx`):
+- [ ] **Image loading** (`src/components/ui/ImageLoader.tsx`): — **deferred to 14.5**
   - [ ] **Blur-up**: tiny base64 placeholder (LQIP) → full-resolution image with crossfade
   - [ ] **Progressive reveal**: low-res → high-res on slow connections (`srcset` + lazy)
   - [ ] **Skeleton fallback**: while loading
   - [ ] **Error state**: gradient + music icon (existing pattern; unify)
-- [ ] **Rich toasts** (`src/components/ui/Toast.tsx` v2):
-  - [ ] **Track-added toast**: artwork thumbnail + "Added to queue" + "View Queue" action
-  - [ ] **Playlist-created toast**: playlist thumbnail + "View playlist" + "Undo" (deletes it)
-  - [ ] **Sync toast**: progress bar for long operations (e.g. "Scanning library… 412/2000")
-  - [ ] **Stacking**: max 3 toasts visible; older fade with `AnimatePresence`
-  - [ ] **Action buttons**: inline buttons inside the toast (Material Design 3 style)
-- [ ] **Scroll polish**:
-  - [ ] **Scroll shadow** (`src/components/ui/ScrollShadow.tsx`): CSS `mask-image` gradient fade at top/bottom of scroll containers; auto-updates with scroll position
-  - [ ] **Momentum scrolling** (`scroll-behavior: smooth` on Chromium/Electron)
-  - [ ] **Snap points** for carousels (For You, Search results, Similar Tracks rail)
-  - [ ] **Horizontal scroll indicators**: subtle arrows that fade in when scrollable
-  - [ ] **Scroll restoration** per route (remember last scroll position)
-- [ ] **Stagger animations** on lists:
-  - [ ] TrackList, search results, For You cards animate in with 20ms stagger (Framer Motion variants)
-  - [ ] Items leave gracefully when filtered out (exit animation)
-- [ ] **Loading states**:
+- [x] **Rich toasts** (`src/components/ui/Toast.tsx` v2): — **shipped**
+  - [x] **Track-added toast**: artwork thumbnail + "Added to queue" + "View Queue" action
+  - [x] **Playlist-created toast**: playlist thumbnail + "View playlist" + "Undo" (deletes it)
+  - [x] **Sync toast**: progress bar for long operations (e.g. "Scanning library… 412/2000")
+  - [x] **Stacking**: max 3 toasts visible; older fade with `AnimatePresence`
+  - [x] **Action buttons**: inline buttons inside the toast (Material Design 3 style)
+  - [x] Framer-motion enter/exit animations with spring physics
+  - [x] 7 tests added to toastStore
+- [x] **Scroll polish** — **shipped**:
+  - [x] **Scroll shadow** (`src/components/ui/ScrollShadow.tsx`): CSS `mask-image` gradient fade at top/bottom of scroll containers; auto-updates with scroll position. Horizontal + vertical modes. Applied to QueueDrawer.
+  - [ ] **Momentum scrolling** (`scroll-behavior: smooth` on Chromium/Electron) — **deferred to 14.5** (native is sufficient)
+  - [ ] **Snap points** for carousels (For You, Search results, Similar Tracks rail) — **deferred to 14.5**
+  - [ ] **Horizontal scroll indicators**: subtle arrows that fade in when scrollable — **deferred to 14.5**
+  - [x] **Scroll restoration** per route (remember last scroll position) — `src/hooks/useScrollRestoration.ts` with localStorage persistence
+- [x] **Stagger animations** on lists — **shipped**:
+  - [x] TrackList, search results, For You cards animate in with 20ms stagger (Framer Motion variants) — `src/components/ui/StaggerAnimations.tsx` with `itemVariants`, `listVariants`, `gridVariants`
+  - [ ] Items leave gracefully when filtered out (exit animation) — **deferred to 14.5**
+- [ ] **Loading states**: — **deferred to 14.5**
   - [ ] **Route-level loading**: `Suspense` fallback skeleton for each route
   - [ ] **Inline loading**: button spinners, input busy indicators
   - [ ] **Optimistic UI**: playlist create, track add → show immediately; rollback on error
@@ -894,13 +896,14 @@ Insight and personality.
   - [ ] Switch theme, verify glass tokens adapt
 - [ ] **Visual regression**: Playwright `toMatchSnapshot` on key views (Home, NowPlaying, MiniPlayer, Settings, Equalizer, Search) — locks in the Soundora-inspired aesthetic
 
-#### 14.8 — Phased Delivery (3 Increments)
+#### 14.8 — Phased Delivery (4 Increments)
 
-| Increment                          | Scope                                                                                                                                  | Status                                                                                                                                                                                                                                                                                                                                                                                                                                  | Target test count   | Estimated effort            |
-| ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------- | --------------------------- |
-| **14.1 — Navigation Intelligence** | Command palette, breadcrumbs, smart sidebar, keyboard nav, focus mgmt, search upgrades                                                 | ✅ **Shipped (first pass)** — palette + breadcrumbs + smart sidebar + uiStore + fuzzy matcher done. Keybindings, focus mgmt, search upgrades pending 14.4                                                                                                                                                                                                                                                                               | 535+ (was 479, +56) | 2–3 weeks total (~70% done) |
-| **14.2 — Living Visuals**          | Adaptive theming, shared element transitions, audio visualizers, glass system, background blur, animation polish                       | ✅ **Shipped (first pass)** — adaptive palette + HSL interpolation + glass tokens + shared element transitions + FrequencyBars + WaveformRing + artwork-blur background done. Particle field, stereo oscilloscope, mesh-gradient breathing, per-visualizer Settings, full glass audit pending 14.4                                                                                                                                      | 600+ (+65)          | 3–4 weeks total (~60% done) |
-| **14.3 — Player Mastery**          | Expandable PlayerBar, NowPlaying v2, MiniPlayer v2, QueueDrawer, gestures, media session, micro-interactions, scroll polish, analytics | 🚧 **Partially shipped (first pass)** — CrossfadeIndicator, useMediaSession, useSourceHealth, NowPlaying v2 (parallax + similar rail + credits), QueueDrawer (replaces QueuePanel with multi-select + save + search), MiniPlayer Pin badge all done (578 tests, +21). Expandable PlayerBar, MiniPlayer resize/snap, lyrics panel, gestures, visualizer toggle, rich toasts, analytics, OS-level main process Media Session pending 14.4 | 700+ (+100)         | 4–5 weeks total (~50% done) |
+| Increment                              | Scope                                                                                                                                                                                 | Status                                                                                                                                                                                                                                                                                                                                                                                                                                  | Target test count          | Estimated effort            |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------- | --------------------------- |
+| **14.1 — Navigation Intelligence**     | Command palette, breadcrumbs, smart sidebar, keyboard nav, focus mgmt, search upgrades                                                                                                | ✅ **Shipped (first pass)** — palette + breadcrumbs + smart sidebar + uiStore + fuzzy matcher done. Keybindings, focus mgmt, search upgrades pending 14.4                                                                                                                                                                                                                                                                               | 535+ (was 479, +56)        | 2–3 weeks total (~70% done) |
+| **14.2 — Living Visuals**              | Adaptive theming, shared element transitions, audio visualizers, glass system, background blur, animation polish                                                                      | ✅ **Shipped (first pass)** — adaptive palette + HSL interpolation + glass tokens + shared element transitions + FrequencyBars + WaveformRing + artwork-blur background done. Particle field, stereo oscilloscope, mesh-gradient breathing, per-visualizer Settings, full glass audit pending 14.4                                                                                                                                      | 600+ (+65)                 | 3–4 weeks total (~60% done) |
+| **14.3 — Player Mastery**              | Expandable PlayerBar, NowPlaying v2, MiniPlayer v2, QueueDrawer, gestures, media session, micro-interactions, scroll polish, analytics                                                | 🚧 **Partially shipped (first pass)** — CrossfadeIndicator, useMediaSession, useSourceHealth, NowPlaying v2 (parallax + similar rail + credits), QueueDrawer (replaces QueuePanel with multi-select + save + search), MiniPlayer Pin badge all done (578 tests, +21). Expandable PlayerBar, MiniPlayer resize/snap, lyrics panel, gestures, visualizer toggle, rich toasts, analytics, OS-level main process Media Session pending 14.4 | 700+ (+100)                | 4–5 weeks total (~50% done) |
+| **14.4 — Micro-interactions & Polish** | ScrollShadow, rich toasts v2, stagger animations, scroll restoration, accessibility, Performance/Navigation panels, magnetic hover, ripples, dnd-kit DnD, ImageLoader, loading states | 🚧 **Partially shipped (first pass)** — ScrollShadow, rich toasts v2, stagger animations (TrackList), scroll restoration, accessibility (focus-ring, reduced-motion, high-contrast, light glass), Performance panel, Navigation panel all done. Magnetic hover, ripples, dnd-kit DnD, ImageLoader, route-level loading, exit animations pending 14.5                                                                                    | 700+ (tests stable at 578) | 2–3 weeks total (~50% done) |
 
 Each increment is **independently shippable** behind a feature flag (`uiStore.flags.phase14_1` etc.) for safe rollout.
 
@@ -963,24 +966,25 @@ See [Section 8](#8-backlog--future-ideas).
 
 ## 5. Milestones
 
-| Milestone                                                                            | Target             | Status                                    |
-| ------------------------------------------------------------------------------------ | ------------------ | ----------------------------------------- |
-| M0: Project scaffolded                                                               | Phase 0 complete   | ✅ Done                                   |
-| M1: Local playback works                                                             | Phase 1 complete   | ✅ Done                                   |
-| M2: Plugin architecture ready                                                        | Phase 2 complete   | ✅ Done                                   |
-| M3: Spotify integration                                                              | Phase 3 complete   | ✅ Done                                   |
-| M4: YouTube Music integration                                                        | Phase 4 complete   | ✅ Done                                   |
-| M5: Playlists & queue                                                                | Phase 5 complete   | ✅ Done                                   |
-| M6: EQ & effects                                                                     | Phase 6 complete   | ✅ Done                                   |
-| M7: First public release                                                             | Phase 7 complete   | 🔜 In Progress                            |
-| M8: Additional sources (Deezer/Jamendo/Audius/SoundCloud)                            | Phase 8 complete   | ✅ Done                                   |
-| M9: UI integration (per-source views, sidebar, player source badge, config UI)       | Phase 9 complete   | ✅ Done                                   |
-| M10: Mini-player mode (compact floating window + system tray)                        | Phase 10 complete  | ✅ Done                                   |
-| M11: AI-powered playlist generation (LLM + source search)                            | Phase 11 complete  | 🔜 Planned                                |
-| M12: UI/UX polish (navigation, controls, micro-interactions, dark theme)             | Phase 12 complete  | ✅ Done                                   |
-| M13: Visual immersion (palette refactor, glassmorphism, audio-reactive, now-playing) | Phase 13A complete | ✅ Done                                   |
-| M14: Layout redesign (3-column shell, pink palette, hero player, right rail)         | Phase 13B complete | ✅ Done                                   |
-| M15: Advanced UI/UX polish (navigation, living visuals, player mastery)              | Phase 14 complete  | ✅ Done (14.1 + 14.2 + 14.3 first passes) |
+| Milestone                                                                            | Target              | Status                                    |
+| ------------------------------------------------------------------------------------ | ------------------- | ----------------------------------------- |
+| M0: Project scaffolded                                                               | Phase 0 complete    | ✅ Done                                   |
+| M1: Local playback works                                                             | Phase 1 complete    | ✅ Done                                   |
+| M2: Plugin architecture ready                                                        | Phase 2 complete    | ✅ Done                                   |
+| M3: Spotify integration                                                              | Phase 3 complete    | ✅ Done                                   |
+| M4: YouTube Music integration                                                        | Phase 4 complete    | ✅ Done                                   |
+| M5: Playlists & queue                                                                | Phase 5 complete    | ✅ Done                                   |
+| M6: EQ & effects                                                                     | Phase 6 complete    | ✅ Done                                   |
+| M7: First public release                                                             | Phase 7 complete    | 🔜 In Progress                            |
+| M8: Additional sources (Deezer/Jamendo/Audius/SoundCloud)                            | Phase 8 complete    | ✅ Done                                   |
+| M9: UI integration (per-source views, sidebar, player source badge, config UI)       | Phase 9 complete    | ✅ Done                                   |
+| M10: Mini-player mode (compact floating window + system tray)                        | Phase 10 complete   | ✅ Done                                   |
+| M11: AI-powered playlist generation (LLM + source search)                            | Phase 11 complete   | 🔜 Planned                                |
+| M12: UI/UX polish (navigation, controls, micro-interactions, dark theme)             | Phase 12 complete   | ✅ Done                                   |
+| M13: Visual immersion (palette refactor, glassmorphism, audio-reactive, now-playing) | Phase 13A complete  | ✅ Done                                   |
+| M14: Layout redesign (3-column shell, pink palette, hero player, right rail)         | Phase 13B complete  | ✅ Done                                   |
+| M15: Advanced UI/UX polish (navigation, living visuals, player mastery)              | Phase 14 complete   | ✅ Done (14.1 + 14.2 + 14.3 first passes) |
+| M16: Micro-interactions & Polish (14.4)                                              | Phase 14.4 complete | ✅ Done (first pass)                      |
 
 ---
 
@@ -1011,10 +1015,11 @@ When making a major decision, create a new ADR file with the next sequential num
 
 ### Near-term (post-MVP)
 
-- [ ] **Phase 14 — Advanced UI/UX Polish (Immersive Intelligence)** (planned as Phase 14, 3 increments)
-  - [x] 14.1 Navigation Intelligence (first pass shipped: command palette, breadcrumbs, smart sidebar, uiStore, fuzzy matcher) — remaining: keybindings, focus mgmt, search upgrades → 14.4
-  - [x] 14.2 Living Visuals (first pass shipped: 3-tone adaptive palette + HSL interpolation, glassmorphism tokens + light parity, shared element artwork transitions, FrequencyBars + WaveformRing visualizers, artwork-blur background) — remaining: particle field, stereo oscilloscope, mesh-gradient breathing, per-visualizer Settings, full glass audit → 14.4
-  - [x] 14.3 Player Mastery (first pass shipped: CrossfadeIndicator, useMediaSession, useSourceHealth, NowPlaying v2 with parallax + similar rail + credits, QueueDrawer replacing QueuePanel, MiniPlayer Pin badge) — remaining: expandable PlayerBar, MiniPlayer resize + snap, lyrics panel, gestures, visualizer toggle, rich toasts, analytics, OS-level main-process Media Session → 14.4
+- [ ] **Phase 14 — Advanced UI/UX Polish (Immersive Intelligence)** (planned as Phase 14, 4 increments)
+  - [x] 14.1 Navigation Intelligence (first pass shipped: command palette, breadcrumbs, smart sidebar, uiStore, fuzzy matcher) — remaining: keybindings, focus mgmt, search upgrades → 14.5
+  - [x] 14.2 Living Visuals (first pass shipped: 3-tone adaptive palette + HSL interpolation, glassmorphism tokens + light parity, shared element artwork transitions, FrequencyBars + WaveformRing visualizers, artwork-blur background) — remaining: particle field, stereo oscilloscope, mesh-gradient breathing, per-visualizer Settings, full glass audit → 14.5
+  - [x] 14.3 Player Mastery (first pass shipped: CrossfadeIndicator, useMediaSession, useSourceHealth, NowPlaying v2 with parallax + similar rail + credits, QueueDrawer replacing QueuePanel, MiniPlayer Pin badge) — remaining: expandable PlayerBar, MiniPlayer resize + snap, lyrics panel, gestures, visualizer toggle, rich toasts, analytics, OS-level main-process Media Session → 14.5
+  - [x] 14.4 Micro-interactions & Polish (first pass shipped: ScrollShadow, rich toasts v2, stagger animations (TrackList), scroll restoration, accessibility (focus-ring, reduced-motion, high-contrast, light glass), Performance panel, Navigation panel) — remaining: magnetic hover, click ripples, dnd-kit DnD, ImageLoader blur-up, route-level loading, exit animations → 14.5
 - [ ] Lyrics display (LRClib or Musixmatch) — captured in Phase 14.3
 - [ ] Last.fm scrobbling
 - [ ] Discord Rich Presence

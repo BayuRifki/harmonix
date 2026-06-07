@@ -6,6 +6,7 @@ import { usePlaylistsStore } from '@/stores/playlistsStore';
 import { useToastStore } from '@/components/ui/toastStore';
 import { useUiStore } from '@/stores/uiStore';
 import { fuzzySearch } from '@/components/command/fuzzyMatch';
+import { ScrollShadow } from '@/components/ui/ScrollShadow';
 import type { Track } from '@/types/global';
 
 function formatDuration(ms: number): string {
@@ -401,41 +402,43 @@ export function QueueDrawer({ open, onClose }: QueueDrawerProps): JSX.Element | 
                   <p className="text-xs text-zinc-600 mt-1">Play a track to start</p>
                 </div>
               ) : (
-                <ul className="p-2 space-y-0.5">
-                  {filtered.map(({ track, originalIndex }) => {
-                    const isCurrent = originalIndex === queueIndex;
-                    const isPlayed = originalIndex < queueIndex;
-                    const isSelected = selected.has(track.id);
-                    return (
-                      <QueueRow
-                        key={track.id}
-                        track={track}
-                        index={originalIndex}
-                        isCurrent={isCurrent}
-                        isPlayed={isPlayed}
-                        isSelected={isSelected}
-                        selectable={selectionMode && !isCurrent}
-                        onClick={() => {
-                          if (selectionMode && !isCurrent) {
-                            toggleSelect(track.id);
-                          } else {
-                            playAt(originalIndex);
-                          }
-                        }}
-                        onToggleSelect={() => toggleSelect(track.id)}
-                        onDragStart={(i) => setDragging(i)}
-                        onDragOver={(i) => setDragOver(i)}
-                        onDrop={(i) => {
-                          if (dragging !== null) moveInQueue(dragging, i);
-                          setDragging(null);
-                          setDragOver(null);
-                        }}
-                        isDragOver={dragOver === originalIndex}
-                        isDragging={dragging === originalIndex}
-                      />
-                    );
-                  })}
-                </ul>
+                <ScrollShadow>
+                  <ul className="p-2 space-y-0.5">
+                    {filtered.map(({ track, originalIndex }) => {
+                      const isCurrent = originalIndex === queueIndex;
+                      const isPlayed = originalIndex < queueIndex;
+                      const isSelected = selected.has(track.id);
+                      return (
+                        <QueueRow
+                          key={track.id}
+                          track={track}
+                          index={originalIndex}
+                          isCurrent={isCurrent}
+                          isPlayed={isPlayed}
+                          isSelected={isSelected}
+                          selectable={selectionMode && !isCurrent}
+                          onClick={() => {
+                            if (selectionMode && !isCurrent) {
+                              toggleSelect(track.id);
+                            } else {
+                              playAt(originalIndex);
+                            }
+                          }}
+                          onToggleSelect={() => toggleSelect(track.id)}
+                          onDragStart={(i) => setDragging(i)}
+                          onDragOver={(i) => setDragOver(i)}
+                          onDrop={(i) => {
+                            if (dragging !== null) moveInQueue(dragging, i);
+                            setDragging(null);
+                            setDragOver(null);
+                          }}
+                          isDragOver={dragOver === originalIndex}
+                          isDragging={dragging === originalIndex}
+                        />
+                      );
+                    })}
+                  </ul>
+                </ScrollShadow>
               )}
             </div>
 

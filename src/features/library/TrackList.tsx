@@ -1,8 +1,10 @@
 import { useState } from 'react';
+import { motion } from 'framer-motion';
 import { usePlayerStore } from '@/stores/playerStore';
 import { AddToPlaylistMenu } from '@/features/playlist/AddToPlaylistMenu';
 import { useVirtualWindow } from '@/hooks/useVirtualWindow';
 import type { Track } from '@/types/global';
+import { itemVariants } from '@/components/ui/StaggerAnimations';
 
 interface TrackListProps {
   tracks: Track[];
@@ -53,15 +55,65 @@ export function TrackList({ tracks, onPlay }: TrackListProps): JSX.Element {
           </thead>
           <tbody>
             {tracks.map((track, i) => (
-              <Row
+              <motion.tr
                 key={track.id}
-                track={track}
-                index={i}
-                isCurrent={currentTrack?.id === track.id}
-                isPlaying={isPlaying}
-                onPlay={onPlay}
-                onAdd={(t) => setAddToPlaylistTrack(t)}
-              />
+                variants={itemVariants}
+                initial="hidden"
+                animate="show"
+                style={{ height: ROW_HEIGHT }}
+                className={`border-b border-zinc-900 hover:bg-zinc-900 ${currentTrack?.id === track.id ? 'bg-zinc-900' : ''}`}
+              >
+                <td
+                  className="py-2 px-2 text-zinc-500 cursor-pointer"
+                  onClick={() => onPlay(track)}
+                  style={{ height: ROW_HEIGHT }}
+                >
+                  {currentTrack?.id === track.id && isPlaying ? '▶' : i + 1}
+                </td>
+                <td
+                  className="py-2 px-2 text-zinc-100 truncate max-w-xs cursor-pointer"
+                  onClick={() => onPlay(track)}
+                  style={{ height: ROW_HEIGHT }}
+                >
+                  {track.title}
+                </td>
+                <td
+                  className="py-2 px-2 text-zinc-400 truncate max-w-xs"
+                  style={{ height: ROW_HEIGHT }}
+                >
+                  {track.artists.map((a) => a.name).join(', ') || '—'}
+                </td>
+                <td
+                  className="py-2 px-2 text-zinc-500 truncate max-w-xs"
+                  style={{ height: ROW_HEIGHT }}
+                >
+                  {track.album?.title ?? '—'}
+                </td>
+                <td className="py-2 px-2" style={{ height: ROW_HEIGHT }}>
+                  <code className="text-[10px] text-zinc-500 bg-zinc-800 px-1.5 py-0.5 rounded">
+                    {track.source}
+                  </code>
+                </td>
+                <td
+                  className="py-2 px-2 text-zinc-500 text-right tabular-nums"
+                  style={{ height: ROW_HEIGHT }}
+                >
+                  {formatDuration(track.durationMs)}
+                </td>
+                <td className="py-2 px-2 text-right" style={{ height: ROW_HEIGHT }}>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setAddToPlaylistTrack(track);
+                    }}
+                    className="text-zinc-500 hover:text-brand-400 text-xs px-1"
+                    title="Add to playlist"
+                  >
+                    +
+                  </button>
+                </td>
+              </motion.tr>
             ))}
           </tbody>
         </table>
@@ -80,7 +132,6 @@ export function TrackList({ tracks, onPlay }: TrackListProps): JSX.Element {
     <VirtualTrackList
       tracks={tracks}
       currentTrackId={currentTrack?.id ?? null}
-      isPlaying={isPlaying}
       onPlay={onPlay}
       onAdd={setAddToPlaylistTrack}
       addToPlaylistTrack={addToPlaylistTrack}
@@ -89,73 +140,9 @@ export function TrackList({ tracks, onPlay }: TrackListProps): JSX.Element {
   );
 }
 
-interface RowProps {
-  track: Track;
-  index: number;
-  isCurrent: boolean;
-  isPlaying: boolean;
-  onPlay: (track: Track) => void;
-  onAdd: (track: Track) => void;
-}
-
-function Row({ track, index, isCurrent, isPlaying, onPlay, onAdd }: RowProps): JSX.Element {
-  return (
-    <tr
-      className={`border-b border-zinc-900 hover:bg-zinc-900 ${isCurrent ? 'bg-zinc-900' : ''}`}
-      style={{ height: ROW_HEIGHT }}
-    >
-      <td
-        className="py-2 px-2 text-zinc-500 cursor-pointer"
-        onClick={() => onPlay(track)}
-        style={{ height: ROW_HEIGHT }}
-      >
-        {isCurrent && isPlaying ? '▶' : index + 1}
-      </td>
-      <td
-        className="py-2 px-2 text-zinc-100 truncate max-w-xs cursor-pointer"
-        onClick={() => onPlay(track)}
-        style={{ height: ROW_HEIGHT }}
-      >
-        {track.title}
-      </td>
-      <td className="py-2 px-2 text-zinc-400 truncate max-w-xs" style={{ height: ROW_HEIGHT }}>
-        {track.artists.map((a) => a.name).join(', ') || '—'}
-      </td>
-      <td className="py-2 px-2 text-zinc-500 truncate max-w-xs" style={{ height: ROW_HEIGHT }}>
-        {track.album?.title ?? '—'}
-      </td>
-      <td className="py-2 px-2" style={{ height: ROW_HEIGHT }}>
-        <code className="text-[10px] text-zinc-500 bg-zinc-800 px-1.5 py-0.5 rounded">
-          {track.source}
-        </code>
-      </td>
-      <td
-        className="py-2 px-2 text-zinc-500 text-right tabular-nums"
-        style={{ height: ROW_HEIGHT }}
-      >
-        {formatDuration(track.durationMs)}
-      </td>
-      <td className="py-2 px-2 text-right" style={{ height: ROW_HEIGHT }}>
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onAdd(track);
-          }}
-          className="text-zinc-500 hover:text-brand-400 text-xs px-1"
-          title="Add to playlist"
-        >
-          +
-        </button>
-      </td>
-    </tr>
-  );
-}
-
 interface VirtualTrackListProps {
   tracks: Track[];
   currentTrackId: string | null;
-  isPlaying: boolean;
   onPlay: (track: Track) => void;
   onAdd: (track: Track) => void;
   addToPlaylistTrack: Track | null;
@@ -165,7 +152,6 @@ interface VirtualTrackListProps {
 function VirtualTrackList({
   tracks,
   currentTrackId,
-  isPlaying,
   onPlay,
   onAdd,
   addToPlaylistTrack,
@@ -204,16 +190,67 @@ function VirtualTrackList({
             </tr>
             {visible.map((track, i) => {
               const realIndex = startIndex + i;
+              const isCurrent = currentTrackId === track.id;
+              const isPlaying = usePlayerStore.getState().isPlaying;
               return (
-                <Row
+                <motion.tr
                   key={track.id}
-                  track={track}
-                  index={realIndex}
-                  isCurrent={currentTrackId === track.id}
-                  isPlaying={isPlaying}
-                  onPlay={onPlay}
-                  onAdd={onAdd}
-                />
+                  variants={itemVariants}
+                  initial="hidden"
+                  animate="show"
+                  style={{ height: ROW_HEIGHT }}
+                >
+                  <td
+                    className="py-2 px-2 text-zinc-500 cursor-pointer"
+                    onClick={() => onPlay(track)}
+                    style={{ height: ROW_HEIGHT }}
+                  >
+                    {isCurrent && isPlaying ? '▶' : realIndex + 1}
+                  </td>
+                  <td
+                    className="py-2 px-2 text-zinc-100 truncate max-w-xs cursor-pointer"
+                    onClick={() => onPlay(track)}
+                    style={{ height: ROW_HEIGHT }}
+                  >
+                    {track.title}
+                  </td>
+                  <td
+                    className="py-2 px-2 text-zinc-400 truncate max-w-xs"
+                    style={{ height: ROW_HEIGHT }}
+                  >
+                    {track.artists.map((a) => a.name).join(', ') || '—'}
+                  </td>
+                  <td
+                    className="py-2 px-2 text-zinc-500 truncate max-w-xs"
+                    style={{ height: ROW_HEIGHT }}
+                  >
+                    {track.album?.title ?? '—'}
+                  </td>
+                  <td className="py-2 px-2" style={{ height: ROW_HEIGHT }}>
+                    <code className="text-[10px] text-zinc-500 bg-zinc-800 px-1.5 py-0.5 rounded">
+                      {track.source}
+                    </code>
+                  </td>
+                  <td
+                    className="py-2 px-2 text-zinc-500 text-right tabular-nums"
+                    style={{ height: ROW_HEIGHT }}
+                  >
+                    {formatDuration(track.durationMs)}
+                  </td>
+                  <td className="py-2 px-2 text-right" style={{ height: ROW_HEIGHT }}>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onAdd(track);
+                      }}
+                      className="text-zinc-500 hover:text-brand-400 text-xs px-1"
+                      title="Add to playlist"
+                    >
+                      +
+                    </button>
+                  </td>
+                </motion.tr>
               );
             })}
           </tbody>

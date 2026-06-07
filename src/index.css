@@ -209,4 +209,41 @@
   .animate-pulse-soft {
     animation: harmonix-pulse-soft 1.4s ease-in-out infinite;
   }
+
+  .focus-ring {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-black;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+
+    .animate-pulse-soft,
+    .animate-track-in {
+      animation: none !important;
+    }
+  }
+
+  @media (prefers-contrast: more) {
+    :root {
+      --accent: #60a5fa;
+      --text-primary: #ffffff;
+      --text-secondary: #e4e4e7;
+      --border-primary: #ffffff;
+      --border-secondary: #e4e4e7;
+    }
+    :root.light {
+      --accent: #0284c7;
+      --text-primary: #000000;
+      --text-secondary: #3f3f46;
+      --border-primary: #000000;
+      --border-secondary: #3f3f46;
+    }
+  }
 }

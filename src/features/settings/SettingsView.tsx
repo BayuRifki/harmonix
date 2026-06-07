@@ -5,6 +5,8 @@ import { ThemePicker } from '@/features/settings/ThemePicker';
 import { MemoryPanel } from '@/features/settings/MemoryPanel';
 import { KeyboardShortcutsPanel } from '@/features/settings/KeyboardShortcutsPanel';
 import { CrossfadePanel } from '@/features/settings/CrossfadePanel';
+import { PerformancePanel } from '@/features/settings/PerformancePanel';
+import { NavigationPanel } from '@/features/settings/NavigationPanel';
 
 export function SettingsView(): JSX.Element {
   return (
@@ -21,6 +23,8 @@ export function SettingsView(): JSX.Element {
         <CrossfadePanel />
         <KeyboardShortcutsPanel />
         <MemoryPanel />
+        <PerformancePanel />
+        <NavigationPanel />
 
         <SpotifyLoginButton />
         <YtMusicStatus />
