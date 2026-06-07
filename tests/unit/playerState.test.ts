@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
   INITIAL_PLAYER_SNAPSHOT,
   applyPlayerAction,
@@ -101,13 +101,20 @@ describe('playerState', () => {
 
     it('listener errors do not break other listeners', () => {
       const calls: number[] = [];
-      bus.subscribe(() => {
-        throw new Error('boom');
-      });
-      bus.subscribe(() => {
-        calls.push(1);
-      });
-      bus.setSnapshot(makeSnapshot({ isPlaying: true }));
+      // Suppress the expected `console.error` from the bus catching
+      // the deliberate throw below so the test output stays clean.
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      try {
+        bus.subscribe(() => {
+          throw new Error('boom');
+        });
+        bus.subscribe(() => {
+          calls.push(1);
+        });
+        bus.setSnapshot(makeSnapshot({ isPlaying: true }));
+      } finally {
+        errorSpy.mockRestore();
+      }
       expect(calls).toHaveLength(1);
     });
   });
