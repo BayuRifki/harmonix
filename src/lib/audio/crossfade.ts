@@ -44,6 +44,16 @@ function saveConfig(cfg: CrossfadeConfig): void {
 
 let currentConfig: CrossfadeConfig = loadConfig();
 
+type Listener = (cfg: CrossfadeConfig) => void;
+const listeners: Set<Listener> = new Set();
+
+export function subscribeCrossfadeConfig(listener: Listener): () => void {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
 export function getCrossfadeConfig(): CrossfadeConfig {
   return { ...currentConfig };
 }
@@ -54,6 +64,7 @@ export function setCrossfadeConfig(cfg: Partial<CrossfadeConfig>): CrossfadeConf
     durationMs: clampDuration(cfg.durationMs ?? currentConfig.durationMs),
   };
   saveConfig(currentConfig);
+  for (const l of listeners) l(currentConfig);
   return getCrossfadeConfig();
 }
 

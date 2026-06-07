@@ -156,6 +156,15 @@ export function MiniPlayerView(): JSX.Element {
       onContextMenu={onContextMenu}
     >
       <div className="flex-1 flex items-center gap-3 px-3 py-2 min-h-0">
+        {config?.alwaysOnTop && (
+          <span
+            className="text-[9px] uppercase tracking-wider text-accent-300 border border-accent-500/40 bg-accent-500/10 px-1 py-0.5 rounded shrink-0"
+            title="Always on top"
+            data-testid="mini-aot-badge"
+          >
+            Pin
+          </span>
+        )}
         <div className="w-14 h-14 bg-zinc-900 rounded shrink-0 overflow-hidden flex items-center justify-center text-zinc-700">
           {snapshot.artworkUrl ? (
             <img

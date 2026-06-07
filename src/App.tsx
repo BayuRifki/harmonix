@@ -24,6 +24,7 @@ import { useThemeStore } from '@/stores/themeStore';
 import { useUiStore } from '@/stores/uiStore';
 import { useAdaptiveAccent } from '@/hooks/useAdaptiveAccent';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
+import { useMediaSession } from '@/hooks/useMediaSession';
 import { usePlayerStateSync } from '@/hooks/usePlayerStateSync';
 import { ToastContainer } from '@/components/ui/Toast';
 import { CommandPalette } from '@/components/command/CommandPalette';
@@ -59,6 +60,7 @@ function MainApp(): JSX.Element {
 
   useAdaptiveAccent();
   useKeyboardShortcuts();
+  useMediaSession();
   usePlayerStateSync();
 
   useEffect(() => {

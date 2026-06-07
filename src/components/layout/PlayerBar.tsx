@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { usePlayerStore } from '@/stores/playerStore';
 import { useSourcesStore } from '@/stores/sourcesStore';
 import { TransportControls } from '@/components/player/TransportControls';
-import { QueuePanel } from '@/features/player/QueuePanel';
+import { QueueDrawer } from '@/features/player/QueueDrawer';
 import {
   ListMusic,
   LayoutGrid,
@@ -237,7 +237,7 @@ export function PlayerBar(): JSX.Element {
         </div>
       </div>
 
-      <QueuePanel open={queueOpen} onClose={() => setQueueOpen(false)} />
+      <QueueDrawer open={queueOpen} onClose={() => setQueueOpen(false)} />
     </footer>
   );
 }

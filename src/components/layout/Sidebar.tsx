@@ -22,6 +22,7 @@ import { useSourcesStore } from '@/stores/sourcesStore';
 import { usePlaylistsStore } from '@/stores/playlistsStore';
 import { usePlayerStore } from '@/stores/playerStore';
 import { useUiStore } from '@/stores/uiStore';
+import { useSourceHealth, HEALTH_DOT_COLORS, HEALTH_DOT_LABELS } from '@/hooks/useSourceHealth';
 
 interface StaticNavItem {
   to: string;
@@ -74,6 +75,8 @@ export function Sidebar(): JSX.Element {
   const toggleSection = useUiStore((s) => s.toggleSidebarSection);
   const openCommandPalette = useUiStore((s) => s.openCommandPalette);
   const clearRecents = useUiStore((s) => s.clearRecents);
+
+  const health = useSourceHealth();
 
   useEffect(() => {
     void refreshLibrary();
@@ -313,6 +316,36 @@ export function Sidebar(): JSX.Element {
       <div className="p-3 border-t border-zinc-800 text-xs text-zinc-600">
         <p>v0.1.0 — Phase 14</p>
         <p className="mt-1">{enabledCount} sources enabled</p>
+        {enabledCount > 0 && (
+          <div
+            className="mt-2 flex flex-wrap items-center gap-1.5"
+            data-testid="source-health-dots"
+            title={Object.entries(health)
+              .map(([id, h]) => `${id}: ${HEALTH_DOT_LABELS[h.status]}`)
+              .join(' · ')}
+          >
+            {registrations
+              .filter((r) => r.enabled)
+              .map((r) => {
+                const status = health[r.id]?.status ?? 'unknown';
+                return (
+                  <span
+                    key={r.id}
+                    className="inline-flex items-center gap-1 text-[10px] text-zinc-500"
+                    title={`${r.name}: ${HEALTH_DOT_LABELS[status]}`}
+                  >
+                    <span
+                      className={`w-1.5 h-1.5 rounded-full ${HEALTH_DOT_COLORS[status]} ${
+                        status === 'healthy' ? 'animate-pulse-soft' : ''
+                      }`}
+                      aria-hidden
+                    />
+                    <span className="truncate max-w-[60px]">{r.name}</span>
+                  </span>
+                );
+              })}
+          </div>
+        )}
       </div>
     </aside>
   );

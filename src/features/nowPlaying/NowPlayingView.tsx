@@ -1,10 +1,15 @@
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { X, Music } from 'lucide-react';
+import { motion, useMotionValue, useSpring } from 'framer-motion';
+import { X, Music, ChevronDown, ChevronUp, Sparkles } from 'lucide-react';
 import { usePlayerStore } from '@/stores/playerStore';
 import { useSourcesStore } from '@/stores/sourcesStore';
+import { useListeningHistoryStore } from '@/stores/listeningHistoryStore';
+import { useLibraryStore } from '@/stores/libraryStore';
 import { AudioReactiveBackground } from '@/components/layout/AudioReactiveBackground';
+import { CrossfadeIndicator } from '@/components/player/CrossfadeIndicator';
 import { Button } from '@/components/ui/Button';
+import type { Track } from '@/types/global';
 
 const SOURCE_BADGE_COLORS: Record<string, string> = {
   local: 'bg-blue-500/20 text-blue-300 border-blue-500/40',
@@ -29,6 +34,48 @@ function sourceLabel(source: string): string {
   return source;
 }
 
+function useMouseParallax(strength: number = 10): {
+  onMouseMove: (e: React.MouseEvent<HTMLDivElement>) => void;
+  onMouseLeave: () => void;
+  style: { x: ReturnType<typeof useSpring>; y: ReturnType<typeof useSpring> };
+} {
+  const x = useMotionValue(0);
+  const y = useMotionValue(0);
+  const sx = useSpring(x, { stiffness: 80, damping: 18 });
+  const sy = useSpring(y, { stiffness: 80, damping: 18 });
+  return {
+    onMouseMove: (e: React.MouseEvent<HTMLDivElement>) => {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const px = (e.clientX - rect.left) / rect.width - 0.5;
+      const py = (e.clientY - rect.top) / rect.height - 0.5;
+      x.set(px * strength);
+      y.set(py * strength);
+    },
+    onMouseLeave: () => {
+      x.set(0);
+      y.set(0);
+    },
+    style: { x: sx, y: sy },
+  };
+}
+
+function pickSimilarTracks(current: Track, history: Track[], library: Track[]): Track[] {
+  if (!current.artists[0]) return [];
+  const currentArtistName = current.artists[0].name.toLowerCase();
+  const currentId = current.id;
+  const seen = new Set<string>([currentId]);
+  const out: Track[] = [];
+  for (const t of [...history, ...library]) {
+    if (out.length >= 5) break;
+    if (seen.has(t.id)) continue;
+    if (t.artists.some((a) => a.name.toLowerCase() === currentArtistName)) {
+      out.push(t);
+      seen.add(t.id);
+    }
+  }
+  return out;
+}
+
 export function NowPlayingView(): JSX.Element {
   const navigate = useNavigate();
   const currentTrack = usePlayerStore((s) => s.currentTrack);
@@ -41,6 +88,8 @@ export function NowPlayingView(): JSX.Element {
   const volume = usePlayerStore((s) => s.volume);
   const error = usePlayerStore((s) => s.error);
   const registrations = useSourcesStore((s) => s.registrations);
+  const history = useListeningHistoryStore((s) => s.entries);
+  const libraryTracks = useLibraryStore((s) => s.tracks);
   const setVolume = usePlayerStore((s) => s.setVolume);
   const toggleShuffle = usePlayerStore((s) => s.toggleShuffle);
   const cycleRepeat = usePlayerStore((s) => s.cycleRepeat);
@@ -50,6 +99,11 @@ export function NowPlayingView(): JSX.Element {
   const previous = usePlayerStore((s) => s.previous);
   const seek = usePlayerStore((s) => s.seek);
 
+  const parallax = useMouseParallax(12);
+  const [creditsOpen, setCreditsOpen] = useState(false);
+  const lastSimilarTrackId = useRef<string | null>(null);
+  const [similar, setSimilar] = useState<Track[]>([]);
+
   const artworkUrl = currentTrack?.artworkUrl ?? currentTrack?.album?.artworkUrl ?? null;
   const progress = durationMs > 0 ? (positionMs / durationMs) * 100 : 0;
   const hasTrack = currentTrack !== null;
@@ -57,6 +111,38 @@ export function NowPlayingView(): JSX.Element {
     currentTrack != null
       ? (registrations.find((r) => r.id === currentTrack.source)?.name ?? currentTrack.source)
       : null;
+
+  useEffect(() => {
+    if (!currentTrack) {
+      if (lastSimilarTrackId.current !== null) {
+        lastSimilarTrackId.current = null;
+        setSimilar([]);
+      }
+      return;
+    }
+    if (currentTrack.id === lastSimilarTrackId.current) return;
+    lastSimilarTrackId.current = currentTrack.id;
+    const historyTracks: Track[] = history.map((h) => ({
+      id: h.id,
+      sourceId: h.sourceId,
+      source: h.source,
+      title: h.title,
+      artists: [{ id: h.sourceId, source: h.source, name: h.artist }],
+      album: h.album
+        ? {
+            id: h.album,
+            source: h.source,
+            title: h.album,
+            artists: [{ id: h.sourceId, source: h.source, name: h.artist }],
+            artworkUrl: h.artworkUrl ?? undefined,
+          }
+        : undefined,
+      durationMs: h.durationMs,
+      artworkUrl: h.artworkUrl ?? undefined,
+      isPlayable: true,
+    }));
+    setSimilar(pickSimilarTracks(currentTrack, historyTracks, libraryTracks));
+  }, [currentTrack, history, libraryTracks]);
 
   return (
     <div className="relative h-full w-full overflow-hidden">
@@ -98,13 +184,25 @@ export function NowPlayingView(): JSX.Element {
               initial={{ scale: 0.92, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               transition={{ type: 'spring', stiffness: 220, damping: 28 }}
-              className="w-72 h-72 rounded-2xl object-cover shadow-glow-lg mb-8 ring-1 ring-white/10"
+              style={parallax.style}
+              className="w-72 h-72 rounded-2xl object-cover shadow-glow-lg mb-8 ring-1 ring-white/10 will-change-transform"
             />
           ) : (
-            <div className="w-72 h-72 rounded-2xl bg-zinc-800/60 backdrop-blur-md ring-1 ring-white/10 flex items-center justify-center text-zinc-500 mb-8">
+            <motion.div
+              style={parallax.style}
+              className="w-72 h-72 rounded-2xl bg-zinc-800/60 backdrop-blur-md ring-1 ring-white/10 flex items-center justify-center text-zinc-500 mb-8 will-change-transform"
+              aria-label="No artwork"
+            >
               <Music size={96} />
-            </div>
+            </motion.div>
           )}
+
+          <div
+            aria-hidden
+            className="absolute inset-0 -z-[4] pointer-events-none"
+            onMouseMove={parallax.onMouseMove}
+            onMouseLeave={parallax.onMouseLeave}
+          />
 
           <h1 className="text-4xl font-bold text-white tracking-tight">
             {currentTrack?.title ?? 'No track playing'}
@@ -135,14 +233,61 @@ export function NowPlayingView(): JSX.Element {
             </p>
           )}
 
+          {currentTrack && (
+            <button
+              type="button"
+              onClick={() => setCreditsOpen((v) => !v)}
+              className="mt-3 inline-flex items-center gap-1 text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+              aria-expanded={creditsOpen}
+              aria-controls="now-playing-credits"
+            >
+              <Sparkles size={11} aria-hidden />
+              Credits
+              {creditsOpen ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
+            </button>
+          )}
+
+          {creditsOpen && currentTrack && (
+            <div
+              id="now-playing-credits"
+              className="mt-2 w-full max-w-md glass rounded-lg p-3 text-left text-xs space-y-1 animate-scale-in"
+            >
+              <p className="flex items-center justify-between gap-3">
+                <span className="text-zinc-500">Title</span>
+                <span className="text-zinc-200 truncate">{currentTrack.title}</span>
+              </p>
+              <p className="flex items-center justify-between gap-3">
+                <span className="text-zinc-500">Artist</span>
+                <span className="text-zinc-200 truncate">
+                  {currentTrack.artists.map((a) => a.name).join(', ') || 'Unknown'}
+                </span>
+              </p>
+              {currentTrack.album && (
+                <p className="flex items-center justify-between gap-3">
+                  <span className="text-zinc-500">Album</span>
+                  <span className="text-zinc-200 truncate">{currentTrack.album.title}</span>
+                </p>
+              )}
+              <p className="flex items-center justify-between gap-3">
+                <span className="text-zinc-500">Duration</span>
+                <span className="text-zinc-200 tabular-nums">{formatTime(durationMs)}</span>
+              </p>
+              <p className="flex items-center justify-between gap-3">
+                <span className="text-zinc-500">Source</span>
+                <span className="text-zinc-200">{sourceName}</span>
+              </p>
+            </div>
+          )}
+
           <div className="w-full max-w-2xl mt-8">
             <div className="flex items-center gap-3 text-xs text-zinc-300 tabular-nums">
               <span className="w-12 text-right">{formatTime(positionMs)}</span>
-              <div className="flex-1 h-1.5 rounded-full bg-white/10 overflow-hidden">
+              <div className="flex-1 h-1.5 rounded-full bg-white/10 overflow-hidden relative">
                 <div
                   className="h-full bg-gradient-to-r from-brand-500 to-accent-400 rounded-full transition-[width] duration-100"
                   style={{ width: `${progress}%` }}
                 />
+                <CrossfadeIndicator durationMs={durationMs} />
               </div>
               <span className="w-12">{formatTime(durationMs)}</span>
             </div>
@@ -220,6 +365,52 @@ export function NowPlayingView(): JSX.Element {
               <RepeatIcon active={repeat !== 'off'} />
             </button>
           </div>
+
+          {similar.length > 0 && (
+            <section className="w-full max-w-3xl mt-6 px-2" aria-label="More by this artist">
+              <p className="text-xs uppercase tracking-wider text-zinc-500 mb-2 flex items-center gap-1.5 justify-center">
+                <Sparkles size={11} aria-hidden />
+                More by {currentTrack?.artists[0]?.name ?? 'this artist'}
+              </p>
+              <div className="flex gap-2 overflow-x-auto pb-2 -mx-2 px-2 scroll-shadow">
+                {similar.map((t) => {
+                  const tArt = t.artworkUrl ?? t.album?.artworkUrl;
+                  return (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => {
+                        const queue = usePlayerStore.getState().queue;
+                        const idx = queue.findIndex((q) => q.id === t.id);
+                        if (idx >= 0) {
+                          usePlayerStore
+                            .getState()
+                            .setQueue(queue, idx, { shuffle: false, smartShuffle: false });
+                        }
+                      }}
+                      className="shrink-0 w-32 text-left rounded-lg p-1.5 hover:bg-zinc-800/60 transition-colors group"
+                    >
+                      {tArt ? (
+                        <img
+                          src={tArt}
+                          alt=""
+                          className="w-full aspect-square rounded object-cover mb-1.5"
+                        />
+                      ) : (
+                        <div className="w-full aspect-square rounded bg-zinc-800 flex items-center justify-center mb-1.5">
+                          <Music size={20} className="text-zinc-600" />
+                        </div>
+                      )}
+                      <p className="text-xs text-zinc-200 truncate">{t.title}</p>
+                      <p className="text-[10px] text-zinc-500 truncate">
+                        {t.artists.map((a) => a.name).join(', ')}
+                      </p>
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+          )}
 
           <div className="flex items-center gap-3 mt-6 w-full max-w-xs">
             <button
