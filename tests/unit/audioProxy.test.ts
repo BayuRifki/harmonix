@@ -303,7 +303,7 @@ describe('audioProxy', () => {
       statusText: 'OK',
       headers: new Headers({ 'content-type': 'application/octet-stream' }),
       body: nodeStream,
-    } as Response);
+    } as unknown as Response);
     const handler = await setupHandler(mod);
     const res = await handler({ url: `harmonix-media://stream/${id}` });
     expect(res.status).toBe(200);
@@ -325,7 +325,7 @@ describe('audioProxy', () => {
       statusText: 'OK',
       headers: new Headers({ 'content-type': 'audio/mpeg' }),
       body: nodeStream,
-    } as Response);
+    } as unknown as Response);
     const handler = await setupHandler(mod);
     const res = await handler({ url: `harmonix-media://stream/${id}` });
     expect(res.headers.get('Content-Type')).toBe('audio/mpeg');
@@ -350,7 +350,7 @@ describe('audioProxy', () => {
       statusText: 'OK',
       headers: new Headers({ 'content-type': 'application/octet-stream' }),
       body: nodeStream,
-    } as Response);
+    } as unknown as Response);
     const handler = await setupHandler(mod);
     const res = await handler({ url: `harmonix-media://stream/${id}` });
     expect(res.status).toBe(200);

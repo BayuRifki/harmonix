@@ -26,11 +26,29 @@ export class AudioEngine {
   };
   private state: PlaybackState = 'idle';
 
-  private ensureContext(): AudioContext {
+  private ensureContext(): AudioContext | null {
     if (!this.ctx) {
-      this.ctx = new AudioContext();
-      this.gainNode = this.ctx.createGain();
-      equalizer.connect(this.gainNode, this.ctx.destination);
+      try {
+        this.ctx = new AudioContext();
+        this.gainNode = this.ctx.createGain();
+        try {
+          equalizer.connect(this.gainNode, this.ctx.destination);
+        } catch (eqErr) {
+          // eslint-disable-next-line no-console
+          console.warn(
+            '[audioEngine] equalizer.connect failed, continuing without EQ:',
+            (eqErr as Error).message,
+          );
+        }
+      } catch (ctxErr) {
+        // eslint-disable-next-line no-console
+        console.warn(
+          '[audioEngine] AudioContext setup failed, falling back to direct playback:',
+          (ctxErr as Error).message,
+        );
+        this.ctx = null;
+        this.gainNode = null;
+      }
     }
     return this.ctx;
   }
@@ -108,9 +126,30 @@ export class AudioEngine {
   async load(url: string): Promise<void> {
     this.setState('loading');
     const ctx = this.ensureContext();
-    if (ctx.state === 'suspended') {
+    if (ctx && ctx.state === 'suspended') {
       await ctx.resume();
     }
+
+    // Helper: try to wire the audio element into the Web Audio graph
+    // (gain + EQ). If anything throws (e.g. `createMediaElementSource`
+    // fails because the audio is CORS-tainted in some Chromium
+    // configurations), fall back to direct HTMLAudioElement playback —
+    // the audio plays, just without EQ / gain processing.
+    const tryWireSource = (target: HTMLAudioElement): void => {
+      if (!ctx || !this.gainNode) return;
+      try {
+        const node = ctx.createMediaElementSource(target);
+        node.connect(this.gainNode);
+        this.sourceNode = node;
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.warn(
+          `[audioEngine] createMediaElementSource failed for ${url}; falling back to direct playback:`,
+          (err as Error).message,
+        );
+        this.sourceNode = null;
+      }
+    };
 
     // Fast path: a preload of this exact URL is already warm.
     if (this.preloadedAudio && this.preloadedUrl === url) {
@@ -120,12 +159,8 @@ export class AudioEngine {
       this.cleanupCurrentAudio();
       this.currentAudio = reused;
 
-      // Always route the audio element through the AudioContext graph
-      // (gain + 10-band EQ). Previously this was only done for
-      // file:// URLs, which silently bypassed the EQ for HTTP streams
-      // like YT Music (via googlevideo.com) and Jamendo.
-      this.sourceNode = ctx.createMediaElementSource(reused);
-      this.sourceNode.connect(this.gainNode!);
+      // Route through AudioContext if available (best-effort).
+      tryWireSource(reused);
 
       this.attachAllListeners(reused);
       this.emit('time', 0, Math.round(reused.duration * 1000));
@@ -158,9 +193,8 @@ export class AudioEngine {
     audio.src = url;
     this.currentAudio = audio;
 
-    // Always route through AudioContext. See note above.
-    this.sourceNode = ctx.createMediaElementSource(audio);
-    this.sourceNode.connect(this.gainNode!);
+    // Route through AudioContext if available (best-effort).
+    tryWireSource(audio);
 
     this.attachAllListeners(audio);
 
@@ -207,6 +241,17 @@ export class AudioEngine {
     }
   }
 
+  /**
+   * Returns true if the most recent load() successfully wired the
+   * audio element into the Web Audio graph (so the gain + EQ apply).
+   * When this is false, the audio is playing via the HTMLAudioElement
+   * directly (volume control still works via `audio.volume`, but
+   * there's no EQ / per-band gain processing).
+   */
+  isWebAudioActive(): boolean {
+    return this.sourceNode !== null && this.gainNode !== null;
+  }
+
   private attachAllListeners(audio: HTMLAudioElement): void {
     audio.addEventListener('loadedmetadata', () => {
       this.emit('time', 0, Math.round(audio.duration * 1000));
@@ -244,11 +289,17 @@ export class AudioEngine {
   }
 
   setVolume(volume: number): void {
-    if (this.gainNode) {
-      this.gainNode.gain.value = Math.max(0, Math.min(1, volume));
-    }
+    const v = Math.max(0, Math.min(1, volume));
+    // Always set the audio element's volume so direct playback
+    // (no source node) still respects the user's volume setting.
     if (this.currentAudio) {
-      this.currentAudio.volume = Math.max(0, Math.min(1, volume));
+      this.currentAudio.volume = v;
+    }
+    // Set the Web Audio gain too when we have a source node.
+    // When there's no source node, the gain isn't in the audio
+    // path, but the value is kept in case a future load wires one.
+    if (this.gainNode) {
+      this.gainNode.gain.value = v;
     }
   }
 
@@ -264,7 +315,11 @@ export class AudioEngine {
     this.cancelPreload();
     this.cleanupCurrentAudio();
     this.currentAudio = null;
-    equalizer.disconnect();
+    try {
+      equalizer.disconnect();
+    } catch {
+      // ignore — equalizer may not have been connected
+    }
     if (this.ctx) {
       void this.ctx.close();
       this.ctx = null;
