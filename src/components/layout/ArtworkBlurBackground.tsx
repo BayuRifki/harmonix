@@ -17,8 +17,10 @@ export function ArtworkBlurBackground({
   const artworkUrl = usePlayerStore((s) => s.currentTrack?.artworkUrl) ?? null;
   const [loadedUrl, setLoadedUrl] = useState<string | null>(null);
   const imgRef = useRef<HTMLImageElement | null>(null);
+  const cancelledRef = useRef(false);
 
   useEffect(() => {
+    cancelledRef.current = false;
     if (artworkUrl === loadedUrl) return;
     if (!artworkUrl) {
       setLoadedUrl(null);
@@ -28,13 +30,21 @@ export function ArtworkBlurBackground({
     const img = new Image();
     img.crossOrigin = 'anonymous';
     img.onload = (): void => {
+      if (cancelledRef.current) return;
       imgRef.current = img;
       setLoadedUrl(artworkUrl);
     };
     img.onerror = (): void => {
+      if (cancelledRef.current) return;
       imgRef.current = null;
     };
     img.src = artworkUrl;
+    return () => {
+      cancelledRef.current = true;
+      img.removeAttribute('src');
+      img.onload = null;
+      img.onerror = null;
+    };
   }, [artworkUrl, loadedUrl]);
 
   if (!loadedUrl || !imgRef.current) return null;

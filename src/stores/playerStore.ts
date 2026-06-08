@@ -144,6 +144,7 @@ interface PlayerState {
   moveQueueItem: (from: number, to: number) => void;
   insertIntoQueue: (track: Track, position: number) => void;
   removeFromQueue: (position: number) => void;
+  teardown: () => void;
 }
 
 export const usePlayerStore = create<PlayerState>((set, get) => {
@@ -369,6 +370,13 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
       if (position < queueIndex) nextIndex = Math.max(0, queueIndex - 1);
       else if (position === queueIndex) nextIndex = Math.min(nextIndex, next.length - 1);
       set({ queue: next, queueIndex: nextIndex });
+    },
+
+    teardown: () => {
+      offState();
+      offTime();
+      offEnded();
+      offError();
     },
   };
 });

@@ -67,6 +67,8 @@ export function MiniPlayerView(): JSX.Element {
   const [config, setConfig] = useState<MiniPlayerConfig | null>(null);
   const [contextOpen, setContextOpen] = useState(false);
   const contextRef = useRef<HTMLDivElement>(null);
+  const isPlayingRef = useRef(snapshot.isPlaying);
+  isPlayingRef.current = snapshot.isPlaying;
   const toast = useToastStore();
   const insertIntoQueue = usePlayerStore((s) => s.insertIntoQueue);
 
@@ -82,7 +84,7 @@ export function MiniPlayerView(): JSX.Element {
       setSnapshot(s);
     });
     const tick = window.setInterval(() => {
-      if (snapshot.isPlaying) {
+      if (isPlayingRef.current) {
         setSnapshot((prev) => {
           if (!prev.isPlaying) return prev;
           const next = prev.positionMs + 500;
@@ -96,7 +98,7 @@ export function MiniPlayerView(): JSX.Element {
       off();
       window.clearInterval(tick);
     };
-  }, [snapshot.isPlaying]);
+  }, []);
 
   useEffect(() => {
     const onClick = (e: MouseEvent): void => {

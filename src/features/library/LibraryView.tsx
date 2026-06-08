@@ -50,6 +50,11 @@ export function LibraryView(): JSX.Element {
       pollCleanup();
       setPollCleanup(null);
     }
+    return () => {
+      if (pollCleanup) {
+        pollCleanup();
+      }
+    };
   }, [scanning, pollCleanup]);
 
   const q = searchQuery.trim().toLowerCase();

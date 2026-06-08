@@ -184,14 +184,18 @@ export function NowPlayingView(): JSX.Element {
 
   useEffect(() => {
     if (typeof document === 'undefined') return;
+    const root = document.documentElement;
     if (theme === 'brand-pink') {
-      document.documentElement.style.setProperty('--accent', 'hsl(322, 81%, 60%)');
-      document.documentElement.style.setProperty('--accent-hover', 'hsl(322, 81%, 52%)');
-      document.documentElement.style.setProperty('--accent-vibrant', 'hsl(322, 81%, 65%)');
-      document.documentElement.style.setProperty('--accent-muted', 'hsl(322, 40%, 30%)');
+      root.style.setProperty('--accent', 'hsl(322, 81%, 60%)');
+      root.style.setProperty('--accent-hover', 'hsl(322, 81%, 52%)');
+      root.style.setProperty('--accent-vibrant', 'hsl(322, 81%, 65%)');
+      root.style.setProperty('--accent-muted', 'hsl(322, 40%, 30%)');
     }
     return (): void => {
-      // CSS vars are already updated by useAdaptiveAccent when artwork changes
+      root.style.removeProperty('--accent');
+      root.style.removeProperty('--accent-hover');
+      root.style.removeProperty('--accent-vibrant');
+      root.style.removeProperty('--accent-muted');
     };
   }, [theme]);
 

@@ -243,7 +243,8 @@ export function useKeyboardNavigation(options: KeyboardNavigationOptions = {}): 
     return (): void => {
       window.removeEventListener('keydown', handler);
     };
-  }, [options, toggleCommandPalette, toggleHelp, isEnabled]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [toggleCommandPalette, toggleHelp, isEnabled]);
 }
 
 declare global {

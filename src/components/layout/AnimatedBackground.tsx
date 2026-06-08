@@ -58,21 +58,28 @@ export function AnimatedBackground(): JSX.Element {
     }
     let raf: number | null = null;
     let lastBass = 0;
+    let analyser: AnalyserNode | null = null;
+    let data: Uint8Array | null = null;
+    const gain = audioEngine.getGainNode();
+    if (gain && 'createAnalyser' in (gain.context as AudioContext)) {
+      try {
+        const ctx = gain.context as AudioContext;
+        analyser = ctx.createAnalyser();
+        analyser.fftSize = 64;
+        gain.connect(analyser);
+        data = new Uint8Array(analyser.frequencyBinCount);
+      } catch {
+        // ignore
+      }
+    }
     const sample = (): void => {
-      const gain = audioEngine.getGainNode();
-      if (gain && 'createAnalyser' in (gain.context as AudioContext)) {
+      if (analyser && data) {
         try {
-          const ctx = gain.context as AudioContext;
-          const analyser = ctx.createAnalyser();
-          analyser.fftSize = 64;
-          gain.connect(analyser);
-          const data = new Uint8Array(analyser.frequencyBinCount);
-          analyser.getByteFrequencyData(data);
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          analyser.getByteFrequencyData(data as any);
           let sum = 0;
           for (let i = 0; i < 4; i++) sum += data[i] ?? 0;
-          const bass = sum / 4 / 255;
-          lastBass = bass;
-          analyser.disconnect();
+          lastBass = sum / 4 / 255;
         } catch {
           // ignore
         }
@@ -83,6 +90,13 @@ export function AnimatedBackground(): JSX.Element {
     raf = requestAnimationFrame(sample);
     return (): void => {
       if (raf !== null) cancelAnimationFrame(raf);
+      if (analyser) {
+        try {
+          analyser.disconnect();
+        } catch {
+          // ignore
+        }
+      }
     };
   }, [isPlaying, reduced, userReducedMotion]);
 
