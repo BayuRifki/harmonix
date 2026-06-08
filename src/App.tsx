@@ -54,6 +54,9 @@ const EqualizerView = lazy(() =>
 const SourceView = lazy(() =>
   import('@/features/source/SourceView').then((m) => ({ default: m.SourceView })),
 );
+const AnalyticsView = lazy(() =>
+  import('@/features/analytics/AnalyticsView').then((m) => ({ default: m.AnalyticsView })),
+);
 const MiniPlayerView = lazy(() =>
   import('@/features/miniPlayer/MiniPlayerView').then((m) => ({ default: m.MiniPlayerView })),
 );
@@ -209,6 +212,14 @@ function MainApp(): JSX.Element {
                     element={
                       <PageTransition>
                         <SourceView />
+                      </PageTransition>
+                    }
+                  />
+                  <Route
+                    path="/analytics"
+                    element={
+                      <PageTransition>
+                        <AnalyticsView />
                       </PageTransition>
                     }
                   />

@@ -30,6 +30,7 @@ import {
   Play,
   X,
   RotateCcw,
+  BarChart3,
 } from 'lucide-react';
 import { LogoMark } from '@/components/branding/LogoMark';
 import { PlaylistCardSidebar } from '@/components/sidebar/PlaylistCardSidebar';
@@ -60,6 +61,7 @@ const STATIC_NAV: StaticNavItem[] = [
   { to: '/library', label: 'Library', icon: Library },
   { to: '/favorites', label: 'Favorites', icon: Heart },
   { to: '/playlists', label: 'Playlists', icon: Music },
+  { to: '/analytics', label: 'Analytics', icon: BarChart3 },
   { to: '/equalizer', label: 'Equalizer', icon: SlidersHorizontal },
   { to: '/settings', label: 'Settings', icon: Settings },
 ];
@@ -72,6 +74,7 @@ const RECENT_LABEL: Record<string, string> = {
   '/library': 'Library',
   '/favorites': 'Favorites',
   '/playlists': 'Playlists',
+  '/analytics': 'Analytics',
   '/equalizer': 'Equalizer',
   '/settings': 'Settings',
   '/search': 'Search',

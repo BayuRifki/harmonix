@@ -80,6 +80,7 @@ describe('ExploreView', () => {
           source: 'spotify',
           durationMs: 1000,
           playedAt: Date.now(),
+          genre: null,
         },
       ],
     });

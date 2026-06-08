@@ -24,6 +24,7 @@ const STARTER_RECOMMENDATIONS: HistoryEntry[] = [
     source: 'local',
     durationMs: 0,
     playedAt: 0,
+    genre: null,
   },
   {
     id: 'starter-search',
@@ -35,6 +36,7 @@ const STARTER_RECOMMENDATIONS: HistoryEntry[] = [
     source: 'search',
     durationMs: 0,
     playedAt: 0,
+    genre: null,
   },
 ];
 

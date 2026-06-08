@@ -70,14 +70,23 @@ describe('listeningHistoryStore', () => {
     expect(entries[1]!.id).toBe('t2');
   });
 
-  it('caps at 20 entries', () => {
-    for (let i = 0; i < 25; i++) {
+  it('caps entries at MAX_ENTRIES (500)', () => {
+    for (let i = 0; i < 510; i++) {
       useListeningHistoryStore.getState().add(makeTrack({ id: `t${i}`, title: `Track ${i}` }));
     }
     const entries = useListeningHistoryStore.getState().entries;
-    expect(entries).toHaveLength(20);
-    expect(entries[0]!.id).toBe('t24');
-    expect(entries[19]!.id).toBe('t5');
+    expect(entries).toHaveLength(500);
+    expect(entries[0]!.id).toBe('t509');
+    expect(entries[499]!.id).toBe('t10');
+  });
+
+  it('getRecent respects limit cap', () => {
+    for (let i = 0; i < 25; i++) {
+      useListeningHistoryStore.getState().add(makeTrack({ id: `t${i}`, title: `Track ${i}` }));
+    }
+    const recent = useListeningHistoryStore.getState().getRecent(20);
+    expect(recent).toHaveLength(20);
+    expect(recent[0]!.id).toBe('t24');
   });
 
   it('skips tracks without id', () => {

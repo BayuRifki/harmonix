@@ -42,6 +42,7 @@ describe('ForYouSection', () => {
           source: 'spotify',
           durationMs: 1000,
           playedAt: Date.now(),
+          genre: null,
         },
         {
           id: 'r2',
@@ -53,6 +54,7 @@ describe('ForYouSection', () => {
           source: 'local',
           durationMs: 1000,
           playedAt: Date.now() - 1000,
+          genre: null,
         },
       ],
     });
@@ -74,6 +76,7 @@ describe('ForYouSection', () => {
         source: 'spotify',
         durationMs: 1000,
         playedAt: Date.now() - i * 1000,
+        genre: null,
       })),
     });
     renderWithRouter(<ForYouSection limit={3} layout="grid" />);
@@ -116,6 +119,7 @@ describe('ForYouSection', () => {
           source: 'spotify',
           durationMs: 2000,
           playedAt: Date.now(),
+          genre: null,
         },
       ],
     });
