@@ -44,6 +44,7 @@ jobs:
           node-version: '20'
           cache: 'npm'
       - run: npm ci
+      - run: npm rebuild better-sqlite3
       - run: npm run test
       - name: Upload coverage
         if: matrix.os == 'ubuntu-latest'
@@ -73,6 +74,7 @@ jobs:
           restore-keys: |
             yt-dlp-${{ runner.os }}-
       - run: npm ci
+      - run: npx @electron/rebuild -f -w better-sqlite3
       - run: npm run build
       - name: Build distributable (Linux)
         if: matrix.os == 'ubuntu-latest'
