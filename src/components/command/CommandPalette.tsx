@@ -26,6 +26,7 @@ import { usePlayerStore } from '@/stores/playerStore';
 import { useThemeStore } from '@/stores/themeStore';
 import { useToastStore } from '@/components/ui/toastStore';
 import { fuzzySearch, highlightMatches, type FuzzyMatch } from './fuzzyMatch';
+import { CommandPreview } from '@/components/command/CommandPreview';
 
 type IconType = typeof Search;
 
@@ -417,7 +418,7 @@ export function CommandPalette(): JSX.Element | null {
         className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fade-in"
         onClick={close}
       />
-      <div className="relative w-full max-w-xl glass-heavy border border-zinc-800/60 rounded-2xl shadow-2xl ring-1 ring-white/5 overflow-hidden animate-scale-in">
+      <div className="relative w-full max-w-3xl glass-heavy border border-zinc-800/60 rounded-2xl shadow-2xl ring-1 ring-white/5 overflow-hidden animate-scale-in flex">
         <div className="flex items-center gap-3 px-4 py-3 border-b border-zinc-800">
           <Search size={16} className="text-zinc-500 shrink-0" aria-hidden />
           <input
@@ -572,6 +573,7 @@ export function CommandPalette(): JSX.Element | null {
           </div>
           <span>{matches.length} results</span>
         </div>
+        <CommandPreview item={matches[activeIndex]?.item ?? null} />
       </div>
     </div>
   );

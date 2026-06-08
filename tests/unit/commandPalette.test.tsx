@@ -70,9 +70,9 @@ describe('CommandPalette', () => {
   it('lists built-in navigation items', () => {
     renderPalette();
     openPalette();
-    expect(screen.getByText('Go to Home')).toBeInTheDocument();
-    expect(screen.getByText('Go to Library')).toBeInTheDocument();
-    expect(screen.getByText('Open Settings')).toBeInTheDocument();
+    expect(screen.getAllByText('Go to Home').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Go to Library').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Open Settings').length).toBeGreaterThan(0);
   });
 
   it('filters items by query', () => {

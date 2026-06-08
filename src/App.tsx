@@ -24,6 +24,7 @@ import { useThemeStore } from '@/stores/themeStore';
 import { useUiStore } from '@/stores/uiStore';
 import { useAdaptiveAccent } from '@/hooks/useAdaptiveAccent';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
+import { useKeyboardNavigation } from '@/hooks/useKeyboardNavigation';
 import { useMediaSession } from '@/hooks/useMediaSession';
 import { usePlayerStateSync } from '@/hooks/usePlayerStateSync';
 import { useFocusRestoration } from '@/hooks/useFocusRestoration';
@@ -33,6 +34,7 @@ import { CommandPalette } from '@/components/command/CommandPalette';
 import { PlayerAnnouncer } from '@/components/a11y/PlayerAnnouncer';
 import { SkipToContent } from '@/components/a11y/SkipToContent';
 import { RouteChangeIndicator } from '@/components/a11y/RouteLoader';
+import { KeyboardHelpOverlay } from '@/components/keyboard/KeyboardHelpOverlay';
 
 function PageTransition({ children }: { children: ReactNode }): JSX.Element {
   return (
@@ -65,6 +67,7 @@ function MainApp(): JSX.Element {
 
   useAdaptiveAccent();
   useKeyboardShortcuts();
+  useKeyboardNavigation();
   useMediaSession();
   usePlayerStateSync();
   useFocusRestoration();
@@ -100,6 +103,7 @@ function MainApp(): JSX.Element {
         </div>
         <ToastContainer />
         <CommandPalette />
+        <KeyboardHelpOverlay />
       </div>
     );
   }
@@ -207,6 +211,7 @@ function MainApp(): JSX.Element {
       <PlayerBar />
       <ToastContainer />
       <CommandPalette />
+      <KeyboardHelpOverlay />
     </div>
   );
 }

@@ -6,6 +6,14 @@ import { usePlayerStore } from '@/stores/playerStore';
 import { useSearchHistoryStore } from '@/stores/searchHistoryStore';
 import { Skeleton } from '@/components/ui/Skeleton';
 import type { Track, SourceSearchResult } from '@/types/global';
+import { SearchFiltersBar } from '@/features/search/SearchFiltersBar';
+import {
+  applyFilters,
+  DEFAULT_FILTERS,
+  readFiltersFromParams,
+  writeFiltersToParams,
+  type SearchFiltersState,
+} from '@/features/search/searchFilters';
 
 type GroupedResults = SourceSearchResult & { sourceName: string };
 
@@ -34,6 +42,9 @@ export function SearchView(): JSX.Element {
   const clearRecent = useSearchHistoryStore((s) => s.clear);
   const [searchParams, setSearchParams] = useSearchParams();
   const sourceParam = searchParams.get('source');
+  const [filters, setFilters] = useState<SearchFiltersState>(() =>
+    readFiltersFromParams(searchParams),
+  );
 
   useEffect(() => {
     void refresh();
@@ -97,18 +108,42 @@ export function SearchView(): JSX.Element {
     });
   };
 
-  const totalTracks = results.reduce((sum, r) => sum + r.result.tracks.length, 0);
+  const handleFiltersChange = (next: SearchFiltersState): void => {
+    setFilters(next);
+    const params = writeFiltersToParams(next, searchParams);
+    setSearchParams(params, { replace: true });
+  };
+
+  const handleResetFilters = (): void => {
+    setFilters(DEFAULT_FILTERS);
+    const params = writeFiltersToParams(DEFAULT_FILTERS, searchParams);
+    setSearchParams(params, { replace: true });
+  };
+
+  const filteredResults = useMemo(
+    () =>
+      results.map((g) => ({
+        ...g,
+        result: {
+          ...g.result,
+          tracks: applyFilters(g.result.tracks, filters),
+        },
+      })),
+    [results, filters],
+  );
+
+  const totalTracks = filteredResults.reduce((sum, r) => sum + r.result.tracks.length, 0);
 
   const topTrack = useMemo(() => {
-    for (const g of results) {
+    for (const g of filteredResults) {
       if (g.result.tracks.length > 0) return g.result.tracks[0];
     }
     return null;
-  }, [results]);
+  }, [filteredResults]);
   const topTrackGroup = useMemo(() => {
     if (!topTrack) return null;
-    return results.find((g) => g.result.tracks[0]?.id === topTrack.id) ?? null;
-  }, [results, topTrack]);
+    return filteredResults.find((g) => g.result.tracks[0]?.id === topTrack.id) ?? null;
+  }, [filteredResults, topTrack]);
 
   return (
     <div className="p-8 max-w-4xl">
@@ -148,6 +183,13 @@ export function SearchView(): JSX.Element {
           ))}
         </div>
       )}
+
+      <SearchFiltersBar
+        sources={enabledSources.map((s) => ({ id: s.id, name: s.name }))}
+        filters={filters}
+        onChange={handleFiltersChange}
+        onReset={handleResetFilters}
+      />
 
       <div className="mt-2">
         {query.trim() === '' ? (
@@ -229,7 +271,7 @@ export function SearchView(): JSX.Element {
                 <Play size={20} className="text-brand-300 shrink-0 mr-2" />
               </button>
             )}
-            {results
+            {filteredResults
               .filter((r) => r.result.tracks.length > 0)
               .map((group) => (
                 <section key={group.sourceId}>
