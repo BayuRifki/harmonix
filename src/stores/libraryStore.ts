@@ -7,6 +7,7 @@ import type {
   ScanProgress,
   LibraryStats,
 } from '@/types/global';
+import { useToastStore } from '@/components/ui/toastStore';
 
 interface LibraryState {
   tracks: Track[];
@@ -111,22 +112,48 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
   },
 
   startScanProgressPolling: () => {
+    let active = true;
+    let scanToastId: string | null = null;
+    const toast = useToastStore.getState();
     const interval = setInterval(async () => {
+      if (!active) return;
       const { scanning } = get();
       if (!scanning) {
+        if (scanToastId) {
+          toast.syncEnd(scanToastId);
+          scanToastId = null;
+        }
         clearInterval(interval);
         return;
       }
       try {
         const p = await window.api.library.scanProgress();
         set({ scanProgress: p });
+        if (!scanToastId) {
+          scanToastId = toast.syncStart('Scanning library…');
+        } else {
+          const fileCount = p.filesFound > 0 ? ` (${p.filesFound} files)` : '';
+          toast.syncProgress(scanToastId, p.done ? 100 : Math.min(95, p.filesFound));
+          toast.update(scanToastId, { message: `Scanning library${fileCount}…` });
+        }
         if (p.done) {
+          if (scanToastId) {
+            toast.syncEnd(scanToastId);
+            scanToastId = null;
+          }
           clearInterval(interval);
         }
       } catch {
         // ignore
       }
     }, 500);
-    return () => clearInterval(interval);
+    return () => {
+      active = false;
+      clearInterval(interval);
+      if (scanToastId) {
+        useToastStore.getState().syncEnd(scanToastId);
+        scanToastId = null;
+      }
+    };
   },
 }));

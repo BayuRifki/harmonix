@@ -82,7 +82,15 @@ const useToastStore = create<ToastStore>((set, get) => ({
 
   syncStart: (message) => {
     const id = generateId();
-    get().add(message, 'info', 0, { variant: 'sync', progress: 0 });
+    const toast: ToastItem = {
+      id,
+      message,
+      type: 'info',
+      duration: 0,
+      variant: 'sync',
+      progress: 0,
+    };
+    set((state) => ({ toasts: [...state.toasts, toast] }));
     return id;
   },
 

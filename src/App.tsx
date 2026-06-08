@@ -1,4 +1,4 @@
-import { useState, useEffect, type ReactNode } from 'react';
+import { useState, useEffect, Suspense, lazy, type ReactNode } from 'react';
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Sidebar } from '@/components/layout/Sidebar';
@@ -8,17 +8,6 @@ import { RightRail } from '@/components/layout/RightRail';
 import { AnimatedBackground } from '@/components/layout/AnimatedBackground';
 import { AudioReactiveBackground } from '@/components/layout/AudioReactiveBackground';
 import { ArtworkBlurBackground } from '@/components/layout/ArtworkBlurBackground';
-import { HomeView } from '@/features/home/HomeView';
-import { SearchView } from '@/features/search/SearchView';
-import { ExploreView } from '@/features/explore/ExploreView';
-import { LibraryView } from '@/features/library/LibraryView';
-import { PlaylistsView } from '@/features/playlist/PlaylistsView';
-import { SettingsView } from '@/features/settings/SettingsView';
-import { YtMusicDisclaimer } from '@/features/settings/YtMusicDisclaimer';
-import { EqualizerView } from '@/features/equalizer/EqualizerView';
-import { SourceView } from '@/features/source/SourceView';
-import { MiniPlayerView } from '@/features/miniPlayer/MiniPlayerView';
-import { NowPlayingView } from '@/features/nowPlaying/NowPlayingView';
 import { useEqualizerStore } from '@/stores/equalizerStore';
 import { useThemeStore } from '@/stores/themeStore';
 import { useUiStore } from '@/stores/uiStore';
@@ -34,7 +23,43 @@ import { CommandPalette } from '@/components/command/CommandPalette';
 import { PlayerAnnouncer } from '@/components/a11y/PlayerAnnouncer';
 import { SkipToContent } from '@/components/a11y/SkipToContent';
 import { RouteChangeIndicator } from '@/components/a11y/RouteLoader';
+import { RouteFallback } from '@/components/a11y/RouteFallback';
 import { KeyboardHelpOverlay } from '@/components/keyboard/KeyboardHelpOverlay';
+import { GlobalDndProvider } from '@/components/dnd/GlobalDndProvider';
+
+const HomeView = lazy(() =>
+  import('@/features/home/HomeView').then((m) => ({ default: m.HomeView })),
+);
+const SearchView = lazy(() =>
+  import('@/features/search/SearchView').then((m) => ({ default: m.SearchView })),
+);
+const ExploreView = lazy(() =>
+  import('@/features/explore/ExploreView').then((m) => ({ default: m.ExploreView })),
+);
+const LibraryView = lazy(() =>
+  import('@/features/library/LibraryView').then((m) => ({ default: m.LibraryView })),
+);
+const PlaylistsView = lazy(() =>
+  import('@/features/playlist/PlaylistsView').then((m) => ({ default: m.PlaylistsView })),
+);
+const SettingsView = lazy(() =>
+  import('@/features/settings/SettingsView').then((m) => ({ default: m.SettingsView })),
+);
+const YtMusicDisclaimer = lazy(() =>
+  import('@/features/settings/YtMusicDisclaimer').then((m) => ({ default: m.YtMusicDisclaimer })),
+);
+const EqualizerView = lazy(() =>
+  import('@/features/equalizer/EqualizerView').then((m) => ({ default: m.EqualizerView })),
+);
+const SourceView = lazy(() =>
+  import('@/features/source/SourceView').then((m) => ({ default: m.SourceView })),
+);
+const MiniPlayerView = lazy(() =>
+  import('@/features/miniPlayer/MiniPlayerView').then((m) => ({ default: m.MiniPlayerView })),
+);
+const NowPlayingView = lazy(() =>
+  import('@/features/nowPlaying/NowPlayingView').then((m) => ({ default: m.NowPlayingView })),
+);
 
 function PageTransition({ children }: { children: ReactNode }): JSX.Element {
   return (
@@ -110,108 +135,112 @@ function MainApp(): JSX.Element {
 
   return (
     <div className="h-screen flex flex-col text-zinc-100">
-      <SkipToContent />
-      <PlayerAnnouncer />
-      <RouteChangeIndicator />
-      <YtMusicDisclaimer />
-      <AnimatedBackground />
-      {isHome && <AudioReactiveBackground />}
-      <ArtworkBlurBackground opacity={0.18} />
-      {showTopBar && <TopBar />}
-      <div className="flex-1 flex overflow-hidden">
-        <Sidebar />
-        <main id="main-content" className="flex-1 overflow-y-auto min-w-0">
-          <AnimatePresence mode="wait" initial={false}>
-            <Routes location={location} key={location.pathname}>
-              <Route
-                path="/"
-                element={
-                  <PageTransition>
-                    <HomeView />
-                  </PageTransition>
-                }
-              />
-              <Route
-                path="/search"
-                element={
-                  <PageTransition>
-                    <SearchView />
-                  </PageTransition>
-                }
-              />
-              <Route
-                path="/library"
-                element={
-                  <PageTransition>
-                    <LibraryView />
-                  </PageTransition>
-                }
-              />
-              <Route
-                path="/playlists"
-                element={
-                  <PageTransition>
-                    <PlaylistsView
-                      selectedId={selectedPlaylistId}
-                      onSelect={(id) => {
-                        setSelectedPlaylistId(id);
-                        if (id !== null) navigate('/playlists');
-                      }}
-                    />
-                  </PageTransition>
-                }
-              />
-              <Route
-                path="/equalizer"
-                element={
-                  <PageTransition>
-                    <EqualizerView />
-                  </PageTransition>
-                }
-              />
-              <Route
-                path="/settings"
-                element={
-                  <PageTransition>
-                    <SettingsView />
-                  </PageTransition>
-                }
-              />
-              <Route
-                path="/source/:id"
-                element={
-                  <PageTransition>
-                    <SourceView />
-                  </PageTransition>
-                }
-              />
-              <Route
-                path="/explore"
-                element={
-                  <PageTransition>
-                    <ExploreView />
-                  </PageTransition>
-                }
-              />
-              <Route
-                path="/favorites"
-                element={
-                  <PageTransition>
-                    <LibraryView />
-                  </PageTransition>
-                }
-              />
-              <Route path="/now-playing" element={<NowPlayingView />} />
-              <Route path="/mini" element={<MiniPlayerView />} />
-            </Routes>
-          </AnimatePresence>
-        </main>
-        {showRightRail && <RightRail />}
-      </div>
-      <PlayerBar />
-      <ToastContainer />
-      <CommandPalette />
-      <KeyboardHelpOverlay />
+      <GlobalDndProvider>
+        <SkipToContent />
+        <PlayerAnnouncer />
+        <RouteChangeIndicator />
+        <YtMusicDisclaimer />
+        <AnimatedBackground />
+        {isHome && <AudioReactiveBackground />}
+        <ArtworkBlurBackground opacity={0.18} />
+        {showTopBar && <TopBar />}
+        <div className="flex-1 flex overflow-hidden">
+          <Sidebar />
+          <main id="main-content" className="flex-1 overflow-y-auto min-w-0">
+            <AnimatePresence mode="wait" initial={false}>
+              <Suspense fallback={<RouteFallback variant="page" />} key={location.pathname}>
+                <Routes location={location} key={location.pathname}>
+                  <Route
+                    path="/"
+                    element={
+                      <PageTransition>
+                        <HomeView />
+                      </PageTransition>
+                    }
+                  />
+                  <Route
+                    path="/search"
+                    element={
+                      <PageTransition>
+                        <SearchView />
+                      </PageTransition>
+                    }
+                  />
+                  <Route
+                    path="/library"
+                    element={
+                      <PageTransition>
+                        <LibraryView />
+                      </PageTransition>
+                    }
+                  />
+                  <Route
+                    path="/playlists"
+                    element={
+                      <PageTransition>
+                        <PlaylistsView
+                          selectedId={selectedPlaylistId}
+                          onSelect={(id) => {
+                            setSelectedPlaylistId(id);
+                            if (id !== null) navigate('/playlists');
+                          }}
+                        />
+                      </PageTransition>
+                    }
+                  />
+                  <Route
+                    path="/equalizer"
+                    element={
+                      <PageTransition>
+                        <EqualizerView />
+                      </PageTransition>
+                    }
+                  />
+                  <Route
+                    path="/settings"
+                    element={
+                      <PageTransition>
+                        <SettingsView />
+                      </PageTransition>
+                    }
+                  />
+                  <Route
+                    path="/source/:id"
+                    element={
+                      <PageTransition>
+                        <SourceView />
+                      </PageTransition>
+                    }
+                  />
+                  <Route
+                    path="/explore"
+                    element={
+                      <PageTransition>
+                        <ExploreView />
+                      </PageTransition>
+                    }
+                  />
+                  <Route
+                    path="/favorites"
+                    element={
+                      <PageTransition>
+                        <LibraryView />
+                      </PageTransition>
+                    }
+                  />
+                  <Route path="/now-playing" element={<NowPlayingView />} />
+                  <Route path="/mini" element={<MiniPlayerView />} />
+                </Routes>
+              </Suspense>
+            </AnimatePresence>
+          </main>
+          {showRightRail && <RightRail />}
+        </div>
+        <PlayerBar />
+        <ToastContainer />
+        <CommandPalette />
+        <KeyboardHelpOverlay />
+      </GlobalDndProvider>
     </div>
   );
 }

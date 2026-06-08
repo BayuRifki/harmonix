@@ -193,6 +193,7 @@ export class AudioEngine {
     }
 
     // Slow path: full new Audio init
+    this.cancelPreload();
     this.cleanupCurrentAudio();
     const audio = new Audio();
     // crossOrigin='anonymous' is required when the audio element is
@@ -253,6 +254,7 @@ export class AudioEngine {
     if (this.currentAudio) {
       this.currentAudio.pause();
       this.currentAudio.removeAttribute('src');
+      this.currentAudio.src = '';
       if (this.sourceNode) {
         try {
           this.sourceNode.disconnect();

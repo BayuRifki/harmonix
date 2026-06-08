@@ -170,6 +170,26 @@
     background: rgba(255, 255, 255, 0.86);
     border-color: rgba(0, 0, 0, 0.1);
   }
+
+  [data-glass='off'] .glass,
+  [data-glass='off'] .glass-thin,
+  [data-glass='off'] .glass-heavy {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    background: var(--bg-secondary) !important;
+  }
+  [data-glass='subtle'] .glass {
+    backdrop-filter: blur(8px) saturate(1.2) !important;
+    -webkit-backdrop-filter: blur(8px) saturate(1.2) !important;
+  }
+  [data-glass='subtle'] .glass-thin {
+    backdrop-filter: blur(4px) saturate(1.1) !important;
+    -webkit-backdrop-filter: blur(4px) saturate(1.1) !important;
+  }
+  [data-glass='subtle'] .glass-heavy {
+    backdrop-filter: blur(12px) saturate(1.3) !important;
+    -webkit-backdrop-filter: blur(12px) saturate(1.3) !important;
+  }
   .text-accent-vibrant {
     color: var(--accent-vibrant, var(--accent));
   }
@@ -220,6 +240,17 @@
   }
   .animate-route-progress {
     animation: harmonix-route-progress 0.35s linear infinite;
+  }
+
+  .focus-ring-strong {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-black;
+  }
+
+  [data-adaptive='true'] {
+    --adaptive-active: 1;
+  }
+  [data-adaptive='false'] {
+    --adaptive-active: 0;
   }
 
   .focus-ring {

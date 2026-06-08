@@ -1,3 +1,4 @@
+import { Music } from 'lucide-react';
 import type { AlbumSummary } from '@/types/global';
 
 interface AlbumGridProps {
@@ -19,8 +20,8 @@ export function AlbumGrid({ albums }: AlbumGridProps): JSX.Element {
           key={`${album.artist}-${album.title}`}
           className="bg-zinc-900 border border-zinc-800 rounded p-3 hover:bg-zinc-800 transition cursor-pointer"
         >
-          <div className="aspect-square bg-zinc-800 rounded mb-3 flex items-center justify-center text-3xl">
-            🎵
+          <div className="aspect-square bg-zinc-800 rounded mb-3 flex items-center justify-center text-3xl text-zinc-600">
+            <Music size={28} />
           </div>
           <p className="text-sm text-white font-medium truncate" title={album.title}>
             {album.title}

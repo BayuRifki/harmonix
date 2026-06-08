@@ -2,8 +2,10 @@ import { useEffect, useState } from 'react';
 import { useLibraryStore } from '@/stores/libraryStore';
 import { usePlayerStore } from '@/stores/playerStore';
 import { useSourcesStore } from '@/stores/sourcesStore';
+import { useToastStore } from '@/components/ui/toastStore';
 import type { Track, AlbumSummary, ArtistSummary } from '@/types/global';
 import { Skeleton } from '@/components/ui/Skeleton';
+import { FileDropZone } from '@/components/dnd/FileDropZone';
 import { TrackList } from './TrackList';
 import { AlbumGrid } from './AlbumGrid';
 import { ArtistList } from './ArtistList';
@@ -24,8 +26,8 @@ export function LibraryView(): JSX.Element {
   const playQueue = usePlayerStore((s) => s.setQueue);
   const registrations = useSourcesStore((s) => s.registrations);
   const refreshSources = useSourcesStore((s) => s.refresh);
-  const [isPolling, setIsPolling] = useState(false);
   const [sourceFilter, setSourceFilter] = useState<string | null>(null);
+  const [pollCleanup, setPollCleanup] = useState<(() => void) | null>(null);
 
   useEffect(() => {
     void refresh();
@@ -38,18 +40,17 @@ export function LibraryView(): JSX.Element {
     };
   }, [refresh, refreshSources]);
 
+  const scanning = useLibraryStore((s) => s.scanning);
+
   useEffect(() => {
-    const { scanning, startScanProgressPolling } = useLibraryStore.getState();
-    if (scanning && !isPolling) {
-      setIsPolling(true);
-      const stop = startScanProgressPolling();
-      return () => {
-        stop();
-        setIsPolling(false);
-      };
+    if (scanning && !pollCleanup) {
+      const stop = useLibraryStore.getState().startScanProgressPolling();
+      setPollCleanup(() => stop);
+    } else if (!scanning && pollCleanup) {
+      pollCleanup();
+      setPollCleanup(null);
     }
-    return undefined;
-  }, [isPolling]);
+  }, [scanning, pollCleanup]);
 
   const q = searchQuery.trim().toLowerCase();
   const filteredTracks: Track[] = tracks
@@ -87,9 +88,29 @@ export function LibraryView(): JSX.Element {
       : artists;
 
   const knownSourceIds = new Set(['local', ...registrations.map((r) => r.id)]);
+  const toast = useToastStore();
+
+  const handleFilesDrop = async (paths: string[]): Promise<void> => {
+    const folders = Array.from(new Set(paths.map((p) => p.replace(/[\\/][^\\/]*$/, ''))));
+    let first = true;
+    for (const folder of folders) {
+      try {
+        const res = await window.api.library.scan(folder);
+        if (res?.started) {
+          if (first) {
+            toast.success(`Scanning ${folder}`);
+            first = false;
+          }
+        }
+      } catch (err) {
+        toast.error(`Scan failed for ${folder}: ${(err as Error).message}`);
+      }
+    }
+    await refresh();
+  };
 
   return (
-    <div className="p-8 max-w-6xl">
+    <FileDropZone className="p-8 max-w-6xl" onFilesDrop={(p) => void handleFilesDrop(p)}>
       <header className="mb-6 flex items-end justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-3xl font-bold text-white">Library</h1>
@@ -173,6 +194,6 @@ export function LibraryView(): JSX.Element {
       ) : (
         <ArtistList artists={filteredArtists} />
       )}
-    </div>
+    </FileDropZone>
   );
 }

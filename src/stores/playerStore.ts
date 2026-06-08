@@ -141,6 +141,9 @@ interface PlayerState {
     startIndex?: number,
     options?: { shuffle?: boolean; smartShuffle?: boolean },
   ) => Promise<void>;
+  moveQueueItem: (from: number, to: number) => void;
+  insertIntoQueue: (track: Track, position: number) => void;
+  removeFromQueue: (position: number) => void;
 }
 
 export const usePlayerStore = create<PlayerState>((set, get) => {
@@ -261,7 +264,13 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
       if (queue.length === 0) return;
       let nextIndex: number;
       if (shuffle) {
-        nextIndex = Math.floor(Math.random() * queue.length);
+        if (queue.length === 1) {
+          nextIndex = 0;
+        } else {
+          do {
+            nextIndex = Math.floor(Math.random() * queue.length);
+          } while (nextIndex === queueIndex);
+        }
       } else if (queueIndex < queue.length - 1) {
         nextIndex = queueIndex + 1;
       } else if (repeat === 'all') {
@@ -323,6 +332,43 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
       if (ordered[firstIndex]) {
         await get().play(ordered[firstIndex]);
       }
+    },
+
+    moveQueueItem: (from, to) => {
+      const { queue, queueIndex } = get();
+      if (from < 0 || to < 0 || from >= queue.length || to >= queue.length) return;
+      if (from === to) return;
+      const next = queue.slice();
+      const [moved] = next.splice(from, 1);
+      if (!moved) return;
+      next.splice(to, 0, moved);
+      let nextIndex = queueIndex;
+      if (queueIndex === from) nextIndex = to;
+      else if (from < queueIndex && to >= queueIndex) nextIndex = Math.max(0, queueIndex - 1);
+      else if (from > queueIndex && to <= queueIndex) nextIndex = queueIndex + 1;
+      set({ queue: next, queueIndex: nextIndex });
+    },
+
+    insertIntoQueue: (track, position) => {
+      const { queue, queueIndex } = get();
+      const insertAt = Math.max(0, Math.min(position, queue.length));
+      if (queue.some((t) => t.id === track.id)) return;
+      const next = queue.slice();
+      next.splice(insertAt, 0, track);
+      let nextIndex = queueIndex;
+      if (insertAt <= queueIndex) nextIndex = queueIndex + 1;
+      set({ queue: next, queueIndex: nextIndex });
+    },
+
+    removeFromQueue: (position) => {
+      const { queue, queueIndex } = get();
+      if (position < 0 || position >= queue.length) return;
+      const next = queue.slice();
+      next.splice(position, 1);
+      let nextIndex = queueIndex;
+      if (position < queueIndex) nextIndex = Math.max(0, queueIndex - 1);
+      else if (position === queueIndex) nextIndex = Math.min(nextIndex, next.length - 1);
+      set({ queue: next, queueIndex: nextIndex });
     },
   };
 });

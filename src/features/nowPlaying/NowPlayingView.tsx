@@ -1,24 +1,45 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, useMotionValue, useSpring, AnimatePresence } from 'framer-motion';
-import { X, Music, ChevronDown, ChevronUp, Sparkles, BarChart3, Circle, Eye } from 'lucide-react';
+import {
+  X,
+  Music,
+  ChevronDown,
+  ChevronUp,
+  Sparkles,
+  BarChart3,
+  Circle,
+  Eye,
+  Wind,
+  Activity,
+} from 'lucide-react';
 import { usePlayerStore } from '@/stores/playerStore';
 import { useSourcesStore } from '@/stores/sourcesStore';
 import { useListeningHistoryStore } from '@/stores/listeningHistoryStore';
 import { useLibraryStore } from '@/stores/libraryStore';
+import { useUiStore } from '@/stores/uiStore';
 import { AudioReactiveBackground } from '@/components/layout/AudioReactiveBackground';
 import { CrossfadeIndicator } from '@/components/player/CrossfadeIndicator';
-import { FrequencyBars, WaveformRing } from '@/components/visualizers/AudioVisualizer';
+import {
+  FrequencyBars,
+  WaveformRing,
+  ParticleField,
+  StereoOscilloscope,
+} from '@/components/visualizers/AudioVisualizer';
 import { Button } from '@/components/ui/Button';
+import { LyricsPanel } from '@/features/lyrics/LyricsPanel';
+import { useGestures } from '@/hooks/useGestures';
 import type { Track } from '@/types/global';
 
 const VISUALIZER_STORAGE_KEY = 'harmonix.np.visualizer';
-type VisualizerMode = 'none' | 'bars' | 'ring';
+type VisualizerMode = 'none' | 'bars' | 'ring' | 'particles' | 'scope';
+
+const VALID_MODES: VisualizerMode[] = ['none', 'bars', 'ring', 'particles', 'scope'];
 
 function loadVisualizerMode(): VisualizerMode {
   if (typeof localStorage === 'undefined') return 'none';
   const v = localStorage.getItem(VISUALIZER_STORAGE_KEY);
-  if (v === 'bars' || v === 'ring' || v === 'none') return v;
+  if (VALID_MODES.includes(v as VisualizerMode)) return v as VisualizerMode;
   return 'none';
 }
 
@@ -124,8 +145,30 @@ export function NowPlayingView(): JSX.Element {
   const [creditsOpen, setCreditsOpen] = useState(false);
   const [visualizer, setVisualizer] = useState<VisualizerMode>(() => loadVisualizerMode());
   const [theme, setTheme] = useState<ThemeMode>(() => loadThemeMode());
+  const enabledVisualizers = useUiStore((s) => s.enabledVisualizers);
   const lastSimilarTrackId = useRef<string | null>(null);
   const [similar, setSimilar] = useState<Track[]>([]);
+
+  useGestures({
+    onSwipeLeft: () => {
+      void usePlayerStore.getState().next();
+    },
+    onSwipeRight: () => {
+      void usePlayerStore.getState().previous();
+    },
+    onSwipeUp: () => {
+      const v = usePlayerStore.getState().volume ?? 0;
+      usePlayerStore.getState().setVolume(Math.min(1, v + 0.05));
+    },
+    onSwipeDown: () => {
+      const v = usePlayerStore.getState().volume ?? 0;
+      usePlayerStore.getState().setVolume(Math.max(0, v - 0.05));
+    },
+    onDoubleTap: () => {
+      if (usePlayerStore.getState().isPlaying) usePlayerStore.getState().pause();
+      else void usePlayerStore.getState().resume();
+    },
+  });
 
   useEffect(() => {
     if (typeof localStorage !== 'undefined') {
@@ -226,7 +269,7 @@ export function NowPlayingView(): JSX.Element {
           {artworkUrl ? (
             <div className="relative mb-8">
               <AnimatePresence>
-                {visualizer !== 'none' && (
+                {visualizer !== 'none' && enabledVisualizers.nowPlaying && (
                   <motion.div
                     key="visualizer-overlay"
                     initial={{ opacity: 0 }}
@@ -239,8 +282,12 @@ export function NowPlayingView(): JSX.Element {
                   >
                     {visualizer === 'bars' ? (
                       <FrequencyBars bars={24} height={260} />
-                    ) : (
+                    ) : visualizer === 'ring' ? (
                       <WaveformRing size={300} />
+                    ) : visualizer === 'particles' ? (
+                      <ParticleField count={48} className="w-72 h-72" />
+                    ) : (
+                      <StereoOscilloscope height={200} className="w-72" />
                     )}
                   </motion.div>
                 )}
@@ -328,6 +375,8 @@ export function NowPlayingView(): JSX.Element {
                     { mode: 'none', icon: Eye, label: 'None' },
                     { mode: 'bars', icon: BarChart3, label: 'Frequency bars' },
                     { mode: 'ring', icon: Circle, label: 'Waveform ring' },
+                    { mode: 'particles', icon: Wind, label: 'Particle field' },
+                    { mode: 'scope', icon: Activity, label: 'Stereo oscilloscope' },
                   ] as { mode: VisualizerMode; icon: typeof Eye; label: string }[]
                 ).map(({ mode, icon: Icon, label }) => (
                   <button
@@ -534,6 +583,8 @@ export function NowPlayingView(): JSX.Element {
               </div>
             </section>
           )}
+
+          <LyricsPanel className="px-2" />
 
           <div className="flex items-center gap-3 mt-6 w-full max-w-xs">
             <button

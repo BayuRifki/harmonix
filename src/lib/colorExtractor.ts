@@ -171,39 +171,73 @@ function getDrawContext(size: number): DrawContext {
   return ctx;
 }
 
+const _imageCache = new Map<string, { img: HTMLImageElement; promise: Promise<void> }>();
+
+function cleanupImage(url: string): void {
+  const entry = _imageCache.get(url);
+  if (entry) {
+    _imageCache.delete(url);
+    try {
+      entry.img.removeAttribute('src');
+    } catch {
+      // ignore
+    }
+  }
+}
+
 export async function extractDominantColor(url: string): Promise<HslColor | null> {
   if (typeof Image === 'undefined') return null;
   if (!url) return null;
 
-  const img = new Image();
-  img.crossOrigin = 'anonymous';
-  img.decoding = 'async';
+  let img: HTMLImageElement;
+  let loaded: Promise<void>;
 
-  const loaded = new Promise<void>((resolve, reject) => {
-    img.onload = (): void => resolve();
-    img.onerror = (): void => reject(new Error('image load failed'));
-  });
+  const cached = _imageCache.get(url);
+  if (cached) {
+    img = cached.img;
+    loaded = cached.promise;
+  } else {
+    img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.decoding = 'async';
 
-  img.src = url;
+    loaded = new Promise<void>((resolve, reject) => {
+      img.onload = (): void => resolve();
+      img.onerror = (): void => reject(new Error('image load failed'));
+    });
+
+    _imageCache.set(url, { img, promise: loaded });
+    img.src = url;
+  }
+
   try {
     await loaded;
   } catch {
+    _imageCache.delete(url);
     return null;
   }
 
-  if (!img.naturalWidth || !img.naturalHeight) return null;
+  if (!img.naturalWidth || !img.naturalHeight) {
+    _imageCache.delete(url);
+    return null;
+  }
 
   let ctx: DrawContext;
   try {
     ctx = getDrawContext(DOWNSAMPLE_SIZE);
   } catch {
+    _imageCache.delete(url);
     return null;
   }
 
   try {
     ctx.drawImage(img, 0, 0, DOWNSAMPLE_SIZE, DOWNSAMPLE_SIZE);
   } catch (err) {
-    if (err instanceof DOMException && err.name === 'SecurityError') return null;
+    if (err instanceof DOMException && err.name === 'SecurityError') {
+      cleanupImage(url);
+      return null;
+    }
+    cleanupImage(url);
     return null;
   }
 
@@ -212,8 +246,10 @@ export async function extractDominantColor(url: string): Promise<HslColor | null
     const imageData = ctx.getImageData(0, 0, DOWNSAMPLE_SIZE, DOWNSAMPLE_SIZE);
     data = imageData.data;
   } catch {
+    cleanupImage(url);
     return null;
   }
 
+  setTimeout(() => cleanupImage(url), 5000);
   return clusterPixels(data);
 }

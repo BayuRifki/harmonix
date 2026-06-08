@@ -162,6 +162,7 @@ function VirtualTrackList({
     itemHeight: ROW_HEIGHT,
     overscan: OVERSCAN,
   });
+  const isPlaying = usePlayerStore((s) => s.isPlaying);
 
   const visible = tracks.slice(startIndex, endIndex);
 
@@ -191,7 +192,6 @@ function VirtualTrackList({
             {visible.map((track, i) => {
               const realIndex = startIndex + i;
               const isCurrent = currentTrackId === track.id;
-              const isPlaying = usePlayerStore.getState().isPlaying;
               return (
                 <motion.tr
                   key={track.id}

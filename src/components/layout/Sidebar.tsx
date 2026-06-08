@@ -1,6 +1,20 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import {
+  DndContext,
+  PointerSensor,
+  KeyboardSensor,
+  useSensor,
+  useSensors,
+  closestCenter,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  sortableKeyboardCoordinates,
+  arrayMove,
+} from '@dnd-kit/sortable';
 import {
   Home,
   Compass,
@@ -15,9 +29,11 @@ import {
   Clock,
   Play,
   X,
+  RotateCcw,
 } from 'lucide-react';
 import { LogoMark } from '@/components/branding/LogoMark';
 import { PlaylistCardSidebar } from '@/components/sidebar/PlaylistCardSidebar';
+import { SortableNavItem } from '@/components/sidebar/SortableNavItem';
 import { useLibraryStore } from '@/stores/libraryStore';
 import { useSourcesStore } from '@/stores/sourcesStore';
 import { usePlaylistsStore } from '@/stores/playlistsStore';
@@ -28,7 +44,14 @@ import { useSourceHealth, HEALTH_DOT_COLORS, HEALTH_DOT_LABELS } from '@/hooks/u
 interface StaticNavItem {
   to: string;
   label: string;
-  icon: typeof Home;
+  icon:
+    | typeof Home
+    | typeof Compass
+    | typeof Library
+    | typeof Heart
+    | typeof Music
+    | typeof SlidersHorizontal
+    | typeof Settings;
 }
 
 const STATIC_NAV: StaticNavItem[] = [
@@ -57,6 +80,12 @@ const RECENT_LABEL: Record<string, string> = {
 const PLAYLISTS_SECTION_KEY = 'playlists';
 const RECENTS_SECTION_KEY = 'recents';
 
+const LAYOUT_CLASSES: Record<'default' | 'compact' | 'sectioned', string> = {
+  default: '',
+  compact: 'gap-0 [&>a]:py-1.5 [&>a]:text-xs',
+  sectioned: 'space-y-3',
+};
+
 export function Sidebar(): JSX.Element {
   const stats = useLibraryStore((s) => s.stats);
   const refreshLibrary = useLibraryStore((s) => s.refresh);
@@ -76,6 +105,16 @@ export function Sidebar(): JSX.Element {
   const toggleSection = useUiStore((s) => s.toggleSidebarSection);
   const openCommandPalette = useUiStore((s) => s.openCommandPalette);
   const clearRecents = useUiStore((s) => s.clearRecents);
+  const navOrder = useUiStore((s) => s.navOrder);
+  const reorderNav = useUiStore((s) => s.reorderNav);
+  const resetNavOrder = useUiStore((s) => s.resetNavOrder);
+  const sidebarLayout = useUiStore((s) => s.sidebarLayout);
+  const reducedMotion = useUiStore((s) => s.reducedMotion);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
 
   const health = useSourceHealth();
   const [healthExpanded, setHealthExpanded] = useState(false);
@@ -111,6 +150,44 @@ export function Sidebar(): JSX.Element {
     }
   };
 
+  const navByPath = useMemo(() => {
+    const m = new Map<string, StaticNavItem>();
+    for (const it of STATIC_NAV) m.set(it.to, it);
+    return m;
+  }, []);
+
+  const orderedNav = useMemo(() => {
+    const seen = new Set<string>();
+    const out: StaticNavItem[] = [];
+    for (const path of navOrder) {
+      const it = navByPath.get(path);
+      if (it && !seen.has(path)) {
+        out.push(it);
+        seen.add(path);
+      }
+    }
+    for (const it of STATIC_NAV) {
+      if (!seen.has(it.to)) {
+        out.push(it);
+        seen.add(it.to);
+      }
+    }
+    return out;
+  }, [navOrder, navByPath]);
+
+  const handleDragEnd = (e: DragEndEvent): void => {
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+    const oldIdx = navOrder.indexOf(String(active.id));
+    const newIdx = navOrder.indexOf(String(over.id));
+    if (oldIdx < 0 || newIdx < 0) {
+      reorderNav(String(active.id), String(over.id));
+      return;
+    }
+    const next = arrayMove(navOrder, oldIdx, newIdx);
+    useUiStore.getState().setNavOrder(next);
+  };
+
   const playlistsCollapsed = isCollapsed(PLAYLISTS_SECTION_KEY);
   const recentsCollapsed = isCollapsed(RECENTS_SECTION_KEY);
   const artworkUrl = currentTrack?.artworkUrl ?? currentTrack?.album?.artworkUrl ?? null;
@@ -121,28 +198,41 @@ export function Sidebar(): JSX.Element {
         .join(', ') || 'Unknown artist'
     : null;
   const recentsToShow = recents.filter((p) => p !== location.pathname).slice(0, 4);
+  const layoutClass = LAYOUT_CLASSES[sidebarLayout] ?? '';
 
   return (
     <aside className="w-56 glass border-r border-zinc-800/60 flex flex-col">
       <div className="p-4 border-b border-zinc-800/60 flex items-center justify-between gap-2">
         <LogoMark size={32} showText />
-        <button
-          type="button"
-          onClick={openCommandPalette}
-          className="p-1.5 rounded-md text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/60 transition-colors"
-          aria-label="Open command palette"
-          title="Command palette (⌘K)"
-          data-testid="sidebar-command-palette-trigger"
-        >
-          <Search size={14} />
-        </button>
+        <div className="flex items-center gap-0.5">
+          <button
+            type="button"
+            onClick={() => resetNavOrder()}
+            className="p-1.5 rounded-md text-zinc-600 hover:text-zinc-300 hover:bg-zinc-800/60 transition-colors"
+            aria-label="Reset nav order"
+            title="Reset nav order"
+            data-testid="sidebar-reset-nav"
+          >
+            <RotateCcw size={12} />
+          </button>
+          <button
+            type="button"
+            onClick={openCommandPalette}
+            className="p-1.5 rounded-md text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/60 transition-colors focus-ring"
+            aria-label="Open command palette"
+            title="Command palette (⌘K)"
+            data-testid="sidebar-command-palette-trigger"
+          >
+            <Search size={14} />
+          </button>
+        </div>
       </div>
 
       {currentTrack && (
         <button
           type="button"
           onClick={() => navigate('/now-playing')}
-          className="group flex items-center gap-2.5 mx-2 mt-2 px-2 py-2 rounded-lg bg-zinc-900/60 hover:bg-zinc-800/80 border border-zinc-800/60 hover:border-zinc-700 transition-colors text-left"
+          className="group flex items-center gap-2.5 mx-2 mt-2 px-2 py-2 rounded-lg bg-zinc-900/60 hover:bg-zinc-800/80 border border-zinc-800/60 hover:border-zinc-700 transition-colors text-left focus-ring"
           aria-label="Open now playing"
           data-testid="sidebar-now-playing-card"
         >
@@ -171,43 +261,19 @@ export function Sidebar(): JSX.Element {
       )}
 
       <nav ref={navRef} className="flex-1 p-2 overflow-y-auto">
-        {STATIC_NAV.map((item, index) => {
-          const Icon = item.icon;
-          return (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.to === '/'}
-              className={({ isActive }) =>
-                `relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all duration-150 mt-0.5 animate-slide-in ${
-                  isActive
-                    ? 'bg-zinc-800/60 text-white'
-                    : 'text-zinc-400 hover:bg-zinc-900/60 hover:text-zinc-100 active:scale-[0.98]'
-                }`
-              }
-              style={{ animationDelay: `${index * 50}ms` }}
-            >
-              {({ isActive }) => (
-                <>
-                  {isActive && (
-                    <motion.span
-                      layoutId="sidebar-active-indicator"
-                      className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-r-full bg-brand-400"
-                      style={{
-                        boxShadow:
-                          '0 0 8px rgba(236, 72, 153, 0.6), 0 0 16px rgba(236, 72, 153, 0.3)',
-                      }}
-                      transition={{ type: 'spring', stiffness: 350, damping: 30 }}
-                      data-testid="sidebar-active-indicator"
-                    />
-                  )}
-                  <Icon size={18} strokeWidth={1.5} className="shrink-0" aria-hidden />
-                  <span>{item.label}</span>
-                </>
-              )}
-            </NavLink>
-          );
-        })}
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext
+            items={orderedNav.map((i) => i.to)}
+            strategy={verticalListSortingStrategy}
+          >
+            <div className={layoutClass} data-testid="sidebar-nav-list">
+              {orderedNav.map((item) => (
+                <SortableNavItem key={item.to} to={item.to} label={item.label} icon={item.icon} />
+              ))}
+              {!reducedMotion && <span className="sr-only">Use grip handle to reorder</span>}
+            </div>
+          </SortableContext>
+        </DndContext>
 
         {recentsToShow.length > 0 && (
           <div className="mt-4 pt-3 border-t border-zinc-800/40">
@@ -251,7 +317,7 @@ export function Sidebar(): JSX.Element {
                   <NavLink
                     key={path}
                     to={path}
-                    className="flex items-center gap-2.5 px-3 py-1.5 rounded-md text-xs text-zinc-400 hover:text-zinc-100 hover:bg-zinc-900/60 transition-colors truncate"
+                    className="flex items-center gap-2.5 px-3 py-1.5 rounded-md text-xs text-zinc-400 hover:text-zinc-100 hover:bg-zinc-900/60 transition-colors truncate focus-ring"
                     title={RECENT_LABEL[path] ?? path}
                   >
                     <Clock size={11} className="shrink-0 text-zinc-600" aria-hidden />
@@ -269,7 +335,7 @@ export function Sidebar(): JSX.Element {
             onClick={() => toggleSection(PLAYLISTS_SECTION_KEY)}
             aria-expanded={!playlistsCollapsed}
             aria-controls="sidebar-playlists-section"
-            className="w-full flex items-center justify-between px-3 mb-2"
+            className="w-full flex items-center justify-between px-3 mb-2 focus-ring rounded"
           >
             <p className="text-[10px] uppercase tracking-wider text-zinc-600 font-medium">
               Your Playlists
@@ -316,7 +382,7 @@ export function Sidebar(): JSX.Element {
                   {hasMorePlaylists && (
                     <NavLink
                       to="/playlists"
-                      className="block px-2 py-1.5 text-xs text-zinc-500 hover:text-brand-400 transition-colors"
+                      className="block px-2 py-1.5 text-xs text-zinc-500 hover:text-brand-400 transition-colors focus-ring rounded"
                     >
                       View all {playlists.length} playlists →
                     </NavLink>
@@ -346,7 +412,7 @@ export function Sidebar(): JSX.Element {
             <button
               type="button"
               onClick={() => setHealthExpanded((v) => !v)}
-              className="w-full mt-2 flex flex-wrap items-center gap-1.5 text-left"
+              className="w-full mt-2 flex flex-wrap items-center gap-1.5 text-left focus-ring rounded"
               aria-expanded={healthExpanded}
               aria-controls="source-health-details"
             >

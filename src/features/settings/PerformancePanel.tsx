@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
-import { useUiStore } from '@/stores/uiStore';
+import { useEffect } from 'react';
+import { useUiStore, type VisualizerQuality, type AnimationIntensity } from '@/stores/uiStore';
+import { getVisualizerTier } from '@/hooks/useVisualizerQuality';
 
 function Toggle({
   label,
@@ -73,28 +74,23 @@ function Select<T extends string>({
 }
 
 export function PerformancePanel(): JSX.Element {
-  const [visualizerQuality, setVisualizerQuality] = useState<'auto' | 'high' | 'off'>('auto');
-  const [animationIntensity, setAnimationIntensity] = useState<'full' | 'reduced' | 'off'>('full');
+  const visualizerQuality = useUiStore((s) => s.visualizerQuality);
+  const setVisualizerQuality = useUiStore((s) => s.setVisualizerQuality);
+  const animationIntensity = useUiStore((s) => s.animationIntensity);
+  const setAnimationIntensity = useUiStore((s) => s.setAnimationIntensity);
   const reducedMotion = useUiStore((s) => s.reducedMotion);
   const setReducedMotion = useUiStore((s) => s.setReducedMotion);
+  const enabledVisualizers = useUiStore((s) => s.enabledVisualizers);
+  const setEnabledVisualizer = useUiStore((s) => s.setEnabledVisualizer);
+  const showExitAnimations = useUiStore((s) => s.showExitAnimations);
+  const setShowExitAnimations = useUiStore((s) => s.setShowExitAnimations);
 
   useEffect(() => {
-    const saved = localStorage.getItem('harmonix.perf');
-    if (saved) {
-      try {
-        const cfg = JSON.parse(saved);
-        setVisualizerQuality(cfg.visualizerQuality ?? 'auto');
-        setAnimationIntensity(cfg.animationIntensity ?? 'full');
-      } catch {
-        // ignore
-      }
+    if (visualizerQuality === 'auto') {
+      const tier = getVisualizerTier();
+      void tier;
     }
-  }, []);
-
-  useEffect(() => {
-    const cfg = { visualizerQuality, animationIntensity };
-    localStorage.setItem('harmonix.perf', JSON.stringify(cfg));
-  }, [visualizerQuality, animationIntensity]);
+  }, [visualizerQuality]);
 
   const handleReducedMotionChange = (v: boolean): void => {
     setReducedMotion(v);
@@ -112,19 +108,20 @@ export function PerformancePanel(): JSX.Element {
         Adjust visual quality for lower-end hardware or battery saving.
       </p>
 
-      <Select
+      <Select<VisualizerQuality>
         label="Visualizer Quality"
         value={visualizerQuality}
         options={[
           { value: 'auto', label: 'Auto (based on hardware)' },
           { value: 'high', label: 'High (30 FPS, all effects)' },
+          { value: 'low', label: 'Low (20 FPS, fewer particles)' },
           { value: 'off', label: 'Off (disable visualizers)' },
         ]}
         onChange={setVisualizerQuality}
-        description="Auto reduces quality on low-end devices (under 4 CPU cores)"
+        description="Auto detects hardware capability. Low reduces FPS and visual effects."
       />
 
-      <Select
+      <Select<AnimationIntensity>
         label="Animation Intensity"
         value={animationIntensity}
         options={[
@@ -134,6 +131,34 @@ export function PerformancePanel(): JSX.Element {
         ]}
         onChange={setAnimationIntensity}
         description="Reduces motion for accessibility or performance"
+      />
+
+      <div className="mb-4">
+        <label className="text-sm text-app font-medium block mb-1.5">Visualizers shown in</label>
+        <div className="space-y-1">
+          <Toggle
+            label="Player Bar (mini equalizer)"
+            checked={enabledVisualizers.playerBar}
+            onChange={(v) => setEnabledVisualizer('playerBar', v)}
+          />
+          <Toggle
+            label="Now Playing (background visualizer)"
+            checked={enabledVisualizers.nowPlaying}
+            onChange={(v) => setEnabledVisualizer('nowPlaying', v)}
+          />
+          <Toggle
+            label="Home (audio reactive background)"
+            checked={enabledVisualizers.home}
+            onChange={(v) => setEnabledVisualizer('home', v)}
+          />
+        </div>
+      </div>
+
+      <Toggle
+        label="List exit animations"
+        checked={showExitAnimations}
+        onChange={setShowExitAnimations}
+        description="Animate list items leaving when filtered out"
       />
 
       <Toggle
@@ -151,6 +176,10 @@ export function PerformancePanel(): JSX.Element {
         <p>
           Device pixel ratio:{' '}
           {typeof window !== 'undefined' ? window.devicePixelRatio.toFixed(1) : 'unknown'}
+        </p>
+        <p>
+          Visualizer tier:{' '}
+          {visualizerQuality === 'auto' ? getVisualizerTier() : `${visualizerQuality} (manual)`}
         </p>
         <p>
           Prefers reduced motion:{' '}

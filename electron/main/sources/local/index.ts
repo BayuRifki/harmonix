@@ -14,6 +14,7 @@ import {
   getTrackCount,
   deleteTracksNotIn,
   markPlayed,
+  persist,
 } from '../../db';
 import { rowToTrack, fileUrl } from '../rowToTrack';
 
@@ -71,16 +72,22 @@ export class LocalSource extends SourceAdapter {
     };
     const files = await scanFolder(folder, { ...options, onProgress });
     let inserted = 0;
-    for (const file of files) {
-      try {
-        const { track } = await extractMetadata(file.path);
-        upsertTrack(track);
-        inserted += 1;
-      } catch (err) {
-        console.warn(`[local] Failed to ingest ${file.path}:`, (err as Error).message);
+    const batchSize = 50;
+    for (let i = 0; i < files.length; i += batchSize) {
+      const batch = files.slice(i, i + batchSize);
+      for (const file of batch) {
+        try {
+          const { track } = await extractMetadata(file.path);
+          upsertTrack(track, true);
+          inserted += 1;
+        } catch (err) {
+          console.warn(`[local] Failed to ingest ${file.path}:`, (err as Error).message);
+        }
       }
+      persist();
     }
-    deleteTracksNotIn(files.map((f: ScannedFile) => f.path));
+    const paths = files.map((f: ScannedFile) => f.path);
+    deleteTracksNotIn(paths);
     this.lastProgress = {
       filesFound: files.length,
       currentPath: null,

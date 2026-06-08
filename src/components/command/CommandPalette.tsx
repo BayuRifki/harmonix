@@ -27,6 +27,7 @@ import { useThemeStore } from '@/stores/themeStore';
 import { useToastStore } from '@/components/ui/toastStore';
 import { fuzzySearch, highlightMatches, type FuzzyMatch } from './fuzzyMatch';
 import { CommandPreview } from '@/components/command/CommandPreview';
+import { FocusTrap } from '@/components/ui/FocusTrap';
 
 type IconType = typeof Search;
 
@@ -418,163 +419,165 @@ export function CommandPalette(): JSX.Element | null {
         className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fade-in"
         onClick={close}
       />
-      <div className="relative w-full max-w-3xl glass-heavy border border-zinc-800/60 rounded-2xl shadow-2xl ring-1 ring-white/5 overflow-hidden animate-scale-in flex">
-        <div className="flex items-center gap-3 px-4 py-3 border-b border-zinc-800">
-          <Search size={16} className="text-zinc-500 shrink-0" aria-hidden />
-          <input
-            ref={inputRef}
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={onInputKey}
-            placeholder="Type a command, search, or jump to…"
-            aria-label="Command palette input"
-            aria-controls="command-palette-list"
-            aria-activedescendant={
-              matches[activeIndex] ? `cmd-${matches[activeIndex].item.id}` : undefined
-            }
-            className="flex-1 bg-transparent text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none"
-          />
-          <kbd className="hidden sm:inline-flex items-center gap-1 text-[10px] text-zinc-500 bg-zinc-800 px-1.5 py-0.5 rounded">
-            Esc
-          </kbd>
-        </div>
+      <FocusTrap active={open} initialFocus="first" restoreFocus>
+        <div className="relative w-full max-w-3xl glass-heavy border border-zinc-800/60 rounded-2xl shadow-2xl ring-1 ring-white/5 overflow-hidden animate-scale-in flex">
+          <div className="flex items-center gap-3 px-4 py-3 border-b border-zinc-800">
+            <Search size={16} className="text-zinc-500 shrink-0" aria-hidden />
+            <input
+              ref={inputRef}
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={onInputKey}
+              placeholder="Type a command, search, or jump to…"
+              aria-label="Command palette input"
+              aria-controls="command-palette-list"
+              aria-activedescendant={
+                matches[activeIndex] ? `cmd-${matches[activeIndex].item.id}` : undefined
+              }
+              className="flex-1 bg-transparent text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none"
+            />
+            <kbd className="hidden sm:inline-flex items-center gap-1 text-[10px] text-zinc-500 bg-zinc-800 px-1.5 py-0.5 rounded">
+              Esc
+            </kbd>
+          </div>
 
-        <ul
-          ref={listRef}
-          id="command-palette-list"
-          role="listbox"
-          className="max-h-[55vh] overflow-y-auto py-2"
-        >
-          {matches.length === 0 ? (
-            <li className="px-4 py-12 text-center text-sm text-zinc-500">
-              No results for &quot;{query}&quot;
-            </li>
-          ) : (
-            (Object.keys(groups) as Array<keyof typeof groups>).map((groupName) => (
-              <li key={groupName} role="presentation">
+          <ul
+            ref={listRef}
+            id="command-palette-list"
+            role="listbox"
+            className="max-h-[55vh] overflow-y-auto py-2"
+          >
+            {matches.length === 0 ? (
+              <li className="px-4 py-12 text-center text-sm text-zinc-500">
+                No results for &quot;{query}&quot;
+              </li>
+            ) : (
+              (Object.keys(groups) as Array<keyof typeof groups>).map((groupName) => (
+                <li key={groupName} role="presentation">
+                  <div className="px-4 py-1.5 text-[10px] uppercase tracking-wider text-zinc-600 font-semibold">
+                    {groupName}
+                  </div>
+                  <ul role="group">
+                    {groups[groupName]!.map(({ match, index }) => {
+                      const item = match.item;
+                      const Icon = item.icon;
+                      const isActive = index === activeIndex;
+                      return (
+                        <li
+                          key={item.id}
+                          id={`cmd-${item.id}`}
+                          role="option"
+                          aria-selected={isActive}
+                          data-cmd-index={index}
+                          onMouseEnter={() => setActiveIndex(index)}
+                          onClick={() => onSelect(item)}
+                          className={`flex items-center gap-3 px-4 py-2 cursor-pointer text-sm transition-colors ${
+                            isActive
+                              ? 'bg-brand-500/15 text-white'
+                              : 'text-zinc-300 hover:bg-zinc-800/60'
+                          }`}
+                        >
+                          <Icon
+                            size={16}
+                            className={isActive ? 'text-brand-300' : 'text-zinc-500'}
+                            aria-hidden
+                          />
+                          <div className="flex-1 min-w-0">
+                            <div className="truncate">
+                              {highlightMatches(item.label, match.matches).map((seg, i) => (
+                                <span
+                                  key={i}
+                                  className={seg.highlighted ? 'text-brand-300 font-medium' : ''}
+                                >
+                                  {seg.text}
+                                </span>
+                              ))}
+                            </div>
+                            {item.hint && (
+                              <div className="text-xs text-zinc-500 truncate">{item.hint}</div>
+                            )}
+                          </div>
+                          <ArrowRight
+                            size={12}
+                            className={`shrink-0 ${isActive ? 'text-brand-300 opacity-100' : 'opacity-0'}`}
+                            aria-hidden
+                          />
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </li>
+              ))
+            )}
+
+            {showRecents && (
+              <li role="presentation" className="border-t border-zinc-800 mt-2 pt-2">
                 <div className="px-4 py-1.5 text-[10px] uppercase tracking-wider text-zinc-600 font-semibold">
-                  {groupName}
+                  Recents
                 </div>
                 <ul role="group">
-                  {groups[groupName]!.map(({ match, index }) => {
-                    const item = match.item;
-                    const Icon = item.icon;
-                    const isActive = index === activeIndex;
-                    return (
-                      <li
-                        key={item.id}
-                        id={`cmd-${item.id}`}
-                        role="option"
-                        aria-selected={isActive}
-                        data-cmd-index={index}
-                        onMouseEnter={() => setActiveIndex(index)}
-                        onClick={() => onSelect(item)}
-                        className={`flex items-center gap-3 px-4 py-2 cursor-pointer text-sm transition-colors ${
-                          isActive
-                            ? 'bg-brand-500/15 text-white'
-                            : 'text-zinc-300 hover:bg-zinc-800/60'
-                        }`}
-                      >
-                        <Icon
-                          size={16}
-                          className={isActive ? 'text-brand-300' : 'text-zinc-500'}
-                          aria-hidden
-                        />
-                        <div className="flex-1 min-w-0">
-                          <div className="truncate">
-                            {highlightMatches(item.label, match.matches).map((seg, i) => (
-                              <span
-                                key={i}
-                                className={seg.highlighted ? 'text-brand-300 font-medium' : ''}
-                              >
-                                {seg.text}
-                              </span>
-                            ))}
-                          </div>
-                          {item.hint && (
-                            <div className="text-xs text-zinc-500 truncate">{item.hint}</div>
-                          )}
-                        </div>
-                        <ArrowRight
-                          size={12}
-                          className={`shrink-0 ${isActive ? 'text-brand-300 opacity-100' : 'opacity-0'}`}
-                          aria-hidden
-                        />
-                      </li>
-                    );
-                  })}
+                  {recents.map((p) => (
+                    <li
+                      key={p}
+                      role="option"
+                      onClick={() => {
+                        close();
+                        navigate(p);
+                      }}
+                      className="flex items-center gap-3 px-4 py-2 cursor-pointer text-sm text-zinc-400 hover:bg-zinc-800/60"
+                    >
+                      <Compass size={14} aria-hidden />
+                      <span className="truncate">{p}</span>
+                    </li>
+                  ))}
                 </ul>
               </li>
-            ))
-          )}
+            )}
 
-          {showRecents && (
-            <li role="presentation" className="border-t border-zinc-800 mt-2 pt-2">
-              <div className="px-4 py-1.5 text-[10px] uppercase tracking-wider text-zinc-600 font-semibold">
-                Recents
-              </div>
-              <ul role="group">
-                {recents.map((p) => (
-                  <li
-                    key={p}
-                    role="option"
-                    onClick={() => {
-                      close();
-                      navigate(p);
-                    }}
-                    className="flex items-center gap-3 px-4 py-2 cursor-pointer text-sm text-zinc-400 hover:bg-zinc-800/60"
-                  >
-                    <Compass size={14} aria-hidden />
-                    <span className="truncate">{p}</span>
-                  </li>
-                ))}
-              </ul>
-            </li>
-          )}
+            {showHistory && (
+              <li role="presentation" className="border-t border-zinc-800 mt-2 pt-2">
+                <div className="px-4 py-1.5 text-[10px] uppercase tracking-wider text-zinc-600 font-semibold">
+                  Recently Played
+                </div>
+                <ul role="group">
+                  {history.slice(0, 4).map((h) => (
+                    <li
+                      key={h.id}
+                      role="option"
+                      onClick={() => {
+                        close();
+                        navigate('/library');
+                      }}
+                      className="flex items-center gap-3 px-4 py-2 cursor-pointer text-sm text-zinc-400 hover:bg-zinc-800/60"
+                    >
+                      <Music size={14} aria-hidden />
+                      <span className="truncate flex-1">{h.title}</span>
+                      <span className="text-xs text-zinc-600 truncate max-w-[40%]">{h.artist}</span>
+                    </li>
+                  ))}
+                </ul>
+              </li>
+            )}
+          </ul>
 
-          {showHistory && (
-            <li role="presentation" className="border-t border-zinc-800 mt-2 pt-2">
-              <div className="px-4 py-1.5 text-[10px] uppercase tracking-wider text-zinc-600 font-semibold">
-                Recently Played
-              </div>
-              <ul role="group">
-                {history.slice(0, 4).map((h) => (
-                  <li
-                    key={h.id}
-                    role="option"
-                    onClick={() => {
-                      close();
-                      navigate('/library');
-                    }}
-                    className="flex items-center gap-3 px-4 py-2 cursor-pointer text-sm text-zinc-400 hover:bg-zinc-800/60"
-                  >
-                    <Music size={14} aria-hidden />
-                    <span className="truncate flex-1">{h.title}</span>
-                    <span className="text-xs text-zinc-600 truncate max-w-[40%]">{h.artist}</span>
-                  </li>
-                ))}
-              </ul>
-            </li>
-          )}
-        </ul>
-
-        <div className="flex items-center justify-between gap-3 px-4 py-2 border-t border-zinc-800 text-[10px] text-zinc-600">
-          <div className="flex items-center gap-3">
-            <span className="flex items-center gap-1">
-              <kbd className="bg-zinc-800 px-1 rounded">↑</kbd>
-              <kbd className="bg-zinc-800 px-1 rounded">↓</kbd>
-              navigate
-            </span>
-            <span className="flex items-center gap-1">
-              <kbd className="bg-zinc-800 px-1 rounded">↵</kbd>
-              select
-            </span>
+          <div className="flex items-center justify-between gap-3 px-4 py-2 border-t border-zinc-800 text-[10px] text-zinc-600">
+            <div className="flex items-center gap-3">
+              <span className="flex items-center gap-1">
+                <kbd className="bg-zinc-800 px-1 rounded">↑</kbd>
+                <kbd className="bg-zinc-800 px-1 rounded">↓</kbd>
+                navigate
+              </span>
+              <span className="flex items-center gap-1">
+                <kbd className="bg-zinc-800 px-1 rounded">↵</kbd>
+                select
+              </span>
+            </div>
+            <span>{matches.length} results</span>
           </div>
-          <span>{matches.length} results</span>
+          <CommandPreview item={matches[activeIndex]?.item ?? null} />
         </div>
-        <CommandPreview item={matches[activeIndex]?.item ?? null} />
-      </div>
+      </FocusTrap>
     </div>
   );
 }

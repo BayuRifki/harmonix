@@ -2,6 +2,7 @@ import { SourcePicker } from '@/features/settings/SourcePicker';
 import { SpotifyLoginButton } from '@/features/settings/SpotifyLoginButton';
 import { YtMusicStatus } from '@/features/settings/YtMusicStatus';
 import { ThemePicker } from '@/features/settings/ThemePicker';
+import { ThemePanel } from '@/features/settings/ThemePanel';
 import { MemoryPanel } from '@/features/settings/MemoryPanel';
 import { KeyboardShortcutsPanel } from '@/features/settings/KeyboardShortcutsPanel';
 import { CrossfadePanel } from '@/features/settings/CrossfadePanel';
@@ -20,6 +21,7 @@ export function SettingsView(): JSX.Element {
           <ThemePicker />
         </section>
 
+        <ThemePanel />
         <CrossfadePanel />
         <KeyboardShortcutsPanel />
         <MemoryPanel />

@@ -129,11 +129,11 @@ const TRACK_FIELDS_NO_ID = [
   'added_at',
 ] as const;
 
-export function upsertTrack(track: TrackInsert): number {
+export function upsertTrack(track: TrackInsert, skipPersist = false): number {
   const db = getDb();
-  const existing = db
-    .prepare('SELECT id FROM tracks WHERE file_path = ?')
-    .get(track.file_path) as { id: number | bigint } | undefined;
+  const existing = db.prepare('SELECT id FROM tracks WHERE file_path = ?').get(track.file_path) as
+    | { id: number | bigint }
+    | undefined;
   const now = Date.now();
 
   if (existing) {
@@ -166,7 +166,7 @@ export function upsertTrack(track: TrackInsert): number {
       track.isrc ?? null,
       id,
     );
-    persist();
+    if (!skipPersist) persist();
     return id;
   }
 
@@ -199,23 +199,25 @@ export function upsertTrack(track: TrackInsert): number {
     )
     .get(...insertValues) as { id: number | bigint } | undefined;
   const id = Number(result?.id ?? 0);
-  persist();
+  if (!skipPersist) persist();
   return id;
 }
 
 export function getAllTracks(limit = 500, offset = 0): TrackRow[] {
   const db = getDb();
   const rows = db
-    .prepare(`SELECT ${TRACK_COLUMNS.join(', ')} FROM tracks ORDER BY title COLLATE NOCASE LIMIT ? OFFSET ?`)
+    .prepare(
+      `SELECT ${TRACK_COLUMNS.join(', ')} FROM tracks ORDER BY title COLLATE NOCASE LIMIT ? OFFSET ?`,
+    )
     .all(limit, offset) as TrackSelectRow[];
   return rows.map(rowToTrack);
 }
 
 export function getTrackById(id: number): TrackRow | null {
   const db = getDb();
-  const row = db
-    .prepare(`SELECT ${TRACK_COLUMNS.join(', ')} FROM tracks WHERE id = ?`)
-    .get(id) as TrackSelectRow | undefined;
+  const row = db.prepare(`SELECT ${TRACK_COLUMNS.join(', ')} FROM tracks WHERE id = ?`).get(id) as
+    | TrackSelectRow
+    | undefined;
   return row ? rowToTrack(row) : null;
 }
 
@@ -301,14 +303,15 @@ export function deleteTracksNotIn(filePaths: string[]): number {
     persist();
     return count;
   }
-  const placeholders = filePaths.map(() => '?').join(',');
-  db.prepare(`DELETE FROM tracks WHERE file_path NOT IN (${placeholders})`).run(
-    ...filePaths,
-  );
+  const BATCH_SIZE = 500;
+  for (let i = 0; i < filePaths.length; i += BATCH_SIZE) {
+    const batch = filePaths.slice(i, i + BATCH_SIZE);
+    const placeholders = batch.map(() => '?').join(',');
+    db.prepare(`DELETE FROM tracks WHERE file_path NOT IN (${placeholders})`).run(...batch);
+  }
   persist();
   return 0;
 }
-
 export function markPlayed(id: number): void {
   const db = getDb();
   db.prepare('UPDATE tracks SET last_played_at = ?, play_count = play_count + 1 WHERE id = ?').run(

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { usePlaylistsStore } from '@/stores/playlistsStore';
 import { usePlayerStore } from '@/stores/playerStore';
 import { useSourcesStore } from '@/stores/sourcesStore';
@@ -106,7 +106,10 @@ export function PlaylistDetailView({ playlistId, onBack }: PlaylistDetailViewPro
   const currentTrack = usePlayerStore((s) => s.currentTrack);
   const isPlaying = usePlayerStore((s) => s.isPlaying);
   const registrations = useSourcesStore((s) => s.registrations);
-  const sourceNameById = new Map(registrations.map((r) => [r.id, r.name]));
+  const sourceNameById = useMemo(
+    () => new Map(registrations.map((r) => [r.id, r.name])),
+    [registrations],
+  );
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState('');
   const [dragFrom, setDragFrom] = useState<number | null>(null);
