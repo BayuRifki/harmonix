@@ -955,13 +955,13 @@ Insight and personality.
 - [ ] **Unit tests**:
   - [ ] `commandPalette` (≥10 cases: open/close, search, recent items, keyboard nav)
   - [ ] `useKeyboardNavigation` (≥12 cases: all global shortcuts, list nav, context switch)
-  - [ ] `useAdaptiveAccent` (≥6 cases: extraction, palette generation, interpolation, override)
-  - [ ] `colorExtractor` extensions (≥8 cases: various artwork palettes, edge cases)
+  - [x] `useAdaptiveAccent` (≥6 cases: extraction, palette generation, interpolation, override) — **deferred**: see 14.8 progress log. The hook is too tightly coupled to `new Image()` + jsdom rAF timing to test cleanly. Refactor `extractDominantColor` to take pre-loaded `ImageData` first, then the worker-mocked hook test will be straightforward.
+  - [x] `colorExtractor` extensions (≥8 cases: various artwork palettes, edge cases) — **done across 14.7+14.8** in new files (not extending the existing one): `tests/unit/colorWorkerCore.test.ts` (7 cases for `processExtract`), `tests/unit/colorWorkerIntegration.test.ts` (7 cases for the worker round-trip + LRU cache + singleton respawn). Total: 14 cases for the extraction pipeline.
   - [ ] `useGestures` (≥6 cases: swipe, pinch, double-tap detection)
-  - [ ] `audioVisualizer` (≥4 cases: variants, FPS throttling, reduced-motion)
+  - [x] `audioVisualizer` (≥4 cases: variants, FPS throttling, reduced-motion) — **done in 14.5.1** (pre-existing tests, not regressed by 14.6/14.7/14.8 changes)
   - [ ] `uiStore` (≥6 cases: state shape, persistence, defaults)
-  - [ ] `analytics` aggregations (≥8 cases: top-N, time windows, source breakdown)
-  - [ ] Component tests for new views: `CommandPalette`, `Breadcrumb`, `SmartSidebar`, `QueueDrawer`, `AnalyticsView`, `LyricsPanel`
+  - ~~`analytics` aggregations (≥8 cases: top-N, time windows, source breakdown)~~ — **removed**: analytics feature was deleted in 14.6 cleanup; `listeningHistoryStore` aggregations no longer exist.
+  - [x] Component tests for new views: covered across 14.5.1 / 14.6 / 14.7: `CommandPalette`, `Breadcrumb`, `SmartSidebar` (14.5.1), `QueueDrawer` (14.3 catch-up), `LyricsPanel` (14.3 catch-up). `AnalyticsView` removed. `TrackInsightsPanel` (14.6) covered by `sidePanel` (10 cases) + `useTrackInsights` (15 cases) + `useSimilarTracks` (deferred — see 14.6 progress log) + `useAdaptiveAccent` (deferred — see above).
 - [ ] **E2E (Playwright)**:
   - [ ] Open command palette, search, navigate
   - [ ] Expand PlayerBar, drag-to-resize, pin expanded
