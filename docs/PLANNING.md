@@ -883,7 +883,7 @@ follow-ups that were already due.
 - [x] **Magnetic hover + click ripples** (`src/components/ui/MicroInteractions.tsx`) —`MagneticButton` (cursor-tracked translate + scale via CSS variables) and `Ripple` (Material-style expanding circle via framer-motion AnimatePresence). Both respect `useReducedMotion`. `data-testid` provided on both.
 - [x] **Route change indicator** (`src/components/a11y/RouteLoader.tsx`) —`RouteChangeIndicator` flashes a brand-gradient progress bar at the top of the page for 350ms on navigation. `RouteLoaderSkeleton` (placeholder grid) ready for future `lazy()` routes. Mounted in `App.tsx` for both Main and NowPlaying shells.
 
-#### 14.6 —Data Visualization & "Delight" Features
+#### 14.6 —Data Visualization & "Delight" Features ✁EShipped (EQ visualizer + Track insights; Listening analytics removed; First-run experience deferred)
 
 Insight and personality.
 
@@ -902,7 +902,7 @@ Insight and personality.
   - [ ] Guided tour overlay (3-4 highlights) for first-time users; dismissible
   - [ ] "What's new" modal on version bump (driven by `CHANGELOG.md` or hardcoded list)
 
-#### 14.7 —Cross-cutting Concerns
+#### 14.7 —Cross-cutting Concerns ✁EPartial (Web Worker for color extraction shipped; rest deferred to 14.8+ follow-up)
 
 - [ ] **Accessibility audit**:
   - [ ] `prefers-reduced-motion` respected everywhere: vinyl spin, particle field, page transitions, magnetic hover, ripples, stagger animations
@@ -921,7 +921,7 @@ Insight and personality.
   - [ ] `React.memo` on heavy lists (TrackList, QueueDrawer, ForYouSection)
   - [ ] Virtualization already in TrackList; extend to QueueDrawer and PlaylistDetailView
   - [ ] `useDeferredValue` for search input (avoid jank on rapid typing)
-  - [ ] Web Worker for color extraction (don't block main thread on track change)
+  - [x] Web Worker for color extraction (don't block main thread on track change)
   - [ ] Bundle analysis: ensure each new dependency is tree-shaken; dynamic imports for `/now-playing` and `/analytics`
 - [ ] **Settings additions**:
   - [ ] **Appearance**: Theme (Dark/Light/System), Accent color (auto from artwork / fixed brand pink / custom hex), Glass intensity (Off/Subtle/Strong)
