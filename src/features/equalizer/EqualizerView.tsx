@@ -4,6 +4,7 @@ import { useToastStore } from '@/components/ui/toastStore';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { Skeleton } from '@/components/ui/Skeleton';
+import { EqResponseCurve } from '@/components/equalizer/EqResponseCurve';
 import { Save } from 'lucide-react';
 import { EQ_BAND_FREQUENCIES, EQ_BAND_LABELS, EQ_MIN_GAIN, EQ_MAX_GAIN } from '@/lib/audio/presets';
 
@@ -109,6 +110,18 @@ export function EqualizerView(): JSX.Element {
           <Button variant="ghost" size="sm" onClick={() => void reset()}>
             Flat
           </Button>
+        </div>
+
+        <div className="mb-2">
+          <EqResponseCurve
+            gains={currentGains}
+            bandFrequencies={EQ_BAND_FREQUENCIES}
+            minDb={EQ_MIN_GAIN}
+            maxDb={EQ_MAX_GAIN}
+            height={96}
+            active={!error}
+            ariaLabel="EQ frequency response curve"
+          />
         </div>
 
         <div className="flex justify-center gap-2 h-72">

@@ -15,6 +15,7 @@ export class AudioEngine {
   private ctx: AudioContext | null = null;
   private gainNode: GainNode | null = null;
   private sourceNode: MediaElementAudioSourceNode | null = null;
+  private preEqAnalyser: AnalyserNode | null = null;
   private currentAudio: HTMLAudioElement | null = null;
   private preloadedAudio: HTMLAudioElement | null = null;
   private preloadedUrl: string | null = null;
@@ -55,6 +56,41 @@ export class AudioEngine {
 
   getGainNode(): GainNode | null {
     return this.gainNode;
+  }
+
+  /**
+   * Returns a lazily-created AnalyserNode tapped at the input of the
+   * equalizer chain (i.e. before the EQ shaping is applied). Returns
+   * null if the audio context / EQ is not yet wired up. The returned
+   * node is owned by the engine — callers must not disconnect it.
+   */
+  getPreEqAnalyser(fftSize: number = 256): AnalyserNode | null {
+    const ctx = this.ensureContext();
+    if (!ctx) return null;
+    const pre = equalizer.getPreEqNode();
+    if (!pre) return null;
+    if (this.preEqAnalyser) {
+      if (this.preEqAnalyser.fftSize !== fftSize) {
+        try {
+          this.preEqAnalyser.fftSize = fftSize;
+        } catch {
+          // ignore — keep the existing analyser as-is
+        }
+      }
+      return this.preEqAnalyser;
+    }
+    try {
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = fftSize;
+      analyser.smoothingTimeConstant = 0.82;
+      pre.connect(analyser);
+      this.preEqAnalyser = analyser;
+      return analyser;
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.warn('[audioEngine] pre-EQ analyser init failed:', (err as Error).message);
+      return null;
+    }
   }
 
   getState(): PlaybackState {
@@ -253,6 +289,7 @@ export class AudioEngine {
   private cleanupCurrentAudio(): void {
     if (this.currentAudio) {
       this.currentAudio.pause();
+      this.currentAudio.removeEventListener('error', this.handleAudioError);
       this.currentAudio.removeAttribute('src');
       this.currentAudio.src = '';
       if (this.sourceNode) {
@@ -277,6 +314,11 @@ export class AudioEngine {
     return this.sourceNode !== null && this.gainNode !== null;
   }
 
+  private handleAudioError = (): void => {
+    this.setState('error');
+    this.emit('error', 'Audio playback error');
+  };
+
   private attachAllListeners(audio: HTMLAudioElement): void {
     audio.addEventListener('loadedmetadata', () => {
       this.emit('time', 0, Math.round(audio.duration * 1000));
@@ -292,10 +334,7 @@ export class AudioEngine {
       this.setState('idle');
       this.emit('ended');
     });
-    audio.addEventListener('error', () => {
-      this.setState('error');
-      this.emit('error', 'Audio playback error');
-    });
+    audio.addEventListener('error', this.handleAudioError);
   }
 
   async play(): Promise<void> {
@@ -340,6 +379,14 @@ export class AudioEngine {
     this.cancelPreload();
     this.cleanupCurrentAudio();
     this.currentAudio = null;
+    if (this.preEqAnalyser) {
+      try {
+        this.preEqAnalyser.disconnect();
+      } catch {
+        // ignore
+      }
+      this.preEqAnalyser = null;
+    }
     try {
       equalizer.disconnect();
     } catch {

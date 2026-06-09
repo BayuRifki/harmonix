@@ -19,6 +19,16 @@ export class Equalizer {
     return this.input !== null && this.output !== null && this.filters.length === BANDS.length;
   }
 
+  /**
+   * Returns the audio node sitting immediately before the first EQ band
+   * (i.e. the signal entering the EQ chain). Used to tap a pre-EQ
+   * AnalyserNode for visualization. Returns null when the EQ has not
+   * been wired into the audio graph yet.
+   */
+  getPreEqNode(): AudioNode | null {
+    return this.input;
+  }
+
   connect(input: AudioNode, output: AudioNode): void {
     if (this.isConnected()) {
       this.disconnect();
