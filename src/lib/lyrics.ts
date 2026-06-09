@@ -24,13 +24,22 @@ async function fetchWithTimeout(
 ): Promise<Response> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  // Forward parent-signal aborts to the local controller. Capture the
+  // listener reference so we can remove it in the `finally` block —
+  // without this, the parent signal keeps a strong reference to the
+  // local controller's listener and the closure prevents GC until the
+  // parent signal itself is destroyed.
+  const onParentAbort = (): void => controller.abort();
   if (options.signal) {
-    options.signal.addEventListener('abort', () => controller.abort());
+    options.signal.addEventListener('abort', onParentAbort);
   }
   try {
     return await fetch(url, { signal: controller.signal });
   } finally {
     clearTimeout(timeout);
+    if (options.signal) {
+      options.signal.removeEventListener('abort', onParentAbort);
+    }
   }
 }
 

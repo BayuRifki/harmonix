@@ -69,6 +69,7 @@ export function getCurrentFocusable(): HTMLElement | null {
 export function useFocusRestoration(): void {
   const location = useLocation();
   const restoredRef = useRef<string | null>(null);
+  const rafRef = useRef<number | null>(null);
 
   useEffect(() => {
     const path = location.pathname + location.search;
@@ -76,7 +77,8 @@ export function useFocusRestoration(): void {
       restoredRef.current = path;
       const mem = readMemory(path);
       if (mem) {
-        requestAnimationFrame(() => {
+        rafRef.current = requestAnimationFrame(() => {
+          rafRef.current = null;
           const target = document.querySelector<HTMLElement>(mem.selector);
           if (target) {
             target.focus({ preventScroll: true });
@@ -92,6 +94,14 @@ export function useFocusRestoration(): void {
     }
 
     return (): void => {
+      // Cancel the in-flight restore rAF (if the path changed before
+      // it could run, we don't want to focus the wrong element).
+      if (rafRef.current !== null) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
+      // Save the current focusable element to memory so a later
+      // navigation back to this path can restore it.
       const el = getCurrentFocusable();
       if (el) {
         const main = document.querySelector<HTMLElement>('main, [role="main"]');

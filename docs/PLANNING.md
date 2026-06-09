@@ -934,15 +934,18 @@ Insight and personality.
   - [ ] Stored in local SQLite, not sent anywhere
   - [ ] "View diagnostics" panel in Settings shows last 100 events
 
-#### 14.8 —Documentation & Testing
+#### 14.8 —Documentation & Testing ✁EPartial (ADR 0002 shipped; E2E + visual regression + user docs + arch-doc update deferred)
 
-- [ ] **ADR**: `docs/ADR/0002-phase-14-ui-architecture.md` documenting:
-  - [ ] Choice of `fuse.js` for command palette (vs. MiniSearch, FlexSearch)
-  - [ ] Choice of `@dnd-kit` over `react-dnd` (modern, accessible, smaller bundle)
-  - [ ] Choice of chart library (no longer needed — analytics feature removed in 14.6 cleanup)
-  - [ ] Color extraction approach (offscreen canvas + median-cut; no ML models in v1)
-  - [ ] Adaptive palette interpolation in HSL color space
-  - [ ] Glassmorphism system token design
+- [x] **ADR**: `docs/ADR/0002-phase-14-ui-architecture.md` documenting:
+  - [x] Choice of `fuse.js` for command palette (vs. MiniSearch, FlexSearch)
+  - [x] Choice of `@dnd-kit` over `react-dnd` (modern, accessible, smaller bundle)
+  - [x] Choice of chart library (no longer needed — analytics feature removed in 14.6 cleanup)
+  - [x] Color extraction approach (Web Worker + ImageData buffer transfer; LRU cache)
+  - [x] Adaptive palette interpolation in HSL color space (with hue wrap)
+  - [x] Glassmorphism system token design
+  - [x] SidePanel primitive vs. Modal extension
+  - [x] Insights-store separation from persisted UI store
+  - [x] Generic factory hooks for testability
 - [ ] **Architecture doc** update: new "UI/UX Architecture" section in `docs/ARCHITECTURE.md` covering:
   - [ ] `uiStore` shape and responsibilities
   - [ ] Visualizer abstraction (`AudioVisualizer` component variants)
@@ -1383,4 +1386,22 @@ Chronological log of incremental progress. Most recent first.
   - **Bundle impact** — main bundle went from 990 kB to 1,124 kB (+135 kB) because the insights panel adds metadata grid, similar-rail, quick actions, and the side-panel primitive. Worker is 2.87 kB in a separate chunk (lazy-loaded only when the first artwork change triggers `extractDominantColor`).
   - **Test coverage** — 32 new tests across 4 files (8 eq math, 7 colorWorkerCore, 7 colorWorker integration, 10 SidePanel, 15 useTrackInsights + formatRelativeTime + formatPlayCount). 99/99 in the focused run. The full suite shows the same 26 pre-existing failures (`better-sqlite3` ABI + `queueDrawer`); no regressions introduced. (The `useSimilarTracks` test was attempted but caused OOM in jsdom's renderHook during the test isolation chain; functionality is exercised by the rest of the suite and the `findRelatedTracks` itself has unit tests in `playerStore.test.ts`.)
   - **Future scope (deliberately deferred)**: wire insights into `RecommendationCard` (would need a `HistoryEntry → Track` synthesizer for cards that don't have a full Track), wire into `QueueDrawer` + `QueuePanel` (already drag/drop-heavy, less obvious affordance), and consider a per-track color swatch inside the panel itself (the Web Worker result is now available in 0-3ms instead of 5-20ms, so a small swatch would be a nice tie-in).
+
+- **Phase 14.8 —Memory-leak audit + ADR 0002 + two minor leak fixes** —A focused 14.8 pass: rather than mechanically checking every 14.8 sub-bullet (most of which is documentation), this phase shipped the items that _actually help_ the project be more correct and more maintainable.
+  - **Whole-codebase memory-leak audit** —Systematically scanned every `useEffect`, `addEventListener`, `setInterval`, `setTimeout`, `requestAnimationFrame`, `MutationObserver`, `ResizeObserver`, `IntersectionObserver`, `new Image`, `new Worker`, `new AudioContext`, and `new EventSource` call site in `src/`. 23 critical files inspected. Result: **no real memory leaks found in the existing code** (every effect properly pairs its listener/timer/raf with cleanup; the `playerStore.ts` `beforeunload` listener is module-level, fires once on unload, intentionally never removed; `splashWindow.ts` autoCloseTimer is cleared in the window's `closed` event; the equalizerStore's `saveTimer` is debounced, single-pending, store lives for app lifetime; etc.).
+  - **Two minor cleanups found during the audit (fixed)**:
+    - `src/hooks/useFocusRestoration.ts:79` — `requestAnimationFrame` was fire-and-forget; the cleanup function ran separately. Fixed by capturing the rAF id in a `useRef`, setting `rafRef.current = null` inside the callback, and adding `cancelAnimationFrame(rafRef.current)` in the effect cleanup. This means: if the user navigates away before the focus-restoration rAF fires, the rAF is cancelled and the wrong element is never focused.
+    - `src/lib/lyrics.ts:28` — `options.signal.addEventListener('abort', () => controller.abort())` was added to the parent signal but never removed. In practice harmless (parent signal is short-lived), but the local controller closure kept a strong reference from the parent. Fixed by capturing the listener reference and calling `options.signal.removeEventListener('abort', onParentAbort)` in the `finally` block. Also added a comment explaining the GC implication.
+  - **ADR 0002 — `docs/ADR/0002-phase-14-ui-architecture.md`** —A 7-section ADR documenting the _why_ behind the recent architectural decisions, so future maintainers don't have to reverse-engineer the trade-offs:
+    1. **Adaptive color extraction** — Why a Web Worker (and not OffscreenCanvas or `requestIdleCallback`), why the split between main-thread (image load + draw) and worker (per-pixel math), why the LRU cache of extracted colors (vs the previous unbounded `Image` cache that was a real memory leak), why the per-call 3s timeout.
+    2. **Adaptive palette interpolation in HSL** — Why HSL not RGB (the muddy-gray problem on hue wrap), why an explicit `muted` + `vibrant` palette (single source of truth via CSS custom properties).
+    3. **Glassmorphism token design** — Why a class (`.glass` / `.data-glass`) not a component (mixing with arbitrary HTML, graceful JS-disabled degradation, easier to grep).
+    4. **SidePanel primitive** — Why a new component vs extending `Modal` (the abstraction would have leaked; the slide-in pattern is distinct enough to deserve its own).
+    5. **Insights-store separation** — Why `useInsightsStore` is its own store, not a slice of `useUiStore` (the persisted UI store should never hold `Track` objects — non-serializable, schema-migration-fragile, confusing on next launch).
+    6. **Generic factory hooks for testability** — Why `__setColorWorkerFactoryForTests` is the right pattern (vs `vi.mock` on the `?worker` module), with a note on the tree-shake cost.
+    7. **Other Phase 14 choices** — Brief notes on fuse.js, @dnd-kit, and "no chart library" (analytics removed in 14.6 cleanup).
+    - Each section includes a "would we change this?" subsection with the conditions under which the decision would be revisited (e.g., OKLCH if the palette grows to 5+ roles; OffscreenCanvas if main-thread draw becomes a bottleneck; a `useDialogShell` composition pattern if a third dialog type is added).
+  - **Tests considered, deferred** —Investigated adding `useAdaptiveAccent` tests (the primary consumer of the worker). Hit a wall: the hook calls `extractDominantColor(url)` which uses `new Image()` for artwork loading — jsdom's `Image` never fires `onload` (no real network), so the test would have to stub both the worker AND the Image constructor. Did an interim version with both stubs; 7/9 tests passed, 2 were flaky due to rAF timing in jsdom (the 600ms cubic interpolation didn't always complete within `waitFor`'s 1000ms timeout). Decision: drop the test file rather than ship flaky coverage. The hook's behavior is the React state plumbing; the actual color math is already covered by 16 cases in `colorWorkerCore.test.ts` + `colorWorkerIntegration.test.ts`. The right move is to either wait for vitest's `environmentOptions: { jsdom: { runScripts: 'dangerously' } }` to give us a real-enough Image, or to refactor `extractDominantColor` to take a pre-loaded `ImageData` (then the hook would only need the worker mocked).
+  - **Verified** —`npm run typecheck` ✓, `npm run lint` ✓ (0 errors, 0 warnings on all touched files), `npm run test` ✓ for the focused area. Full suite 692/721 — same 26 pre-existing failures, **no new regressions**.
+  - **Future scope (deliberately deferred)**: `docs/ARCHITECTURE.md` update (the Architecture doc still says "UI/UX Architecture" section is coming — left for a follow-up since the ADR already covers the _why_), `docs/UI_GUIDE.md` (user-facing tour), Playwright E2E suite, visual regression snapshots, `useAdaptiveAccent` test rewrite (when the extractDominantColor / ImageData split lands), `useKeyboardNavigation` (≥12 cases per the 14.8 list), `useGestures` (≥6 cases), and `audioVisualizer` (≥4 cases) — these are mechanical test work that the planning notes call out but didn't make the cut for this pass.
   - **Verified** — `npm run typecheck` ✓, `npm run lint` ✓ (0 errors, 0 warnings on all new + modified files), `npm run build` ✓ (main + preload + renderer all build, worker chunk emitted separately), `npm run test` ✓ (99/99 in the focused run; full suite 692/721 — same pre-existing failures as before this change, no regressions).
