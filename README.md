@@ -192,7 +192,7 @@ npm run dist:mac   # macOS
 npm run dist:linux # Linux
 ```
 
-> **Memory note**: The dev/build/preview scripts pre-allocate a Node.js V8 heap of 8 GB. This matches the main process runtime config (`HARMONIX_MAX_HEAP_MB=3072` in `electron/main/index.ts`) plus a generous buffer for the build pipeline. If you need to lower it, edit the script flags in `package.json` — the minimum safe value is ~4 GB for full builds.
+> **Memory note**: The dev/build/preview scripts pre-allocate a Node.js V8 heap of 8 GB. This matches the main process runtime config (`HARMONIX_MAX_HEAP_MB=6144` in `electron/main/index.ts`) plus a generous buffer for the build pipeline. If you need to lower it, edit the script flags in `package.json` or set `HARMONIX_MAX_HEAP_MB` in `.env` — the minimum safe value is ~4 GB for full builds.
 
 ---
 

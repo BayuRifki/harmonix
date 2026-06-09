@@ -34,8 +34,8 @@ import { registerAudioProxyProtocol } from './audioProxy';
 import { createTray, destroyTray } from './tray';
 import { getSetting, setSetting } from './db/settingsRepository';
 
-const MAX_HEAP_MB = process.env.HARMONIX_MAX_HEAP_MB ?? '3072';
-const MAX_SEMI_MB = process.env.HARMONIX_MAX_SEMI_MB ?? '128';
+const MAX_HEAP_MB = process.env.HARMONIX_MAX_HEAP_MB ?? '6144';
+const MAX_SEMI_MB = process.env.HARMONIX_MAX_SEMI_MB ?? '256';
 app.commandLine.appendSwitch(
   'js-flags',
   `--max-old-space-size=${MAX_HEAP_MB} --max-semi-space-size=${MAX_SEMI_MB} --no-incremental-marking`,
