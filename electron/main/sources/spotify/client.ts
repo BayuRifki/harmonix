@@ -56,6 +56,47 @@ interface PendingFlow {
 
 let pendingFlow: PendingFlow | null = null;
 
+const SPOTIFY_DEFAULT_TYPES = ['track', 'album', 'artist', 'playlist'] as const;
+const SPOTIFY_DEFAULT_LIMIT = 20;
+const SPOTIFY_MAX_LIMIT = 50;
+
+/**
+ * Build the path + querystring for the Spotify /search endpoint,
+ * validating inputs that would otherwise produce a 400 from Spotify.
+ *
+ * Returns `null` for inputs that are unambiguously invalid (empty
+ * query) so the caller can short-circuit with an empty result. For
+ * inputs that are technically present but malformed (empty `types`
+ * array, out-of-range `limit`), the function falls back to safe
+ * defaults rather than sending a request Spotify will reject.
+ *
+ * Exported for unit testing.
+ */
+export function buildSpotifySearchPath(query: string, options: SearchOptions = {}): string | null {
+  const trimmed = query?.trim() ?? '';
+  if (!trimmed) return null;
+
+  const requestedTypes = options.types ?? [...SPOTIFY_DEFAULT_TYPES];
+  const types = requestedTypes.length > 0 ? requestedTypes : [...SPOTIFY_DEFAULT_TYPES];
+
+  const rawLimit = options.limit;
+  // For a valid positive limit, floor it and clamp into [1, 50].
+  // For anything else (0, negative, NaN, non-number, undefined) fall
+  // back to the default. We can't use `rawLimit || DEFAULT` because
+  // negative numbers are truthy in JS and would slip through.
+  const safeLimit =
+    typeof rawLimit === 'number' && Number.isFinite(rawLimit) && rawLimit >= 1
+      ? Math.min(SPOTIFY_MAX_LIMIT, Math.floor(rawLimit))
+      : SPOTIFY_DEFAULT_LIMIT;
+
+  const params = new URLSearchParams({
+    q: trimmed,
+    type: types.join(','),
+    limit: String(safeLimit),
+  });
+  return `/search?${params.toString()}`;
+}
+
 export class SpotifyClient {
   private config: SpotifyConfig;
   private profile: SpotifyUserProfile | null = null;
@@ -274,15 +315,28 @@ export class SpotifyClient {
   }
 
   async search(query: string, options: SearchOptions = {}): Promise<SearchResult> {
-    const limit = options.limit ?? 20;
-    const types = options.types ?? ['track', 'album', 'artist', 'playlist'];
-    const params = new URLSearchParams({
-      q: query,
-      type: types.join(','),
-      limit: String(Math.min(limit, 50)),
-    });
-    const response = await this.authedFetch(`/search?${params.toString()}`);
-    if (!response.ok) throw new Error(`Spotify search failed: ${response.status}`);
+    const searchPath = buildSpotifySearchPath(query, options);
+    const emptyResult: SearchResult = { tracks: [], albums: [], artists: [], playlists: [] };
+    // Empty/whitespace query: Spotify's /search returns 400 on an
+    // empty `q` param. Bail out with an empty result instead of
+    // round-tripping just to be told the request is invalid. This
+    // matches the other sources' behavior for an empty query.
+    if (!searchPath) return emptyResult;
+
+    const response = await this.authedFetch(searchPath);
+    if (!response.ok) {
+      // Include a snippet of the response body so the renderer-side
+      // log surfaces *why* Spotify rejected the request (missing scope,
+      // bad parameter, etc.) rather than just the status code.
+      let detail = '';
+      try {
+        const text = await response.text();
+        detail = text ? ` \u2014 ${text.slice(0, 200)}` : '';
+      } catch {
+        // ignore \u2014 body is best-effort
+      }
+      throw new Error(`Spotify search failed: ${response.status}${detail}`);
+    }
     const data = (await response.json()) as {
       tracks?: { items?: SpotifyApi.TrackObject[] };
       albums?: { items?: SpotifyApi.AlbumObject[] };
