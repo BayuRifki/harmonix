@@ -1,6 +1,5 @@
 import { useEffect, useRef } from 'react';
 import { useUiStore } from '@/stores/uiStore';
-import { usePlayerStore } from '@/stores/playerStore';
 
 export type GestureKind =
   | 'swipe-left'
@@ -48,17 +47,15 @@ export function useGestures(options: UseGesturesOptions = {}): void {
   const swipeThreshold = options.swipeThreshold ?? DEFAULT_SWIPE;
   const doubleTapMs = options.doubleTapMs ?? DEFAULT_DOUBLE_TAP;
   const pinchThreshold = options.pinchThreshold ?? DEFAULT_PINCH;
-  const player = usePlayerStore.getState;
-  void player;
-
   const startRef = useRef<{ x: number; y: number; t: number; touches: Touch[] } | null>(null);
   const lastTapRef = useRef<number>(0);
   const gestureStartDistRef = useRef<number | null>(null);
-
+  const targetRef = useRef<EventTarget | null>(null);
   useEffect(() => {
     if (!effective) return undefined;
     if (typeof window === 'undefined') return undefined;
     const target = options.targetRef?.current ?? window;
+    targetRef.current = target;
 
     const onTouchStart = (e: TouchEvent): void => {
       if (isInteractiveTarget(e.target)) return;
@@ -142,10 +139,10 @@ export function useGestures(options: UseGesturesOptions = {}): void {
     target.addEventListener('wheel', onWheel as EventListener, { passive: true });
 
     return () => {
-      target.removeEventListener('touchstart', onTouchStart as EventListener);
-      target.removeEventListener('touchmove', onTouchMove as EventListener);
-      target.removeEventListener('touchend', onTouchEnd as EventListener);
-      target.removeEventListener('wheel', onWheel as EventListener);
+      targetRef.current?.removeEventListener('touchstart', onTouchStart as EventListener);
+      targetRef.current?.removeEventListener('touchmove', onTouchMove as EventListener);
+      targetRef.current?.removeEventListener('touchend', onTouchEnd as EventListener);
+      targetRef.current?.removeEventListener('wheel', onWheel as EventListener);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [effective, swipeThreshold, doubleTapMs, pinchThreshold]);

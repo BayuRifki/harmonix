@@ -263,7 +263,7 @@ export function PlayerBar(): JSX.Element {
           <button
             type="button"
             onClick={() => setQueueOpen(true)}
-            className="relative px-2 py-1.5 rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/60 transition-all duration-100 active:scale-95"
+            className="relative px-2 py-1.5 rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/60 transition-all duration-100 active:scale-95 focus-ring"
             aria-label="Show queue"
             title="Show queue"
           >
@@ -278,7 +278,7 @@ export function PlayerBar(): JSX.Element {
             <button
               type="button"
               onClick={() => setPlayerBarPinned(!playerBarPinned)}
-              className={`p-1.5 rounded-lg transition-all duration-100 active:scale-95 ${
+              className={`p-1.5 rounded-lg transition-all duration-100 active:scale-95 focus-ring ${
                 playerBarPinned
                   ? 'text-brand-300 bg-brand-500/15'
                   : 'text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/60'
@@ -296,7 +296,7 @@ export function PlayerBar(): JSX.Element {
             onClick={() => {
               void window.api.miniPlayer.show();
             }}
-            className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/60 transition-all duration-100 active:scale-95"
+            className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/60 transition-all duration-100 active:scale-95 focus-ring"
             aria-label="Open mini-player"
             title="Open mini-player (Ctrl+Shift+M)"
           >
@@ -306,7 +306,7 @@ export function PlayerBar(): JSX.Element {
             type="button"
             onClick={() => navigate('/now-playing')}
             disabled={!hasTrack}
-            className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/60 transition-all duration-100 active:scale-95 disabled:opacity-40"
+            className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/60 transition-all duration-100 active:scale-95 disabled:opacity-40 focus-ring"
             aria-label="Open now playing"
             title="Now playing"
           >
@@ -316,7 +316,7 @@ export function PlayerBar(): JSX.Element {
             <button
               type="button"
               onClick={() => setVolume(volume === 0 ? 0.5 : 0)}
-              className="text-zinc-400 hover:text-zinc-100 transition-colors"
+              className="text-zinc-400 hover:text-zinc-100 transition-colors focus-ring"
               aria-label="Toggle mute"
             >
               <VolumeIcon volume={volume} />

@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react';
+import { useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Music, Heart, MoreHorizontal, Disc3 } from 'lucide-react';
 import { usePlayerStore } from '@/stores/playerStore';
 import { useSourcesStore } from '@/stores/sourcesStore';
 import { TransportControls } from '@/components/player/TransportControls';
+import { usePlaylistsStore } from '@/stores/playlistsStore';
+import { useToastStore } from '@/components/ui/toastStore';
 
 interface HeroPlayerProps {
   playlistName?: string | null;
@@ -77,6 +80,47 @@ export function HeroPlayer({ playlistName, showHiFiBadge = true }: HeroPlayerPro
       .filter(Boolean)
       .join(', ') ?? null;
 
+  const playlists = usePlaylistsStore((s) => s.playlists);
+  const createPlaylist = usePlaylistsStore((s) => s.create);
+  const addTrackToPlaylist = usePlaylistsStore((s) => s.addTrack);
+  const loadPlaylist = usePlaylistsStore((s) => s.load);
+  const toast = useToastStore();
+
+  const addToFavorites = useCallback(async () => {
+    if (!currentTrack) return;
+    const FAVORITES_NAME = 'Favorites';
+    let favoritesPlaylist = playlists.find((p) => p.name === FAVORITES_NAME);
+
+    if (!favoritesPlaylist) {
+      try {
+        const id = await createPlaylist(FAVORITES_NAME);
+        favoritesPlaylist = playlists.find((p) => p.id === id);
+        if (!favoritesPlaylist) {
+          await loadPlaylist(id);
+        }
+      } catch {
+        toast.error('Failed to create Favorites playlist');
+        return;
+      }
+    }
+
+    if (!favoritesPlaylist) {
+      toast.error('Failed to find or create Favorites playlist');
+      return;
+    }
+
+    if (usePlaylistsStore.getState().current?.id !== favoritesPlaylist.id) {
+      await loadPlaylist(favoritesPlaylist.id);
+    }
+
+    try {
+      await addTrackToPlaylist(currentTrack);
+      toast.success(`Added "${currentTrack.title}" to Favorites`);
+    } catch {
+      toast.error('Failed to add to Favorites');
+    }
+  }, [currentTrack, playlists, createPlaylist, addTrackToPlaylist, loadPlaylist, toast]);
+
   return (
     <div className="relative w-full h-full flex flex-col items-center justify-center px-8 py-6 overflow-hidden">
       <div
@@ -109,6 +153,7 @@ export function HeroPlayer({ playlistName, showHiFiBadge = true }: HeroPlayerPro
           {currentTrack && (
             <button
               type="button"
+              onClick={addToFavorites}
               className="p-1.5 rounded-full text-zinc-400 hover:text-brand-400 transition-colors shrink-0"
               aria-label="Add to favorites"
               title="Add to favorites"

@@ -220,6 +220,7 @@ export interface HarmonixApi {
     setAlwaysOnTop(value: boolean): Promise<{ ok: boolean; alwaysOnTop: boolean }>;
     expand(): Promise<{ ok: boolean }>;
     saveBounds(): Promise<{ ok: boolean; bounds: MiniPlayerBounds | null }>;
+    setBounds(bounds: MiniPlayerBounds): Promise<{ ok: boolean; error?: string }>;
   };
 }
 
@@ -438,6 +439,8 @@ const api: HarmonixApi = {
     expand: (): Promise<{ ok: boolean }> => ipcRenderer.invoke('mini-player:expand'),
     saveBounds: (): Promise<{ ok: boolean; bounds: MiniPlayerBounds | null }> =>
       ipcRenderer.invoke('mini-player:save-bounds'),
+    setBounds: (bounds: MiniPlayerBounds): Promise<{ ok: boolean; error?: string }> =>
+      ipcRenderer.invoke('mini-player:set-bounds', bounds),
   },
 };
 

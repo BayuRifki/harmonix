@@ -1,4 +1,5 @@
 import { ipcMain, type IpcMainInvokeEvent } from 'electron';
+import { getMiniPlayerWindow } from '../windowManager';
 import {
   showMiniPlayer,
   hideMiniPlayer,
@@ -96,5 +97,14 @@ export function registerMiniPlayerHandlers(): void {
   ipcMain.handle('mini-player:close-window', () => {
     hideMiniPlayer();
     return { ok: true };
+  });
+
+  ipcMain.handle('mini-player:set-bounds', (_event: IpcMainInvokeEvent, bounds: { x: number; y: number; width: number; height: number }) => {
+    const win = getMiniPlayerWindow();
+    if (win && !win.isDestroyed()) {
+      win.setBounds(bounds);
+      return { ok: true };
+    }
+    return { ok: false, error: 'Window not found' };
   });
 }

@@ -29,6 +29,9 @@ class MockImage {
       if (this.onload) this.onload();
     }, 0);
   }
+  removeAttribute(_name: string): void {
+    // no-op for test mock
+  }
 }
 
 describe('ArtworkBlurBackground', () => {

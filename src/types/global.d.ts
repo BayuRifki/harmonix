@@ -223,6 +223,7 @@ export interface HarmonixApi {
     setAlwaysOnTop(value: boolean): Promise<{ ok: boolean; alwaysOnTop: boolean }>;
     expand(): Promise<{ ok: boolean }>;
     saveBounds(): Promise<{ ok: boolean; bounds: MiniPlayerBounds | null }>;
+    setBounds(bounds: MiniPlayerBounds): Promise<{ ok: boolean; error?: string }>;
   };
 }
 

@@ -5,10 +5,18 @@ import type {
   MiniPlayerStateSnapshot,
   MiniPlayerAction,
   MiniPlayerConfig,
+  MiniPlayerBounds,
 } from '../../../electron/preload';
-import { useToastStore } from '@/components/ui/toastStore';
-import { DND_TYPES, parseDndData, type TrackDragData } from '@/lib/dndData';
-import { usePlayerStore } from '@/stores/playerStore';
+import {
+  SkipBack,
+  Play,
+  Pause,
+  SkipForward,
+  Maximize2,
+  X,
+  Pin,
+  PinOff,
+} from 'lucide-react';
 
 type Snapshot = MiniPlayerStateSnapshot;
 type Action = MiniPlayerAction;
@@ -32,6 +40,7 @@ const INITIAL: Snapshot = {
 };
 
 const SNAP_THRESHOLD = 32;
+const SNAP_MARGIN = 12;
 
 function formatTime(ms: number): string {
   if (!ms || ms <= 0) return '0:00';
@@ -67,10 +76,8 @@ export function MiniPlayerView(): JSX.Element {
   const [config, setConfig] = useState<MiniPlayerConfig | null>(null);
   const [contextOpen, setContextOpen] = useState(false);
   const contextRef = useRef<HTMLDivElement>(null);
+  const artworkRef = useRef<HTMLDivElement | null>(null);
   const isPlayingRef = useRef(snapshot.isPlaying);
-  isPlayingRef.current = snapshot.isPlaying;
-  const toast = useToastStore();
-  const insertIntoQueue = usePlayerStore((s) => s.insertIntoQueue);
 
   useEffect(() => {
     let cancelled = false;
@@ -132,6 +139,11 @@ export function MiniPlayerView(): JSX.Element {
     void window.api.miniPlayer.hide();
   }, []);
 
+  const onContextMenu = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    setContextOpen((v) => !v);
+  }, []);
+
   const onToggleAlwaysOnTop = useCallback(() => {
     const next = !(config?.alwaysOnTop ?? false);
     void window.api.miniPlayer.setAlwaysOnTop(next).then(() => {
@@ -140,78 +152,55 @@ export function MiniPlayerView(): JSX.Element {
     setContextOpen(false);
   }, [config?.alwaysOnTop]);
 
-  const onContextMenu = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    setContextOpen((v) => !v);
-  }, []);
-
-  const onSaveBounds = useCallback(() => {
-    void window.api.miniPlayer.saveBounds();
+  const onSaveBounds = useCallback(async () => {
+    const result = await window.api.miniPlayer.saveBounds();
+    if (!result.ok || !result.bounds) return;
+    const bounds = result.bounds;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    let snapX = bounds.x;
+    let snapY = bounds.y;
+    if (bounds.x < SNAP_THRESHOLD) snapX = SNAP_MARGIN;
+    else if (vw - (bounds.x + bounds.width) < SNAP_THRESHOLD) snapX = vw - bounds.width - SNAP_MARGIN;
+    if (bounds.y < SNAP_THRESHOLD) snapY = SNAP_MARGIN;
+    else if (vh - (bounds.y + bounds.height) < SNAP_THRESHOLD) snapY = vh - bounds.height - SNAP_MARGIN;
+    if (snapX !== bounds.x || snapY !== bounds.y) {
+      const snappedBounds: MiniPlayerBounds = { x: snapX, y: snapY, width: bounds.width, height: bounds.height };
+      await window.api.miniPlayer.setBounds(snappedBounds);
+    }
   }, []);
 
   useEffect(() => {
-    const onResize = (): void => {
-      onSaveBounds();
-    };
-    window.addEventListener('resize', onResize);
-    return (): void => window.removeEventListener('resize', onResize);
-  }, [onSaveBounds]);
-
-  // Snap-to-edge on resize end
-  useEffect(() => {
-    if (typeof window === 'undefined') return undefined;
+    let rafId: number | null = null;
     const onUp = async (): Promise<void> => {
-      const bounds = await window.api.miniPlayer.saveBounds();
-      if (bounds?.bounds) {
-        const { x, y } = bounds.bounds;
-        const vw = window.innerWidth;
-        const vh = window.innerHeight;
-        const margin = 12;
-        let snapX = x;
-        let snapY = y;
-        if (x < SNAP_THRESHOLD) snapX = margin;
-        else if (vw - (x + bounds.bounds.width) < SNAP_THRESHOLD)
-          snapX = vw - bounds.bounds.width - margin;
-        if (y < SNAP_THRESHOLD) snapY = margin;
-        else if (vh - (y + bounds.bounds.height) < SNAP_THRESHOLD)
-          snapY = vh - bounds.bounds.height - margin;
-        if (snapX !== x || snapY !== y) {
-          // ask main to move (would need IPC; skip if unavailable)
-          try {
-            // best-effort: rely on saveBounds to persist; user can drag
-            // window programmatically via webContents.setBounds
-            void window.api.miniPlayer.saveBounds();
-          } catch {
-            // ignore
-          }
-        }
-      }
+      if (rafId !== null) return;
+      rafId = requestAnimationFrame(async () => {
+        rafId = null;
+        await onSaveBounds();
+      });
     };
     window.addEventListener('mouseup', onUp);
-    return () => window.removeEventListener('mouseup', onUp);
-  }, []);
+    return () => {
+      window.removeEventListener('mouseup', onUp);
+      if (rafId !== null) cancelAnimationFrame(rafId);
+    };
+  }, [onSaveBounds]);
 
   const hasTrack = snapshot.currentTrack !== null;
   const progress = snapshot.durationMs > 0 ? (snapshot.positionMs / snapshot.durationMs) * 100 : 0;
   const showSource = snapshot.sourceId;
 
   // Drop zone for track → mini-player (insert into queue)
-  const { setNodeRef, isOver, active } = useDroppable({
+  const { setNodeRef, isOver } = useDroppable({
     id: 'mini-player-artwork',
     data: { type: 'mini-player' },
   });
-  useEffect(() => {
-    if (!isOver || !active) return;
-    const data = active.data.current as { type?: string } | undefined;
-    if (data?.type === DND_TYPES.TRACK) {
-      const trackData = parseDndData<TrackDragData>(JSON.stringify(active.data.current));
-      if (trackData?.track) {
-        const state = usePlayerStore.getState();
-        insertIntoQueue(trackData.track, state.queue.length);
-        toast.success(`Queued "${trackData.track.title}" from mini-player drop`);
-      }
-    }
-  }, [isOver, active, insertIntoQueue, toast]);
+
+  // Combined ref callback for both dnd-kit and our own ref
+  const combinedRef = useCallback((el: HTMLDivElement | null) => {
+    setNodeRef(el);
+    artworkRef.current = el;
+  }, [setNodeRef]);
 
   return (
     <div
@@ -229,7 +218,7 @@ export function MiniPlayerView(): JSX.Element {
           </span>
         )}
         <div
-          ref={setNodeRef}
+          ref={combinedRef}
           className={`w-14 h-14 bg-zinc-900 rounded shrink-0 overflow-hidden flex items-center justify-center text-zinc-700 ${
             isOver ? 'ring-2 ring-brand-400' : ''
           }`}
@@ -278,33 +267,46 @@ export function MiniPlayerView(): JSX.Element {
         <div className="flex items-center gap-1 shrink-0" data-testid="mini-controls">
           <button
             type="button"
-            onClick={(): void => send({ type: 'prev' })}
+            onClick={() => send({ type: 'prev' })}
             disabled={!hasTrack || !snapshot.hasPrev}
-            className="w-7 h-7 rounded hover:bg-zinc-800 text-zinc-300 disabled:opacity-40 flex items-center justify-center text-sm focus-ring"
+            className="w-7 h-7 rounded hover:bg-zinc-800 text-zinc-300 disabled:opacity-40 flex items-center justify-center focus-ring"
             aria-label="Previous"
             title="Previous"
           >
-            ⏮
+            <SkipBack size={14} />
           </button>
           <button
             type="button"
-            onClick={(): void => send({ type: 'toggle' })}
+            onClick={() => send({ type: 'toggle' })}
             disabled={!hasTrack || snapshot.loading}
             className="w-8 h-8 rounded-full bg-white text-black flex items-center justify-center text-sm hover:scale-105 motion-reduce:hover:scale-100 active:scale-95 motion-reduce:active:scale-100 disabled:opacity-40 focus-ring"
             aria-label={snapshot.isPlaying ? 'Pause' : 'Play'}
             title={snapshot.isPlaying ? 'Pause' : 'Play'}
           >
-            {snapshot.loading ? '…' : snapshot.isPlaying ? '⏸' : '▶'}
+            {snapshot.loading ? (
+              <motion.span
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.3 }}
+                className="text-xs"
+              >
+                …
+              </motion.span>
+            ) : snapshot.isPlaying ? (
+              <Pause size={16} />
+            ) : (
+              <Play size={16} />
+            )}
           </button>
           <button
             type="button"
-            onClick={(): void => send({ type: 'next' })}
+            onClick={() => send({ type: 'next' })}
             disabled={!hasTrack || !snapshot.hasNext}
-            className="w-7 h-7 rounded hover:bg-zinc-800 text-zinc-300 disabled:opacity-40 flex items-center justify-center text-sm focus-ring"
+            className="w-7 h-7 rounded hover:bg-zinc-800 text-zinc-300 disabled:opacity-40 flex items-center justify-center focus-ring"
             aria-label="Next"
             title="Next"
           >
-            ⏭
+            <SkipForward size={14} />
           </button>
         </div>
 
@@ -316,7 +318,7 @@ export function MiniPlayerView(): JSX.Element {
             aria-label="Expand to full player"
             title="Expand to full player"
           >
-            ⤢
+            <Maximize2 size={12} />
           </button>
           <button
             type="button"
@@ -325,7 +327,7 @@ export function MiniPlayerView(): JSX.Element {
             aria-label="Hide mini-player"
             title="Hide mini-player (playback continues)"
           >
-            ✕
+            <X size={12} />
           </button>
         </div>
       </div>
@@ -351,8 +353,8 @@ export function MiniPlayerView(): JSX.Element {
             onClick={onToggleAlwaysOnTop}
             className="w-full text-left px-3 py-1.5 hover:bg-zinc-800 flex items-center justify-between focus-ring"
           >
-            <span>Always on top</span>
-            <span className="text-accent">{config?.alwaysOnTop ? '✓' : ''}</span>
+            <span>{config?.alwaysOnTop ? 'Unpin (always on top)' : 'Pin (always on top)'}</span>
+            <span className="text-accent">{config?.alwaysOnTop ? <PinOff size={12} /> : <Pin size={12} />}</span>
           </button>
           <button
             type="button"
@@ -361,7 +363,6 @@ export function MiniPlayerView(): JSX.Element {
           >
             Expand to full player
           </button>
-          <div className="border-t border-zinc-800 my-1" />
           <button
             type="button"
             onClick={onClose}

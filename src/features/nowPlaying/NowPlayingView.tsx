@@ -12,6 +12,7 @@ import {
   Eye,
   Wind,
   Activity,
+  Shuffle,
 } from 'lucide-react';
 import { usePlayerStore } from '@/stores/playerStore';
 import { useSourcesStore } from '@/stores/sourcesStore';
@@ -491,7 +492,7 @@ export function NowPlayingView(): JSX.Element {
               aria-label="Toggle shuffle"
               aria-pressed={shuffle}
             >
-              <ShuffleIcon active={shuffle} />
+              <Shuffle size={20} className={shuffle ? 'fill-current' : ''} />
             </button>
             <button
               type="button"
@@ -618,28 +619,6 @@ export function NowPlayingView(): JSX.Element {
         </div>
       </motion.div>
     </div>
-  );
-}
-
-function ShuffleIcon({ active }: { active: boolean }): JSX.Element {
-  return (
-    <svg
-      width="20"
-      height="20"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={active ? 'fill-current' : ''}
-    >
-      <path d="M16 3h5v5" />
-      <path d="M4 20 21 3" />
-      <path d="M21 16v5h-5" />
-      <path d="m15 15 6 6" />
-      <path d="M4 4l5 5" />
-    </svg>
   );
 }
 
