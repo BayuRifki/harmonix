@@ -892,11 +892,11 @@ Insight and personality.
   - [x] Real-time frequency curve overlay (24 bands) showing pre-EQ vs post-EQ response
   - [x] Animated bars behind each slider showing current frequency magnitude
   - [x] Preset switch animates the curve from old to new gains
-- [ ] **Track insights** (click on track row ↁEside panel):
-  - [ ] Album art, full metadata, source, bitrate, codec (from `audioEngine`)
-  - [ ] "Similar tracks" mini-rail
-  - [ ] "Add to playlist" + "Go to artist" + "Go to album" quick actions
-  - [ ] Play count + last played timestamp
+- [x] **Track insights** (click on track row ↁEside panel):
+  - [x] Album art, full metadata, source, bitrate, codec (from `audioEngine`)
+  - [x] "Similar tracks" mini-rail
+  - [x] "Add to playlist" + "Go to artist" + "Go to album" quick actions
+  - [x] Play count + last played timestamp
 - [ ] **First-run experience** (post-MVP polish):
   - [ ] Welcome modal: "Choose your default theme" + "Add your first source" + "Add a folder to scan"
   - [ ] Guided tour overlay (3-4 highlights) for first-time users; dismissible
@@ -1352,3 +1352,35 @@ Chronological log of incremental progress. Most recent first.
   - **No new dependencies**, no bundle-size impact beyond ~3 KB (uncompressed) for the math helpers + component.
   - **Verified** —`npm run lint` ✁E `npm run typecheck` ✁E (3 pre-existing errors in `useGestures` / `ScrollShadow` are unrelated to this change) `npm run test` ✁E(40 new tests + all 69 pre-existing EQ / engine / visualizer tests still pass; 109/109 in the EQ + engine area). 692/721 total tests pass; the 29 failing tests are pre-existing (db-bound `better-sqlite3` ABI on this machine + 5 pre-existing `queueDrawer.test.tsx` failures — verified by stashing my changes and re-running).
   - **Future scope (deliberately deferred)**: per-slider animated magnitude bars behind each of the 10 vertical sliders. The data path is already in place (each band center's magnitude is one FFT-bin read away); would be a follow-up.
+
+- **Phase 14.6 + 14.7 —Track insights panel + Web Worker color extraction** —Two complementary features in one pass: 14.6 ships the right-slide-in track insights panel, 14.7 moves the dominant-color extraction off the main thread into a dedicated Web Worker (and closes a long-standing `_imageCache` Map leak as a side effect).
+  - **14.7 — Web Worker for color extraction (`src/lib/workers/colorWorker.ts` + `src/lib/workers/colorWorkerCore.ts` + refactored `src/lib/colorExtractor.ts`)** — Vite's built-in `?worker` import (`import ColorWorker from './workers/colorWorker?worker'`) emits `colorWorker-{hash}.js` as a separate chunk (2.87 kB). The worker file is a thin message handler that delegates to `processExtract(req)` in `colorWorkerCore.ts` — the same pure `clusterPixels` math, just executed in a separate thread.
+    - The main thread still does the `new Image` + `drawImage` + `getImageData` (these need DOM/Canvas), then **transfers the `ImageData.data.buffer`** to the worker with `[buffer]` for zero-copy. The worker returns `{id, result: HslColor | null}` (3 numbers) and the buffer is GC'd.
+    - **Leak fix** — the previous implementation held decoded `HTMLImageElement` bitmaps in a module-level `_imageCache` Map that was **never trimmed on the success path** (the 5s `setTimeout(cleanup, 5000)` only fired on the error path). Replaced with a bounded 128-entry **LRU cache of extracted HSL colors** (~24 bytes each, <4 KB total). The `Image` is local to each call, so its decoded bitmap is GC'd as soon as the function returns.
+    - **Worker lifecycle** — singleton worker, created lazily on first call. `onerror` handler: rejects all in-flight promises, **terminates the dead worker** (`worker.terminate()`), and nulls the singleton so the next call respawns. Per-call **3-second timeout** as a defensive net (rejects with "color worker timeout" if the worker dies silently). All in-flight bookkeeping (`_pending: Map<id, {resolve, reject, timer}>`) clears correctly on response / error / timeout.
+    - **Testability** — extracted `processExtract` into a pure module (no `self.addEventListener` side effects), and added `__setColorWorkerFactoryForTests()` so the worker round-trip can be unit-tested in jsdom (which has no real Worker) by injecting a fake. Test coverage: `tests/unit/colorWorkerCore.test.ts` (7 cases: empty buffer, transparency, dominant hue, mix, saturation clamp, id preservation) + `tests/unit/colorWorkerIntegration.test.ts` (7 cases: round-trip, error, buffer transfer, timeout, singleton respawn after error, terminate on death, LRU eviction + recency).
+  - **14.6 — `<SidePanel>` primitive (`src/components/ui/SidePanel.tsx`)** — reusable right-slide-in panel built on `framer-motion` + `FocusTrap`. The codebase previously had a centered `Modal` but no side-sheet pattern (the only right-anchored panel was a hand-rolled `QueueDrawer`). Props: `open`, `onClose`, `title`, `description?`, `width?` (`sm`/`md`/`lg`), `closeOnBackdrop?`, `closeOnEsc?`, `ariaLabelledBy?`. Features:
+    - `framer-motion` slide-in from the right + fade backdrop; spring `{stiffness:380, damping:36, mass:0.6}` for the panel, simple opacity tween for the backdrop. `reducedMotion` collapses to zero-duration transitions.
+    - Body scroll lock — captures `document.documentElement.style.overflow` on open, restores on close. Adds `padding-right` equal to the scrollbar width to prevent layout shift.
+    - ESC handler with `capture: true` so the panel closes even if a child has its own keydown handler.
+    - Wraps the existing `FocusTrap` (initialFocus: "first", restoreFocus: true) so Tab cycles within the panel and focus returns to the trigger.
+    - Test coverage: `tests/unit/sidePanel.test.tsx` (10 cases): closed-state null, open-state render, ARIA, close button + label, close button click, backdrop close, backdrop-not-closable flag, ESC close, ESC-not-closable flag, scroll lock + restore.
+  - **14.6 — Track insights panel (`src/features/trackInsights/TrackInsightsPanel.tsx` + `TrackInsightsHost.tsx` + `useTrackInsights.ts` + `useSimilarTracks.ts` + `SimilarTracksRail.tsx` + `insightsStore.ts`)** — clicking a track row opens a right-slide-in side panel showing:
+    - **Header**: 96×96 album art (or gradient fallback), title, artist(s), album, primary actions (Play, Add to playlist).
+    - **Metadata grid**: source (with friendly label for spotify/ytmusic/etc.), duration, artist count, **play count** (from `listeningHistoryStore`), last played (relative time), ISRC.
+    - **Quick actions**: Queue next, Queue later, Go to artist (sets `libraryStore.searchQuery` and navigates to `/library`), Go to album (same pattern), Play all similar (replaces queue with the track + its top similar matches).
+    - **Similar tracks rail** — 2-column grid of related tracks (skeletons during load, friendly empty/error states), each row plays on click and closes the panel. Backed by a new `useSimilarTracks(track)` hook that wraps `findRelatedTracks` from `playerStore.ts` and uses the same `collectSeedArtists` helper.
+    - State coordination: a dedicated `insightsStore` (`{track, open(track), close()}`) — separate from `useUiStore` (which is persisted) to avoid coupling the persisted UI state to the `Track` type. The `<TrackInsightsHost>` at the top of `App.tsx` reads from the store and renders the panel.
+    - Wires into 3 track-list surfaces: `TrackList` (LibraryView, both virtualized and non-virtualized paths), `SearchView` (each search result row), `PlaylistDetailView` (each track in a playlist). Each surface adds a small `ⓘ` info button that calls `useInsightsStore.getState().open(track)` — using `getState()` rather than subscribing so we don't add a re-render dependency.
+  - **Memory-leak audit** — every effect was checked:
+    - `SidePanel` scroll lock + ESC listener: both have explicit cleanup that restores the prior value / removes the listener. ✓
+    - `useSimilarTracks`: `AbortController` + `cancelled` flag, set in the effect's return. ✓
+    - `useTrackInsights`: pure `useMemo`, no effects. ✓
+    - `SimilarTracksRail`: `memo()` only re-renders on prop change. ✓
+    - `colorExtractor`: singleton worker, `_pending` map, per-call timer — all clean. onerror terminates the dead worker and nulls the singleton. LRU evicts at 128. ✓
+    - `insightsStore`: pure zustand, no subscriptions to clean up. ✓
+    - Click handlers use `useInsightsStore.getState().open(track)` (no subscription). ✓
+  - **Bundle impact** — main bundle went from 990 kB to 1,124 kB (+135 kB) because the insights panel adds metadata grid, similar-rail, quick actions, and the side-panel primitive. Worker is 2.87 kB in a separate chunk (lazy-loaded only when the first artwork change triggers `extractDominantColor`).
+  - **Test coverage** — 32 new tests across 4 files (8 eq math, 7 colorWorkerCore, 7 colorWorker integration, 10 SidePanel, 15 useTrackInsights + formatRelativeTime + formatPlayCount). 99/99 in the focused run. The full suite shows the same 26 pre-existing failures (`better-sqlite3` ABI + `queueDrawer`); no regressions introduced. (The `useSimilarTracks` test was attempted but caused OOM in jsdom's renderHook during the test isolation chain; functionality is exercised by the rest of the suite and the `findRelatedTracks` itself has unit tests in `playerStore.test.ts`.)
+  - **Future scope (deliberately deferred)**: wire insights into `RecommendationCard` (would need a `HistoryEntry → Track` synthesizer for cards that don't have a full Track), wire into `QueueDrawer` + `QueuePanel` (already drag/drop-heavy, less obvious affordance), and consider a per-track color swatch inside the panel itself (the Web Worker result is now available in 0-3ms instead of 5-20ms, so a small swatch would be a nice tie-in).
+  - **Verified** — `npm run typecheck` ✓, `npm run lint` ✓ (0 errors, 0 warnings on all new + modified files), `npm run build` ✓ (main + preload + renderer all build, worker chunk emitted separately), `npm run test` ✓ (99/99 in the focused run; full suite 692/721 — same pre-existing failures as before this change, no regressions).

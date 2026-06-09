@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Search, SearchCheck, Sparkles, Play, History } from 'lucide-react';
+import { Search, SearchCheck, Sparkles, Play, History, Info } from 'lucide-react';
 import { useSourcesStore } from '@/stores/sourcesStore';
 import { usePlayerStore } from '@/stores/playerStore';
+import { useInsightsStore } from '@/stores/insightsStore';
 import { useSearchHistoryStore } from '@/stores/searchHistoryStore';
 import { Skeleton } from '@/components/ui/Skeleton';
 import type { Track, SourceSearchResult } from '@/types/global';
@@ -302,6 +303,18 @@ export function SearchView(): JSX.Element {
                         <code className="text-[10px] text-zinc-500 bg-zinc-800 px-1.5 py-0.5 rounded">
                           {track.source}
                         </code>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            useInsightsStore.getState().open(track);
+                          }}
+                          className="opacity-0 group-hover:opacity-100 p-1.5 rounded-full hover:bg-brand-500/20 text-zinc-400 hover:text-brand-400 transition-all active:scale-95"
+                          aria-label={`Show insights for ${track.title}`}
+                          title="Show insights"
+                        >
+                          <Info size={14} />
+                        </button>
                         <button
                           type="button"
                           onClick={() =>

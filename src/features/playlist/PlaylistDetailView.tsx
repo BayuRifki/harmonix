@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { usePlaylistsStore } from '@/stores/playlistsStore';
 import { usePlayerStore } from '@/stores/playerStore';
 import { useSourcesStore } from '@/stores/sourcesStore';
+import { useInsightsStore } from '@/stores/insightsStore';
 import type { Track } from '@/types/global';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
@@ -23,6 +24,7 @@ interface TrackRowProps {
   isPlaying: boolean;
   onPlay: (position: number) => void;
   onRemove: (position: number) => void;
+  onShowInsights: (track: Track) => void;
   onDragStart: (position: number) => void;
   onDragOver: (position: number) => void;
   onDrop: (position: number) => void;
@@ -36,6 +38,7 @@ function TrackRow({
   isPlaying,
   onPlay,
   onRemove,
+  onShowInsights,
   onDragStart,
   onDragOver,
   onDrop,
@@ -75,6 +78,17 @@ function TrackRow({
       <span className="text-xs text-zinc-500 tabular-nums w-10 text-right">
         {formatDuration(track.durationMs)}
       </span>
+      <button
+        type="button"
+        onClick={() => onShowInsights(track)}
+        className={`text-zinc-500 hover:text-brand-400 text-sm px-2 ${
+          hovering ? 'opacity-100' : 'opacity-0'
+        } transition`}
+        title="Show track insights"
+        aria-label={`Show insights for ${track.title}`}
+      >
+        ⓘ
+      </button>
       <button
         type="button"
         onClick={() => onRemove(position)}
@@ -296,6 +310,7 @@ export function PlaylistDetailView({ playlistId, onBack }: PlaylistDetailViewPro
               isPlaying={isPlaying}
               onPlay={handlePlay}
               onRemove={(p) => void removeTrack(p)}
+              onShowInsights={useInsightsStore.getState().open}
               onDragStart={setDragFrom}
               onDragOver={setDragOver}
               onDrop={handleDrop}

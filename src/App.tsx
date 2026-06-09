@@ -20,6 +20,7 @@ import { useFocusRestoration } from '@/hooks/useFocusRestoration';
 import { useScrollRestoration } from '@/hooks/useScrollRestoration';
 import { ToastContainer } from '@/components/ui/Toast';
 import { CommandPalette } from '@/components/command/CommandPalette';
+import { TrackInsightsHost } from '@/features/trackInsights';
 import { PlayerAnnouncer } from '@/components/a11y/PlayerAnnouncer';
 import { SkipToContent } from '@/components/a11y/SkipToContent';
 import { RouteChangeIndicator } from '@/components/a11y/RouteLoader';
@@ -129,6 +130,7 @@ function MainApp(): JSX.Element {
         <ToastContainer />
         <CommandPalette />
         <KeyboardHelpOverlay />
+        <TrackInsightsHost />
       </div>
     );
   }
@@ -240,6 +242,7 @@ function MainApp(): JSX.Element {
         <ToastContainer />
         <CommandPalette />
         <KeyboardHelpOverlay />
+        <TrackInsightsHost />
       </GlobalDndProvider>
     </div>
   );

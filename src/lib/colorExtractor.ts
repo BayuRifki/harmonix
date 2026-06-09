@@ -1,3 +1,10 @@
+// Color extraction utilities. The heavy clustering loop runs in a Web
+// Worker (./workers/colorWorker.ts) so the main thread stays free
+// during the per-pixel math. Public API is unchanged.
+
+import ColorWorker from './workers/colorWorker?worker';
+import type { ColorExtractResponse } from './workers/colorWorkerCore';
+
 export interface HslColor {
   h: number;
   s: number;
@@ -154,6 +161,8 @@ export function paletteToCssVars(palette: AdaptivePalette): Record<string, strin
 }
 
 const DOWNSAMPLE_SIZE = 50;
+const WORKER_TIMEOUT_MS = 3000;
+const COLOR_CACHE_MAX = 128;
 
 type DrawContext = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
 
@@ -171,85 +180,180 @@ function getDrawContext(size: number): DrawContext {
   return ctx;
 }
 
-const _imageCache = new Map<string, { img: HTMLImageElement; promise: Promise<void> }>();
+// Bounded LRU-ish cache of extracted HSL colors. Replaces the previous
+// HTMLImageElement cache, which held decoded bitmaps and was never
+// trimmed on the success path. HSL triple is ~24 bytes; 128 entries
+// caps memory at <4KB.
+const _colorCache = new Map<string, HslColor>();
 
-function cleanupImage(url: string): void {
-  const entry = _imageCache.get(url);
-  if (entry) {
-    _imageCache.delete(url);
+function cacheGet(url: string): HslColor | null {
+  const v = _colorCache.get(url);
+  if (v === undefined) return null;
+  _colorCache.delete(url);
+  _colorCache.set(url, v);
+  return v;
+}
+
+function cacheSet(url: string, color: HslColor): void {
+  if (_colorCache.has(url)) _colorCache.delete(url);
+  _colorCache.set(url, color);
+  while (_colorCache.size > COLOR_CACHE_MAX) {
+    const oldest = _colorCache.keys().next().value;
+    if (oldest === undefined) break;
+    _colorCache.delete(oldest);
+  }
+}
+
+async function loadImageData(url: string): Promise<ImageData | null> {
+  if (typeof Image === 'undefined') return null;
+  if (!url) return null;
+
+  const img = new Image();
+  img.crossOrigin = 'anonymous';
+  img.decoding = 'async';
+
+  try {
+    await new Promise<void>((resolve, reject) => {
+      img.onload = (): void => resolve();
+      img.onerror = (): void => reject(new Error('image load failed'));
+      img.src = url;
+    });
+  } catch {
+    return null;
+  }
+
+  if (!img.naturalWidth || !img.naturalHeight) return null;
+
+  let ctx: DrawContext;
+  try {
+    ctx = getDrawContext(DOWNSAMPLE_SIZE);
+  } catch {
+    return null;
+  }
+
+  try {
+    ctx.drawImage(img, 0, 0, DOWNSAMPLE_SIZE, DOWNSAMPLE_SIZE);
+    return ctx.getImageData(0, 0, DOWNSAMPLE_SIZE, DOWNSAMPLE_SIZE);
+  } catch {
+    return null;
+  }
+}
+
+// Worker plumbing. One singleton worker for the app lifetime. The worker
+// is created lazily on first call. In-flight promises are tracked by id
+// so a worker.onmessage resolves the right call. worker.onerror clears
+// the singleton so the next call respawns it.
+export interface ColorWorkerLike {
+  postMessage: (msg: { id: number; data: ArrayBuffer }, transfer?: Transferable[]) => void;
+  onmessage: ((e: MessageEvent<ColorExtractResponse>) => void) | null;
+  onerror: ((e: ErrorEvent) => void) | null;
+  terminate?: () => void;
+}
+
+export type ColorWorkerFactory = () => ColorWorkerLike;
+
+const defaultFactory: ColorWorkerFactory = () => new ColorWorker() as unknown as ColorWorkerLike;
+
+let _workerFactory: ColorWorkerFactory = defaultFactory;
+
+export function __setColorWorkerFactoryForTests(factory: ColorWorkerFactory | null): void {
+  _workerFactory = factory ?? defaultFactory;
+  // Reset the singleton so the next call uses the new factory.
+  _worker = null;
+}
+
+let _worker: ColorWorkerLike | null = null;
+let _nextId = 1;
+type Pending = {
+  resolve: (c: HslColor | null) => void;
+  reject: (e: Error) => void;
+  timer: ReturnType<typeof setTimeout>;
+};
+const _pending = new Map<number, Pending>();
+
+function getWorker(): ColorWorkerLike {
+  if (_worker) return _worker;
+  const w = _workerFactory();
+  w.onmessage = (e: MessageEvent<ColorExtractResponse>): void => {
+    const { id, result, error } = e.data;
+    const cb = _pending.get(id);
+    if (!cb) return;
+    _pending.delete(id);
+    clearTimeout(cb.timer);
+    if (error) cb.reject(new Error(error));
+    else cb.resolve(result);
+  };
+  w.onerror = (e: ErrorEvent): void => {
+    const msg = e.message || 'color worker error';
+    for (const [id, cb] of _pending) {
+      clearTimeout(cb.timer);
+      cb.reject(new Error(msg));
+      _pending.delete(id);
+    }
     try {
-      entry.img.removeAttribute('src');
+      w.terminate?.();
     } catch {
       // ignore
     }
-  }
+    _worker = null;
+  };
+  _worker = w;
+  return w;
+}
+
+export function extractDominantColorFromImageData(imageData: ImageData): Promise<HslColor | null> {
+  return new Promise<HslColor | null>((resolve, reject) => {
+    const w = getWorker();
+    const id = _nextId++;
+    const buffer = imageData.data.buffer;
+    const timer = setTimeout(() => {
+      const cb = _pending.get(id);
+      if (!cb) return;
+      _pending.delete(id);
+      cb.reject(new Error('color worker timeout'));
+    }, WORKER_TIMEOUT_MS);
+    _pending.set(id, { resolve, reject, timer });
+    try {
+      w.postMessage({ id, data: buffer }, [buffer]);
+    } catch (err) {
+      _pending.delete(id);
+      clearTimeout(timer);
+      reject(err as Error);
+    }
+  });
 }
 
 export async function extractDominantColor(url: string): Promise<HslColor | null> {
   if (typeof Image === 'undefined') return null;
   if (!url) return null;
 
-  let img: HTMLImageElement;
-  let loaded: Promise<void>;
+  const cached = cacheGet(url);
+  if (cached !== null) return cached;
 
-  const cached = _imageCache.get(url);
-  if (cached) {
-    img = cached.img;
-    loaded = cached.promise;
-  } else {
-    img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.decoding = 'async';
+  const imageData = await loadImageData(url);
+  if (!imageData) return null;
 
-    loaded = new Promise<void>((resolve, reject) => {
-      img.onload = (): void => resolve();
-      img.onerror = (): void => reject(new Error('image load failed'));
-    });
-
-    _imageCache.set(url, { img, promise: loaded });
-    img.src = url;
-  }
-
+  let result: HslColor | null = null;
   try {
-    await loaded;
+    result = await extractDominantColorFromImageData(imageData);
   } catch {
-    _imageCache.delete(url);
     return null;
   }
 
-  if (!img.naturalWidth || !img.naturalHeight) {
-    _imageCache.delete(url);
-    return null;
-  }
+  if (result) cacheSet(url, result);
+  return result;
+}
 
-  let ctx: DrawContext;
-  try {
-    ctx = getDrawContext(DOWNSAMPLE_SIZE);
-  } catch {
-    _imageCache.delete(url);
-    return null;
-  }
+// Test-only helper: clear the cache. Production code never needs to call
+// this; the cache is bounded by COLOR_CACHE_MAX.
+export function __clearColorCacheForTests(): void {
+  _colorCache.clear();
+}
 
-  try {
-    ctx.drawImage(img, 0, 0, DOWNSAMPLE_SIZE, DOWNSAMPLE_SIZE);
-  } catch (err) {
-    if (err instanceof DOMException && err.name === 'SecurityError') {
-      cleanupImage(url);
-      return null;
-    }
-    cleanupImage(url);
-    return null;
-  }
+export function __getColorCacheSizeForTests(): number {
+  return _colorCache.size;
+}
 
-  let data: Uint8ClampedArray;
-  try {
-    const imageData = ctx.getImageData(0, 0, DOWNSAMPLE_SIZE, DOWNSAMPLE_SIZE);
-    data = imageData.data;
-  } catch {
-    cleanupImage(url);
-    return null;
-  }
-
-  setTimeout(() => cleanupImage(url), 5000);
-  return clusterPixels(data);
+export function __cacheResultForTests(url: string, color: HslColor): void {
+  cacheSet(url, color);
 }

@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { usePlayerStore } from '@/stores/playerStore';
 import { AddToPlaylistMenu } from '@/features/playlist/AddToPlaylistMenu';
 import { useVirtualWindow } from '@/hooks/useVirtualWindow';
+import { useInsightsStore } from '@/stores/insightsStore';
 import type { Track } from '@/types/global';
 import { itemVariants } from '@/components/ui/StaggerAnimations';
 
@@ -26,7 +27,10 @@ function formatDuration(ms: number): string {
 export function TrackList({ tracks, onPlay }: TrackListProps): JSX.Element {
   const currentTrack = usePlayerStore((s) => s.currentTrack);
   const isPlaying = usePlayerStore((s) => s.isPlaying);
+  const openInsights = useInsightsStore((s) => s.open);
   const [addToPlaylistTrack, setAddToPlaylistTrack] = useState<Track | null>(null);
+
+  const handleShowInsights = (t: Track): void => openInsights(t);
 
   if (tracks.length === 0) {
     return (
@@ -101,17 +105,32 @@ export function TrackList({ tracks, onPlay }: TrackListProps): JSX.Element {
                   {formatDuration(track.durationMs)}
                 </td>
                 <td className="py-2 px-2 text-right" style={{ height: ROW_HEIGHT }}>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setAddToPlaylistTrack(track);
-                    }}
-                    className="text-zinc-500 hover:text-brand-400 text-xs px-1"
-                    title="Add to playlist"
-                  >
-                    +
-                  </button>
+                  <div className="flex items-center justify-end gap-1">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleShowInsights(track);
+                      }}
+                      className="text-zinc-500 hover:text-brand-400 text-xs px-1"
+                      title="Show track insights"
+                      aria-label={`Show insights for ${track.title}`}
+                    >
+                      ⓘ
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setAddToPlaylistTrack(track);
+                      }}
+                      className="text-zinc-500 hover:text-brand-400 text-xs px-1"
+                      title="Add to playlist"
+                      aria-label={`Add ${track.title} to playlist`}
+                    >
+                      +
+                    </button>
+                  </div>
                 </td>
               </motion.tr>
             ))}
@@ -134,6 +153,7 @@ export function TrackList({ tracks, onPlay }: TrackListProps): JSX.Element {
       currentTrackId={currentTrack?.id ?? null}
       onPlay={onPlay}
       onAdd={setAddToPlaylistTrack}
+      onShowInsights={handleShowInsights}
       addToPlaylistTrack={addToPlaylistTrack}
       onCloseAdd={() => setAddToPlaylistTrack(null)}
     />
@@ -145,6 +165,7 @@ interface VirtualTrackListProps {
   currentTrackId: string | null;
   onPlay: (track: Track) => void;
   onAdd: (track: Track) => void;
+  onShowInsights: (track: Track) => void;
   addToPlaylistTrack: Track | null;
   onCloseAdd: () => void;
 }
@@ -154,6 +175,7 @@ function VirtualTrackList({
   currentTrackId,
   onPlay,
   onAdd,
+  onShowInsights,
   addToPlaylistTrack,
   onCloseAdd,
 }: VirtualTrackListProps): JSX.Element {
@@ -187,7 +209,7 @@ function VirtualTrackList({
           </thead>
           <tbody style={{ height: totalHeight, position: 'relative', display: 'block' }}>
             <tr style={{ height: offsetY, padding: 0, border: 0 }}>
-              <td colSpan={7} style={{ padding: 0, border: 0 }} />
+              <td colSpan={7} style={{ padding: 0, border: 0, lineHeight: 0 }} />
             </tr>
             {visible.map((track, i) => {
               const realIndex = startIndex + i;
@@ -238,17 +260,32 @@ function VirtualTrackList({
                     {formatDuration(track.durationMs)}
                   </td>
                   <td className="py-2 px-2 text-right" style={{ height: ROW_HEIGHT }}>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onAdd(track);
-                      }}
-                      className="text-zinc-500 hover:text-brand-400 text-xs px-1"
-                      title="Add to playlist"
-                    >
-                      +
-                    </button>
+                    <div className="flex items-center justify-end gap-1">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onShowInsights(track);
+                        }}
+                        className="text-zinc-500 hover:text-brand-400 text-xs px-1"
+                        title="Show track insights"
+                        aria-label={`Show insights for ${track.title}`}
+                      >
+                        ⓘ
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onAdd(track);
+                        }}
+                        className="text-zinc-500 hover:text-brand-400 text-xs px-1"
+                        title="Add to playlist"
+                        aria-label={`Add ${track.title} to playlist`}
+                      >
+                        +
+                      </button>
+                    </div>
                   </td>
                 </motion.tr>
               );
