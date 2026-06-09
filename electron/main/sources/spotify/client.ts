@@ -113,13 +113,16 @@ export class SpotifyClient {
     const authUrl = `${SPOTIFY_ACCOUNTS}/authorize?${params.toString()}`;
 
     return new Promise<SpotifyAuthResult>((resolve, reject) => {
-      const timeout = setTimeout(
-        () => {
-          if (pendingFlow) pendingFlow = null;
-          resolve({ ok: false, error: 'Login flow timed out (5 minutes)' });
-        },
-        5 * 60 * 1000,
-      );
+      // 90s is well above the time a typical OAuth round-trip takes
+      // (browser redirect + consent + redirect back ≈ 5-30s) and short
+      // enough that an abandoned flow (user closed the browser tab
+      // without completing) fails before the renderer gives up.
+      const timeout = setTimeout(() => {
+        if (pendingFlow) {
+          pendingFlow = null;
+          resolve({ ok: false, error: 'Login flow timed out (90s)' });
+        }
+      }, 90 * 1000);
       pendingFlow = { pkce, resolve, reject, timeout };
       void openExternal(authUrl).catch((err) => {
         if (pendingFlow) {
@@ -129,6 +132,28 @@ export class SpotifyClient {
         reject(err);
       });
     });
+  }
+
+  /**
+   * Cancel any pending login flow with the given reason. Used by the
+   * auth IPC handler when the OAuth callback server reports an error
+   * (e.g., the user denied the consent screen, the state param was
+   * missing, or Spotify returned an `?error=...` redirect). Without
+   * this, the loginViaBrowser Promise would hang until the 90s
+   * timeout, and if the renderer closed in the meantime the reply
+   * would be lost \u2014 manifesting as `Error invoking remote method
+   * 'auth:spotify:login': reply was never sent`.
+   *
+   * Returns true if a flow was actually cancelled, false if there
+   * was no pending flow to cancel.
+   */
+  cancelPendingFlow(reason: string): boolean {
+    if (!pendingFlow) return false;
+    clearTimeout(pendingFlow.timeout);
+    const flow = pendingFlow;
+    pendingFlow = null;
+    flow.resolve({ ok: false, error: reason });
+    return true;
   }
 
   async handleCallback(code: string, state: string): Promise<SpotifyAuthResult> {

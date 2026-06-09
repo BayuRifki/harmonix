@@ -44,8 +44,16 @@ export function registerAuthHandlers(_getMainWindow: () => BrowserWindow | null)
         async ({ code, state }) => {
           await client.handleCallback(code, state);
         },
-        () => {
-          // error handled via the rejected promise from loginViaBrowser below
+        (errorMessage) => {
+          // The OAuth callback server received an error redirect
+          // (e.g., the user denied the consent screen, or the
+          // callback was missing the code/state params). Reject the
+          // pending login flow immediately so loginViaBrowser
+          // returns and the IPC reply is sent. Without this, the
+          // 90s pendingFlow timeout is the only thing that would
+          // unblock the reply — and if the renderer closed in the
+          // meantime, the reply is lost entirely.
+          client.cancelPendingFlow(`Spotify OAuth error: ${errorMessage}`);
         },
       );
 
