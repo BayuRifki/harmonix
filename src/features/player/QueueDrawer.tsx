@@ -1,5 +1,21 @@
-import { useEffect, useMemo, useState, useRef, memo } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import {
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragOverEvent,
+  closestCenter,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import {
   X,
   Search,
@@ -11,6 +27,7 @@ import {
   ChevronUp,
   ChevronDown,
   RotateCcw,
+  GripVertical,
 } from 'lucide-react';
 import { usePlayerStore } from '@/stores/playerStore';
 import { usePlaylistsStore } from '@/stores/playlistsStore';
@@ -32,62 +49,78 @@ export interface QueueDrawerProps {
   onClose: () => void;
 }
 
-interface QueueRowProps {
+interface SortableQueueRowProps {
   track: Track;
   index: number;
+  originalIndex: number;
   isCurrent: boolean;
   isPlayed: boolean;
   isSelected: boolean;
   selectable: boolean;
   onClick: () => void;
   onToggleSelect: () => void;
-  onDragStart: (i: number) => void;
-  onDragOver: (i: number) => void;
-  onDrop: (i: number) => void;
-  isDragOver: boolean;
   isDragging: boolean;
+  disabled?: boolean;
 }
 
-const QueueRow = memo(function QueueRow({
+function SortableQueueRow({
   track,
   index,
+  originalIndex,
   isCurrent,
   isPlayed,
   isSelected,
   selectable,
   onClick,
   onToggleSelect,
-  onDragStart,
-  onDragOver,
-  onDrop,
-  isDragOver,
   isDragging,
-}: QueueRowProps): JSX.Element {
+  disabled,
+}: SortableQueueRowProps): JSX.Element {
+  const { attributes, listeners, setNodeRef, transform, transition, isOver } = useSortable({
+    id: track.id,
+    data: { originalIndex, isPlayed, isCurrent },
+    disabled: disabled || isPlayed,
+  });
+
   const tArt = track.artworkUrl ?? track.album?.artworkUrl;
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+  };
+
   return (
     <li
-      draggable={!isPlayed}
-      onDragStart={() => onDragStart(index)}
-      onDragOver={(e) => {
-        if (isPlayed) return;
-        e.preventDefault();
-        onDragOver(index);
-      }}
-      onDrop={() => {
-        if (isPlayed) return;
-        onDrop(index);
-      }}
-      onClick={onClick}
+      ref={setNodeRef}
+      style={style}
       className={`group flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer transition-colors ${
         isCurrent
           ? 'bg-brand-500/15 ring-1 ring-brand-500/40'
           : isSelected
-            ? 'bg-zinc-800/80'
-            : isDragOver
-              ? 'border-t-2 border-t-brand-500'
-              : 'hover:bg-zinc-900'
-      } ${isDragging ? 'opacity-40' : ''} ${isPlayed ? 'opacity-60' : ''}`}
+          ? 'bg-zinc-800/80'
+          : isOver
+          ? 'bg-zinc-800/50'
+          : 'hover:bg-zinc-900'
+      } ${isPlayed ? 'opacity-60' : ''}`}
+      aria-label={isCurrent ? `Now playing: ${track.title}` : track.title}
+      aria-selected={isSelected}
+      aria-current={isCurrent ? 'true' : undefined}
+      onClick={onClick}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onClick();
+        }
+      }}
+      {...attributes} {...listeners}
     >
+      <div
+        className="flex items-center justify-center w-8 h-8 text-zinc-600 hover:text-zinc-400 transition-colors shrink-0"
+        aria-hidden="true"
+      >
+        <GripVertical size={16} />
+      </div>
+
       {selectable ? (
         <input
           type="checkbox"
@@ -98,17 +131,19 @@ const QueueRow = memo(function QueueRow({
           className="w-3.5 h-3.5 accent-brand-500 shrink-0"
         />
       ) : isPlayed ? (
-        <span className="text-[10px] w-5 text-right text-zinc-600">↺</span>
+        <span className="text-[10px] w-5 text-right text-zinc-600" aria-label="Played">↺</span>
       ) : isCurrent ? (
-        <span className="text-[10px] w-5 text-right text-brand-300">▶</span>
+        <span className="text-[10px] w-5 text-right text-brand-300" aria-label="Now playing">▶</span>
       ) : (
         <span className="text-[10px] w-5 text-right text-zinc-500 tabular-nums">{index + 1}</span>
       )}
+
       {tArt ? (
         <img src={tArt} alt="" className="w-8 h-8 rounded object-cover shrink-0" />
       ) : (
         <div className="w-8 h-8 rounded bg-zinc-800 shrink-0" />
       )}
+
       <div className="min-w-0 flex-1">
         <p className={`text-sm truncate ${isCurrent ? 'text-white font-medium' : 'text-zinc-200'}`}>
           {track.title}
@@ -120,66 +155,62 @@ const QueueRow = memo(function QueueRow({
             .join(', ') || 'Unknown artist'}
         </p>
       </div>
+
       <code className="text-[9px] text-zinc-500 bg-zinc-800 px-1 py-0.5 rounded shrink-0">
         {track.source}
       </code>
+
       <span className="text-[11px] text-zinc-500 tabular-nums shrink-0">
         {formatDuration(track.durationMs)}
       </span>
+
+      {!selectable && !isPlayed && !isCurrent && !disabled && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+          }}
+          className="w-7 h-7 rounded hover:bg-zinc-800 text-zinc-400 hover:text-red-300 transition-colors flex items-center justify-center focus-ring shrink-0"
+          aria-label={`Remove ${track.title} from queue`}
+          title="Remove from queue"
+        >
+          <XCircle size={12} />
+        </button>
+      )}
     </li>
   );
-});
+}
 
-QueueRow.displayName = 'QueueRow';
+export interface QueueDrawerProps {
+  open: boolean;
+  onClose: () => void;
+}
 
 export function QueueDrawer({ open, onClose }: QueueDrawerProps): JSX.Element | null {
   const queue = usePlayerStore((s) => s.queue);
   const queueIndex = usePlayerStore((s) => s.queueIndex);
   const currentTrack = usePlayerStore((s) => s.currentTrack);
   const isPlaying = usePlayerStore((s) => s.isPlaying);
-  const setQueue = usePlayerStore((s) => s.setQueue);
+  const shuffle = usePlayerStore((s) => s.shuffle);
+  const moveQueueItem = usePlayerStore((s) => s.moveQueueItem);
   const addTrackToPlaylist = usePlaylistsStore((s) => s.addTrack);
   const createPlaylist = usePlaylistsStore((s) => s.create);
   const toast = useToastStore();
   const reducedMotion = useUiStore((s) => s.reducedMotion);
 
-  const drawerRef = useRef<HTMLDivElement>(null);
-  const previousFocusRef = useRef<HTMLElement | null>(null);
-
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [selectionMode, setSelectionMode] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
-  const [dragging, setDragging] = useState<number | null>(null);
-  const [dragOver, setDragOver] = useState<number | null>(null);
+  const [_, setDraggingId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (open) {
-      previousFocusRef.current = (document.activeElement as HTMLElement | null) ?? null;
-      const container = drawerRef.current;
-      if (container) {
-        const focusables = container.querySelectorAll<HTMLElement>(
-          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
-        );
-        if (focusables.length > 0) {
-          (focusables[0] as HTMLElement).focus();
-        } else {
-          container.setAttribute('tabindex', '-1');
-          container.focus();
-        }
-      }
-    } else {
-      if (previousFocusRef.current && document.contains(previousFocusRef.current)) {
-        previousFocusRef.current.focus();
-      }
-    }
     if (!open) {
       setQuery('');
       setSelected(new Set());
       setSelectionMode(false);
       setHistoryOpen(false);
-      setDragging(null);
-      setDragOver(null);
+      setDraggingId(null);
     }
   }, [open]);
 
@@ -204,44 +235,56 @@ export function QueueDrawer({ open, onClose }: QueueDrawerProps): JSX.Element | 
     return { historyItems: hist, upcomingItems: up };
   }, [filtered, queueIndex]);
 
-  const toggleSelect = (id: string): void => {
+  const toggleSelect = useCallback((id: string): void => {
     setSelected((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
     });
-  };
+  }, []);
 
-  const playAt = (originalIndex: number): void => {
-    void setQueue(queue, originalIndex, { shuffle: false, smartShuffle: false });
-  };
+  const playAt = useCallback((originalIndex: number): void => {
+    const item = queue[originalIndex];
+    if (!item) return;
+    const targetIndex = shuffle ? queue.findIndex((t) => t.id === item.id) : originalIndex;
+    usePlayerStore.getState().setQueue(queue, targetIndex, { shuffle: false, smartShuffle: false });
+  }, [queue, shuffle]);
 
-  const moveInQueue = (from: number, to: number): void => {
-    if (from === to) return;
-    const next = [...queue];
-    const [moved] = next.splice(from, 1);
-    if (!moved) return;
-    next.splice(to, 0, moved);
-    let newIndex = queueIndex;
-    if (from === queueIndex) newIndex = to;
-    else if (from < queueIndex && to >= queueIndex) newIndex = queueIndex - 1;
-    else if (from > queueIndex && to <= queueIndex) newIndex = queueIndex + 1;
-    usePlayerStore.setState({ queue: next, queueIndex: newIndex });
-  };
+  const handleDragOver = useCallback((event: DragOverEvent) => {
+    const { active, over } = event;
+    if (!over) return;
 
-  const clearPlayed = (): void => {
-    const remaining = queue.slice(queueIndex);
-    usePlayerStore.setState({ queue: remaining, queueIndex: 0 });
+    const activeItem = queue.find((t) => t.id === active.id);
+    const overItem = queue.find((t) => t.id === over.id);
+
+    if (!activeItem || !overItem) return;
+    if (activeItem.id === overItem.id) return;
+
+    const activeIdx = queue.indexOf(activeItem);
+    const overIdx = queue.indexOf(overItem);
+
+    if (activeIdx === -1 || overIdx === -1) return;
+
+    moveQueueItem(activeIdx, overIdx);
+  }, [queue, moveQueueItem]);
+
+  const handleDragEnd = useCallback(() => {
+    setDraggingId(null);
+  }, []);
+
+  const clearPlayed = useCallback((): void => {
+    const remaining = queue.filter((_, i) => i >= queueIndex);
+    usePlayerStore.getState().setQueue(remaining, 0);
     toast.success('Cleared played tracks');
-  };
+  }, [queue, queueIndex, toast]);
 
-  const clearAll = (): void => {
-    usePlayerStore.setState({ queue: [], queueIndex: -1 });
+  const clearAll = useCallback((): void => {
+    usePlayerStore.getState().setQueue([], -1);
     toast.success('Queue cleared');
-  };
+  }, [toast]);
 
-  const saveAsPlaylist = async (): Promise<void> => {
+  const saveAsPlaylist = useCallback(async (): Promise<void> => {
     const tracks = selectionMode ? queue.filter((t) => selected.has(t.id)) : queue;
     if (tracks.length === 0) {
       toast.warning('Nothing to save');
@@ -263,23 +306,35 @@ export function QueueDrawer({ open, onClose }: QueueDrawerProps): JSX.Element | 
       toast.error('Failed to save playlist');
       console.error('[queueDrawer] save failed:', err);
     }
-  };
+  }, [selectionMode, selected, queue, createPlaylist, addTrackToPlaylist, toast]);
 
-  const removeSelected = (): void => {
+  const removeSelected = useCallback((): void => {
     if (selected.size === 0) return;
-    const remaining = queue.filter((t) => !selected.has(t.id));
+    const idsToRemove = selected;
+    const remaining = queue.filter((t) => !idsToRemove.has(t.id));
     let newIndex = queueIndex;
     if (queueIndex >= remaining.length) newIndex = remaining.length - 1;
-    usePlayerStore.setState({ queue: remaining, queueIndex: newIndex });
+    usePlayerStore.getState().setQueue(remaining, newIndex);
     toast.success(`Removed ${selected.size} track${selected.size === 1 ? '' : 's'}`);
     setSelected(new Set());
     setSelectionMode(false);
-  };
+  }, [selected, queue, queueIndex, toast]);
 
   const totalDuration = queue.reduce((sum, t) => sum + (t.durationMs ?? 0), 0);
   const selectedDuration = queue
     .filter((t) => selected.has(t.id))
     .reduce((sum, t) => sum + (t.durationMs ?? 0), 0);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  );
 
   return (
     <AnimatePresence>
@@ -293,276 +348,281 @@ export function QueueDrawer({ open, onClose }: QueueDrawerProps): JSX.Element | 
           onClick={onClose}
           data-testid="queue-drawer"
         >
-          <motion.aside
-            initial={reducedMotion ? false : { x: '100%' }}
-            animate={{ x: 0 }}
-            exit={reducedMotion ? { x: 0 } : { x: '100%' }}
-            transition={{ type: 'spring', stiffness: 260, damping: 30 }}
-            className="w-[420px] max-w-[92vw] h-full glass border-l border-zinc-800/60 flex flex-col"
-            onClick={(e) => e.stopPropagation()}
-            role="dialog"
-            aria-label="Queue"
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={(e) => setDraggingId(e.active.id as string)}
+            onDragOver={handleDragOver}
+            onDragEnd={handleDragEnd}
           >
-            <header className="p-4 border-b border-zinc-800/60 flex items-center justify-between">
-              <div>
-                <h2 className="text-sm font-semibold text-white flex items-center gap-2">
-                  <ListMusic size={14} className="text-accent-300" aria-hidden />
-                  Queue
-                  <span className="text-[10px] text-zinc-500 font-normal">
-                    {queue.length} tracks · {formatDuration(totalDuration)}
-                  </span>
-                </h2>
-              </div>
-              <button
-                type="button"
-                onClick={onClose}
-                className="text-zinc-400 hover:text-zinc-200 transition-colors p-1 -m-1 focus-ring"
-                aria-label="Close queue"
-              >
-                <X size={16} />
-              </button>
-            </header>
-
-            <div className="p-3 border-b border-zinc-800/60 space-y-2">
-              <div className="relative">
-                <Search
-                  size={13}
-                  className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-500"
-                  aria-hidden
-                />
-                <input
-                  type="text"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Search in queue…"
-                  aria-label="Search queue"
-                  className="w-full bg-zinc-900/60 border border-zinc-800 rounded pl-8 pr-3 py-1.5 text-xs text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:border-brand-500/50"
-                />
-              </div>
-              <div className="flex items-center gap-1.5 flex-wrap">
+            <motion.aside
+              initial={reducedMotion ? false : { x: '100%' }}
+              animate={{ x: 0 }}
+              exit={reducedMotion ? { x: 0 } : { x: '100%' }}
+              transition={{ type: 'spring', stiffness: 260, damping: 30 }}
+              className="w-[420px] max-w-[92vw] h-full glass border-l border-zinc-800/60 flex flex-col"
+              onClick={(e) => e.stopPropagation()}
+              role="dialog"
+              aria-label="Queue"
+            >
+              <header className="p-4 border-b border-zinc-800/60 flex items-center justify-between">
+                <div>
+                  <h2 className="text-sm font-semibold text-white flex items-center gap-2">
+                    <ListMusic size={14} className="text-accent-300" aria-hidden />
+                    Queue
+                    <span className="text-[10px] text-zinc-500 font-normal">
+                      {queue.length} tracks · {formatDuration(totalDuration)}
+                    </span>
+                  </h2>
+                </div>
                 <button
                   type="button"
-                  onClick={() => {
-                    setSelectionMode(!selectionMode);
-                    if (selectionMode) setSelected(new Set());
-                  }}
-                  className={`text-[11px] px-2 py-1 rounded transition-colors ${
-                    selectionMode
-                      ? 'bg-brand-500/20 text-brand-300'
-                      : 'bg-zinc-800/60 text-zinc-400 hover:text-zinc-200'
-                  } focus-ring`}
-                  data-testid="queue-selection-toggle"
+                  onClick={onClose}
+                  className="text-zinc-400 hover:text-zinc-200 transition-colors p-1 -m-1 focus-ring"
+                  aria-label="Close queue"
                 >
-                  {selectionMode ? 'Cancel select' : 'Select'}
+                  <X size={16} />
                 </button>
-                {selectionMode && (
-                  <>
-                    <button
-                      type="button"
-                      onClick={removeSelected}
-                      disabled={selected.size === 0}
-                      className="text-[11px] px-2 py-1 rounded bg-zinc-800/60 text-zinc-400 hover:text-red-300 disabled:opacity-40 transition-colors inline-flex items-center gap-1 focus-ring"
-                    >
-                      <Trash2 size={10} aria-hidden />
-                      Remove ({selected.size})
-                    </button>
-                    <button
-                      type="button"
-                      onClick={saveAsPlaylist}
-                      disabled={selected.size === 0}
-                      className="text-[11px] px-2 py-1 rounded bg-zinc-800/60 text-zinc-400 hover:text-brand-300 disabled:opacity-40 transition-colors inline-flex items-center gap-1 focus-ring"
-                    >
-                      <Save size={10} aria-hidden />
-                      Save ({selected.size})
-                    </button>
-                  </>
-                )}
-                {!selectionMode && queue.length > 0 && (
-                  <>
-                    <button
-                      type="button"
-                      onClick={saveAsPlaylist}
-                      className="text-[11px] px-2 py-1 rounded bg-zinc-800/60 text-zinc-400 hover:text-brand-300 transition-colors inline-flex items-center gap-1 focus-ring"
-                    >
-                      <Save size={10} aria-hidden />
-                      Save all
-                    </button>
-                    {queueIndex > 0 && (
+              </header>
+
+              <div className="p-3 border-b border-zinc-800/60 space-y-2">
+                <div className="relative">
+                  <Search
+                    size={13}
+                    className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-500"
+                    aria-hidden
+                  />
+                  <input
+                    type="text"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder="Search in queue…"
+                    aria-label="Search queue"
+                    className="w-full bg-zinc-900/60 border border-zinc-800 rounded pl-8 pr-3 py-1.5 text-xs text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:border-brand-500/50"
+                  />
+                </div>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectionMode(!selectionMode);
+                      if (selectionMode) setSelected(new Set());
+                    }}
+                    className={`text-[11px] px-2 py-1 rounded transition-colors focus-ring ${
+                      selectionMode
+                        ? 'bg-brand-500/20 text-brand-300'
+                        : 'bg-zinc-800/60 text-zinc-400 hover:text-zinc-200'
+                    }`}
+                    data-testid="queue-selection-toggle"
+                  >
+                    {selectionMode ? 'Cancel select' : 'Select'}
+                  </button>
+                  {selectionMode && (
+                    <>
                       <button
                         type="button"
-                        onClick={clearPlayed}
-                        className="text-[11px] px-2 py-1 rounded bg-zinc-800/60 text-zinc-400 hover:text-zinc-200 transition-colors inline-flex items-center gap-1 focus-ring"
+                        onClick={removeSelected}
+                        disabled={selected.size === 0}
+                        className="text-[11px] px-2 py-1 rounded bg-zinc-800/60 text-zinc-400 hover:text-red-300 disabled:opacity-40 transition-colors inline-flex items-center gap-1 focus-ring"
                       >
-                        <XCircle size={10} aria-hidden />
-                        Clear played
+                        <Trash2 size={10} aria-hidden />
+                        Remove ({selected.size})
                       </button>
-                    )}
-                    <button
-                      type="button"
-                      onClick={clearAll}
-                      className="text-[11px] px-2 py-1 rounded bg-zinc-800/60 text-zinc-400 hover:text-red-300 transition-colors inline-flex items-center gap-1 focus-ring"
-                    >
-                      <XCircle size={10} aria-hidden />
-                      Clear all
-                    </button>
-                  </>
-                )}
-              </div>
-            </div>
-
-            {currentTrack && (
-              <section className="p-3 border-b border-zinc-800/60">
-                <p className="text-[10px] uppercase tracking-wider text-zinc-500 font-semibold mb-2 flex items-center gap-1.5">
-                  {isPlaying ? (
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse-soft" />
-                  ) : (
-                    <span className="w-1.5 h-1.5 rounded-full bg-zinc-600" />
-                  )}
-                  Now Playing
-                </p>
-                <div className="flex items-center gap-2">
-                  {(currentTrack.artworkUrl ?? currentTrack.album?.artworkUrl) && (
-                    <img
-                      src={currentTrack.artworkUrl ?? currentTrack.album?.artworkUrl ?? ''}
-                      alt=""
-                      className="w-10 h-10 rounded object-cover shrink-0"
-                    />
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm text-white truncate font-medium">{currentTrack.title}</p>
-                    <p className="text-[11px] text-zinc-500 truncate">
-                      {currentTrack.artists.map((a) => a.name).join(', ') || 'Unknown'}
-                    </p>
-                  </div>
-                  <code className="text-[9px] text-zinc-500 bg-zinc-800 px-1 py-0.5 rounded">
-                    {currentTrack.source}
-                  </code>
-                </div>
-              </section>
-            )}
-
-            <div className="flex-1 overflow-y-auto">
-              {queue.length === 0 ? (
-                <div className="p-12 text-center">
-                  <ListMusic size={32} className="text-zinc-700 mx-auto mb-3" />
-                  <p className="text-sm text-zinc-500">Queue is empty</p>
-                  <p className="text-xs text-zinc-600 mt-1">Play a track to start</p>
-                </div>
-              ) : (
-                <ScrollShadow>
-                  <div className="p-2 space-y-0.5">
-                    {historyItems.length > 0 && (
-                      <div
-                        className="border-b border-zinc-800/40 mb-1"
-                        data-testid="queue-history-section"
+                      <button
+                        type="button"
+                        onClick={saveAsPlaylist}
+                        disabled={selected.size === 0}
+                        className="text-[11px] px-2 py-1 rounded bg-zinc-800/60 text-zinc-400 hover:text-brand-300 disabled:opacity-40 transition-colors inline-flex items-center gap-1 focus-ring"
                       >
+                        <Save size={10} aria-hidden />
+                        Save ({selected.size})
+                      </button>
+                    </>
+                  )}
+                  {!selectionMode && queue.length > 0 && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={saveAsPlaylist}
+                        className="text-[11px] px-2 py-1 rounded bg-zinc-800/60 text-zinc-400 hover:text-brand-300 transition-colors inline-flex items-center gap-1 focus-ring"
+                      >
+                        <Save size={10} aria-hidden />
+                        Save all
+                      </button>
+                      {queueIndex > 0 && (
                         <button
                           type="button"
-                          onClick={() => setHistoryOpen((v) => !v)}
-                          aria-expanded={historyOpen}
-                          aria-controls="queue-history-list"
-                          className="w-full flex items-center justify-between px-2 py-1.5 text-[10px] uppercase tracking-wider text-zinc-500 hover:text-zinc-300 focus-ring"
+                          onClick={clearPlayed}
+                          className="text-[11px] px-2 py-1 rounded bg-zinc-800/60 text-zinc-400 hover:text-zinc-200 transition-colors inline-flex items-center gap-1 focus-ring"
                         >
-                          <span className="inline-flex items-center gap-1.5 font-semibold">
-                            <RotateCcw size={10} aria-hidden />
-                            History ({historyItems.length})
-                          </span>
-                          {historyOpen ? (
-                            <ChevronUp size={11} aria-hidden />
-                          ) : (
-                            <ChevronDown size={11} aria-hidden />
-                          )}
+                          <XCircle size={10} aria-hidden />
+                          Clear played
                         </button>
-                        {historyOpen && (
-                          <ul id="queue-history-list" className="space-y-0.5 pb-1">
-                            {historyItems.map(({ track, originalIndex }) => {
+                      )}
+                      <button
+                        type="button"
+                        onClick={clearAll}
+                        className="text-[11px] px-2 py-1 rounded bg-zinc-800/60 text-zinc-400 hover:text-red-300 transition-colors inline-flex items-center gap-1 focus-ring"
+                      >
+                        <XCircle size={10} aria-hidden />
+                        Clear all
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {currentTrack && (
+                <section className="p-3 border-b border-zinc-800/60">
+                  <p className="text-[10px] uppercase tracking-wider text-zinc-500 font-semibold mb-2 flex items-center gap-1.5">
+                    {isPlaying ? (
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse-soft" />
+                    ) : (
+                      <span className="w-1.5 h-1.5 rounded-full bg-zinc-600" />
+                    )}
+                    Now Playing
+                  </p>
+                  <div className="flex items-center gap-2">
+                    {(currentTrack.artworkUrl ?? currentTrack.album?.artworkUrl) && (
+                      <img
+                        src={currentTrack.artworkUrl ?? currentTrack.album?.artworkUrl ?? ''}
+                        alt=""
+                        className="w-10 h-10 rounded object-cover shrink-0"
+                      />
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm text-white truncate font-medium">{currentTrack.title}</p>
+                      <p className="text-[11px] text-zinc-500 truncate">
+                        {currentTrack.artists.map((a) => a.name).join(', ') || 'Unknown'}
+                      </p>
+                    </div>
+                    <code className="text-[9px] text-zinc-500 bg-zinc-800 px-1 py-0.5 rounded">
+                      {currentTrack.source}
+                    </code>
+                  </div>
+                </section>
+              )}
+
+              <div className="flex-1 overflow-y-auto">
+                {queue.length === 0 ? (
+                  <div className="p-12 text-center">
+                    <ListMusic size={32} className="text-zinc-700 mx-auto mb-3" />
+                    <p className="text-sm text-zinc-500">Queue is empty</p>
+                    <p className="text-xs text-zinc-600 mt-1">Play a track to start</p>
+                  </div>
+                ) : (
+                  <ScrollShadow>
+                    <div className="p-2 space-y-0.5">
+                      {historyItems.length > 0 && (
+                        <div
+                          className="border-b border-zinc-800/40 mb-1"
+                          data-testid="queue-history-section"
+                        >
+                          <button
+                            type="button"
+                            onClick={() => setHistoryOpen((v) => !v)}
+                            aria-expanded={historyOpen}
+                            aria-controls="queue-history-list"
+                            className="w-full flex items-center justify-between px-2 py-1.5 text-[10px] uppercase tracking-wider text-zinc-500 hover:text-zinc-300 focus-ring"
+                          >
+                            <span className="inline-flex items-center gap-1.5 font-semibold">
+                              <RotateCcw size={10} aria-hidden />
+                              History ({historyItems.length})
+                            </span>
+                            {historyOpen ? (
+                              <ChevronUp size={11} aria-hidden />
+                            ) : (
+                              <ChevronDown size={11} aria-hidden />
+                            )}
+                          </button>
+                          {historyOpen && (
+                            <ul id="queue-history-list" className="space-y-0.5 pb-1">
+                              {historyItems.map(({ track, originalIndex }) => {
+                                const isSelected = selected.has(track.id);
+                                return (
+                                  <SortableQueueRow
+                                    key={track.id}
+                                    track={track}
+                                    index={originalIndex}
+                                    originalIndex={originalIndex}
+                                    isCurrent={false}
+                                    isPlayed={true}
+                                    isSelected={isSelected}
+                                    selectable={selectionMode}
+                                    onClick={() => {
+                                      if (selectionMode) toggleSelect(track.id);
+                                      else playAt(originalIndex);
+                                    }}
+                                    onToggleSelect={() => toggleSelect(track.id)}
+                                    isDragging={false}
+                                    disabled={selectionMode}
+                                  />
+                                );
+                              })}
+                            </ul>
+                          )}
+                        </div>
+                      )}
+                      {upcomingItems.length > 0 ? (
+                        <SortableContext
+                          items={upcomingItems.map(({ track }) => track.id)}
+                          strategy={verticalListSortingStrategy}
+                        >
+                          <ul className="space-y-0.5" role="list" aria-label="Upcoming tracks">
+                            {upcomingItems.map(({ track, originalIndex }) => {
+                              const isCurrent = originalIndex === queueIndex;
                               const isSelected = selected.has(track.id);
                               return (
-                                <QueueRow
+                                <SortableQueueRow
                                   key={track.id}
                                   track={track}
                                   index={originalIndex}
-                                  isCurrent={false}
-                                  isPlayed
+                                  originalIndex={originalIndex}
+                                  isCurrent={isCurrent}
+                                  isPlayed={false}
                                   isSelected={isSelected}
-                                  selectable={selectionMode}
+                                  selectable={selectionMode && !isCurrent}
                                   onClick={() => {
-                                    if (selectionMode) toggleSelect(track.id);
-                                    else playAt(originalIndex);
+                                    if (selectionMode && !isCurrent) {
+                                      toggleSelect(track.id);
+                                    } else {
+                                      playAt(originalIndex);
+                                    }
                                   }}
                                   onToggleSelect={() => toggleSelect(track.id)}
-                                  onDragStart={() => {}}
-                                  onDragOver={() => {}}
-                                  onDrop={() => {}}
-                                  isDragOver={false}
                                   isDragging={false}
+                                  disabled={selectionMode || isCurrent}
                                 />
                               );
                             })}
                           </ul>
-                        )}
-                      </div>
-                    )}
-                    {upcomingItems.length > 0 ? (
-                      <ul className="space-y-0.5">
-                        {upcomingItems.map(({ track, originalIndex }) => {
-                          const isCurrent = originalIndex === queueIndex;
-                          const isSelected = selected.has(track.id);
-                          return (
-                            <QueueRow
-                              key={track.id}
-                              track={track}
-                              index={originalIndex}
-                              isCurrent={isCurrent}
-                              isPlayed={false}
-                              isSelected={isSelected}
-                              selectable={selectionMode && !isCurrent}
-                              onClick={() => {
-                                if (selectionMode && !isCurrent) {
-                                  toggleSelect(track.id);
-                                } else {
-                                  playAt(originalIndex);
-                                }
-                              }}
-                              onToggleSelect={() => toggleSelect(track.id)}
-                              onDragStart={(i) => setDragging(i)}
-                              onDragOver={(i) => setDragOver(i)}
-                              onDrop={(i) => {
-                                if (dragging !== null) moveInQueue(dragging, i);
-                                setDragging(null);
-                                setDragOver(null);
-                              }}
-                              isDragOver={dragOver === originalIndex}
-                              isDragging={dragging === originalIndex}
-                            />
-                          );
-                        })}
-                      </ul>
-                    ) : (
-                      historyItems.length > 0 && (
-                        <p className="px-2 py-6 text-center text-xs text-zinc-500">
-                          All queued tracks have played
-                        </p>
-                      )
-                    )}
-                  </div>
-                </ScrollShadow>
-              )}
-            </div>
-
-            {selectionMode && selected.size > 0 && (
-              <div className="p-3 border-t border-zinc-800/60 text-[11px] text-zinc-400 flex items-center gap-2">
-                <Check size={12} className="text-brand-300" />
-                {selected.size} selected · {formatDuration(selectedDuration)}
+                        </SortableContext>
+                      ) : (
+                        historyItems.length > 0 && (
+                          <p className="px-2 py-6 text-center text-xs text-zinc-500">
+                            All queued tracks have played
+                          </p>
+                        )
+                      )}
+                    </div>
+                  </ScrollShadow>
+                )}
               </div>
-            )}
 
-            <footer className="p-2.5 border-t border-zinc-800/60 text-[10px] text-zinc-500">
-              {selectionMode
-                ? 'Click tracks to toggle selection · actions above'
-                : 'Drag to reorder · click to jump · ⌘Q to toggle queue'}
-            </footer>
-          </motion.aside>
+              {selectionMode && selected.size > 0 && (
+                <div className="p-3 border-t border-zinc-800/60 text-[11px] text-zinc-400 flex items-center gap-2">
+                  <Check size={12} className="text-brand-300" />
+                  {selected.size} selected · {formatDuration(selectedDuration)}
+                </div>
+              )}
+
+              <footer className="p-2.5 border-t border-zinc-800/60 text-[10px] text-zinc-500">
+                {selectionMode
+                  ? 'Click tracks to toggle selection · actions above'
+                  : 'Drag to reorder · click to jump · arrow keys to navigate · ⌘Q to toggle queue'}
+              </footer>
+            </motion.aside>
+          </DndContext>
         </motion.div>
       )}
     </AnimatePresence>
