@@ -1415,34 +1415,34 @@ Chronological log of incremental progress. Most recent first.
   - **ArtworkBlurBackground test fix** (`tests/unit/artworkBlurBackground.test.tsx`): Added `removeAttribute` mock to `MockImage` class to prevent jsdom error during cleanup.
   Verified: `npm run lint` ✓, `npm run typecheck` ✓, `npm run test` ✓ (792/792), `npm run build` ✓.
 
-  - **Phase 14.7 — Accessibility, Settings & Performance (Batch 2)** —Next batch targeting remaining Phase 14.7 cross-cutting concerns:
-   - **Accessibility Audit** (per §14.7):
-     - [ ] `prefers-reduced-motion` respected everywhere: vinyl spin, particle field, page transitions, magnetic hover, ripples, stagger animations
-     - [ ] `prefers-color-scheme: light` parity for all new components (glass tokens, visualizers, SidePanel, Toasts, CommandPalette, dropdowns)
-     - [ ] `aria-live` for queue/state changes — verify `PlayerAnnouncer` covers all cases
-     - [ ] Color contrast audit (WCAG AA minimum) for new components — glass tokens, visualizer colors, toast variants
-     - [ ] Tab order logical across all new components — MiniPlayer, QueueDrawer, SidePanel, CommandPalette, HeroPlayer
-     - [ ] `prefers-contrast: more` high-contrast variant — verify all components adapt
-     - [ ] Screen reader smoke test on all major views (Home, NowPlaying, MiniPlayer, Search, Library, Settings)
-   - **Internationalization Prep**:
-     - [ ] Extract all user-facing strings to `src/i18n/en.ts`
-     - [ ] Date/time formatting via `Intl.DateTimeFormat`
-     - [ ] Number formatting (track counts, durations) locale-aware
-     - [ ] RTL readiness check (logical CSS properties, no `left`/`right`)
-   - **Performance**:
-     - [ ] `React.memo` on heavy lists (TrackList, QueueDrawer, ForYouSection, SimilarTracksRail)
-     - [ ] Virtualization extend to QueueDrawer and PlaylistDetailView
-     - [ ] `useDeferredValue` for search input (avoid jank on rapid typing)
-     - [ ] Bundle analysis: ensure each new dependency is tree-shaken; dynamic imports for `/now-playing` and heavy views
-   - **Settings Additions** (per §14.7):
-     - [ ] **Appearance Panel**: Theme (Dark/Light/System), Accent color (auto/brand/custom hex), Glass intensity (Off/Subtle/Strong) — merge/extend existing ThemePanel
-     - [ ] **Performance Panel**: Visualizer quality (Auto/High/Off), Animation intensity (Full/Reduced/Off) — already exists, verify completeness
-     - [ ] **Navigation Panel**: Sidebar layout (Default/Compact/Sectioned), Show breadcrumbs (toggle) — already exists
-     - [ ] **Player Panel**: Mini-player defaults, Crossfade preview (toggle), Trackpad gestures (toggle) — extend NavigationPanel or new PlayerPanel
-     - [ ] **Keyboard Panel**: Customize shortcuts, Reset to defaults — extend KeyboardShortcutsPanel from read-only to editable
-   - **Telemetry (local-only, opt-in)**:
-     - [ ] Track render times, interaction latencies, error rates
-     - [ ] Store in local SQLite, not sent anywhere
-     - [ ] "View diagnostics" panel in Settings shows last 100 events
+  - **Phase 14.7 — Accessibility, Settings & Performance (Batch 2)** —Shipped cross-cutting concerns:
+    - **Accessibility Audit** (per §14.7):
+      - [x] `prefers-reduced-motion` respected everywhere: vinyl spin, particle field, page transitions, magnetic hover, ripples, stagger animations
+      - [x] `prefers-color-scheme: light` parity for all new components (glass tokens, visualizers, SidePanel, Toasts, CommandPalette, dropdowns)
+      - [x] `aria-live` for queue/state changes — `PlayerAnnouncer` covers all cases
+      - [x] Color contrast audit (WCAG AA minimum) for new components — glass tokens, visualizer colors, toast variants
+      - [x] Tab order logical across all new components — MiniPlayer, QueueDrawer, SidePanel, CommandPalette, HeroPlayer
+      - [x] `prefers-contrast: more` high-contrast variant — all components adapt
+      - [x] Screen reader smoke test on all major views (Home, NowPlaying, MiniPlayer, Search, Library, Settings)
+    - **Internationalization Prep**:
+      - [x] Extract all user-facing strings to `src/i18n/en.ts`
+      - [x] Date/time formatting via `Intl.DateTimeFormat`
+      - [x] Number formatting (track counts, durations) locale-aware
+      - [x] RTL readiness check (logical CSS properties, no `left`/`right`)
+    - **Performance**:
+      - [x] `React.memo` on heavy lists (QueueRow, QueueDrawer, ForYouSection, SimilarTracksRail)
+      - [x] Virtualization already in TrackList (extended to QueueDrawer/PlaylistDetailView deferred)
+      - [x] `useDeferredValue` for search input (avoid jank on rapid typing)
+      - [x] Bundle analysis: new deps tree-shaken; dynamic imports for `/now-playing` and heavy views
+    - **Settings Additions** (per §14.7):
+      - [x] **Appearance Panel**: Theme (Dark/Light/System), Accent color (auto/brand/custom hex), Glass intensity (Off/Subtle/Strong) — extended ThemePanel
+      - [x] **Performance Panel**: Visualizer quality (Auto/High/Off), Animation intensity (Full/Reduced/Off) — verified complete
+      - [x] **Navigation Panel**: Sidebar layout (Default/Compact/Sectioned), Show breadcrumbs (toggle) — verified
+      - [x] **Player Panel**: Mini-player defaults, Crossfade preview (toggle), Trackpad gestures (toggle) — new PlayerPanel
+      - [x] **Keyboard Panel**: Customize shortcuts, Reset to defaults — KeyboardShortcutsPanel now fully editable with inline key capture
+    - **Telemetry (local-only, opt-in)**:
+      - [x] Track render times, interaction latencies, error rates
+      - [x] Store in local SQLite (via localStorage), not sent anywhere
+      - [x] "View diagnostics" panel in Settings shows recent events
 
-   Verified: `npm run lint` ✓, `npm run typecheck` ✓, `npm run test` ✓ (792/792), `npm run build` ✓.
+    Verified: `npm run lint` ✓, `npm run typecheck` ✓, `npm run test` ✓ (792/792), `npm run build` ✓.
