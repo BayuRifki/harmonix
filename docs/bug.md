@@ -56,3 +56,13 @@ The application has fundamental flaws for Keyboard and Screen Reader users:
 - **No Focus Ring:** Many navigation buttons and track options lack `focus-visible` styles, making it impossible to see keyboard `TAB` selection states.
 - **No Keyboard Handlers:** Interactive track items (in Search results, Queue panel, Tracklist, For You) primarily use `onClick` on `<div>` or `<li>` elements but omit `tabIndex={0}`, `role="button"`, and `onKeyDown` (Enter/Space) handlers. This prevents non-mouse users from playing music.
 - **Invisible Hover Interactions:** The 'Play' button on recommendation cards and 'Remove' buttons in the Queue rely on `opacity-0 group-hover:opacity-100`. Users navigating via keyboard TAB or users who cannot use a mouse with precision cannot perceive or access these buttons.
+
+## 9. Player Queue (`/player`, RightRail)
+
+- **[Desync]** `QueueDrawer.tsx & QueuePanel.tsx`: Components duplicate queue reorder logic (`moveQueueItem`) instead of using playerStore. Rapid drag-and-drop desyncs UI and store.
+- **[Ghost Playback]** `playerStore.ts`: Removing the currently playing track via UI just removes it from the array. The audio continues playing the deleted track instead of stopping or advancing.
+- **[Bypass Store]** `RightRail.tsx`: Removing items bypasses `removeFromQueue` store method and mutates state directly.
+- **[No Keyboard Support]** `QueueDrawer.tsx, QueuePanel.tsx, RightRail.tsx`: Queue list items `<li>` lack `tabIndex`, `role`, and `onKeyDown`. Cannot play items via keyboard.
+- **[Stuck Drop UI]** `QueuePanel.tsx & QueueDrawer.tsx`: Missing `onDragLeave` implementation. Dragging over an item and leaving causes the blue drop indicator line to get permanently stuck.
+- **[Inaccessible on Touch]** `RightRail.tsx`: The "Remove" button uses `opacity-0 group-hover:opacity-100`. Completely inaccessible on touch devices or via keyboard focus.
+- **[Bug Filter & Play]** `QueueDrawer.tsx`: Fuzzy searching the queue and playing a result sends the `originalIndex` to `setQueue`, which behaves unpredictably if Shuffle is currently active.
