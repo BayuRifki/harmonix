@@ -129,7 +129,7 @@ export function SourceView(): JSX.Element {
 
   if (!source) {
     return (
-      <div className="p-8 max-w-4xl">
+      <div className="flex-1 p-8 max-w-4xl overflow-y-auto">
         <h1 className="text-2xl font-bold text-white">Source not found</h1>
         <p className="text-zinc-400 mt-2">
           No source registered with id <code className="text-brand-400">{id}</code>.
@@ -149,7 +149,7 @@ export function SourceView(): JSX.Element {
   const canPlay = source.capabilities.canStream;
 
   return (
-    <div className="p-8 max-w-4xl">
+    <div className="flex-1 p-8 max-w-4xl overflow-y-auto">
       <NavLink to="/search" className="text-sm text-zinc-400 hover:text-zinc-200 mb-4 inline-block">
         ← Back to Search
       </NavLink>

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Search, Bell, Settings as SettingsIcon, History, X, Clock, SearchX } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Breadcrumb } from '@/components/layout/Breadcrumb';
@@ -10,7 +10,8 @@ import { fuzzySearch, highlightMatches } from '@/components/command/fuzzyMatch';
 const SEARCH_DEBOUNCE_MS = 400;
 
 export function TopBar(): JSX.Element {
-  const [query, setQuery] = useState('');
+  const [searchParams] = useSearchParams();
+  const [query, setQuery] = useState(() => searchParams.get('q') ?? '');
   const [hasNotification, setHasNotification] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const navigate = useNavigate();
@@ -49,6 +50,11 @@ export function TopBar(): JSX.Element {
       document.removeEventListener('keydown', onKey);
     };
   }, [historyOpen]);
+
+  useEffect(() => {
+    const urlQuery = searchParams.get('q') ?? '';
+    setQuery(urlQuery);
+  }, [searchParams]);
 
   const filteredHistory = useMemo(() => {
     if (!query.trim()) return history;

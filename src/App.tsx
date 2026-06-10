@@ -148,9 +148,9 @@ function MainApp(): JSX.Element {
         {isHome && <AudioReactiveBackground />}
         <ArtworkBlurBackground opacity={0.18} />
         {showTopBar && <TopBar />}
-        <div className="flex-1 flex overflow-hidden">
+        <div className="flex-1 flex min-h-0">
           <Sidebar />
-          <main id="main-content" className="flex-1 overflow-y-auto min-w-0">
+          <main id="main-content" className="flex-1 overflow-y-auto min-w-0 flex flex-col">
             <AnimatePresence mode="wait" initial={false}>
               <Suspense fallback={<RouteFallback variant="page" />} key={location.pathname}>
                 <Routes location={location} key={location.pathname}>
@@ -240,7 +240,7 @@ function MainApp(): JSX.Element {
           </main>
           {showRightRail && <RightRail />}
         </div>
-        <PlayerBar />
+        <PlayerBar isHomePage={isHome} />
         <ToastContainer />
         <CommandPalette />
         <KeyboardHelpOverlay />

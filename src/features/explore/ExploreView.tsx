@@ -43,7 +43,7 @@ export function ExploreView(): JSX.Element {
   const enabledCount = registrations.filter((r) => r.enabled).length;
 
   return (
-    <div className="h-full overflow-y-auto">
+    <div className="flex-1 overflow-y-auto">
       <div className="max-w-6xl mx-auto px-8 py-8 space-y-8">
         <header className="space-y-1">
           <h1 className="text-3xl font-bold text-white flex items-center gap-3">

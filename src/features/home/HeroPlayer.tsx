@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Music, Heart, MoreHorizontal, Disc3 } from 'lucide-react';
+import { Music, Heart, Disc3 } from 'lucide-react';
 import { usePlayerStore } from '@/stores/playerStore';
 import { useSourcesStore } from '@/stores/sourcesStore';
 import { TransportControls } from '@/components/player/TransportControls';
@@ -184,14 +184,6 @@ export function HeroPlayer({ playlistName, showHiFiBadge = true }: HeroPlayerPro
                 {sourceLabel}
               </span>
             )}
-            <button
-              type="button"
-              className="p-1.5 rounded-full text-zinc-400 hover:text-zinc-200 transition-colors"
-              aria-label="More options"
-              title="More options"
-            >
-              <MoreHorizontal size={14} />
-            </button>
           </div>
         )}
       </div>

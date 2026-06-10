@@ -14,8 +14,8 @@ export function HomeView(): JSX.Element {
   }, [refresh]);
 
   return (
-    <div className="h-full flex flex-col overflow-y-auto">
-      <section className="flex-1 min-h-0">
+    <div className="flex-1 flex flex-col min-h-0">
+      <section className="flex-1 min-h-0 flex items-center justify-center">
         <HeroPlayer playlistName="Harmonix Favorites" />
       </section>
 

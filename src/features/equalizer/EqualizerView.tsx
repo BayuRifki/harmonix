@@ -32,7 +32,7 @@ export function EqualizerView(): JSX.Element {
 
   if (error) {
     return (
-      <div className="p-8">
+      <div className="flex-1 p-8 overflow-y-auto">
         <h1 className="text-2xl font-bold text-white mb-2">Equalizer</h1>
         <p className="text-red-400 text-sm">Failed to load EQ state: {error}</p>
       </div>
@@ -41,7 +41,7 @@ export function EqualizerView(): JSX.Element {
 
   if (!loaded) {
     return (
-      <div className="p-8">
+      <div className="flex-1 p-8 overflow-y-auto">
         <h1 className="text-2xl font-bold text-white mb-2">Equalizer</h1>
         <Skeleton variant="text" lines={2} />
       </div>
@@ -58,7 +58,7 @@ export function EqualizerView(): JSX.Element {
   };
 
   return (
-    <div className="p-8">
+    <div className="flex-1 p-8 overflow-y-auto">
       <h1 className="text-2xl font-bold text-white mb-2">Equalizer</h1>
       <p className="text-zinc-400 mb-6 text-sm">
         10-band parametric EQ for local and YouTube Music playback. Settings persist across

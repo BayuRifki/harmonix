@@ -33,7 +33,8 @@ export function SearchView(): JSX.Element {
   const registrations = useSourcesStore((s) => s.registrations);
   const refresh = useSourcesStore((s) => s.refresh);
   const search = useSourcesStore((s) => s.search);
-  const [query, setQuery] = useState('');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [query, setQuery] = useState(() => searchParams.get('q') ?? '');
   const [results, setResults] = useState<GroupedResults[]>([]);
   const [searching, setSearching] = useState(false);
   const [activeSourceIds, setActiveSourceIds] = useState<string[]>([]);
@@ -41,7 +42,6 @@ export function SearchView(): JSX.Element {
   const recent = useSearchHistoryStore((s) => s.queries);
   const addRecent = useSearchHistoryStore((s) => s.add);
   const clearRecent = useSearchHistoryStore((s) => s.clear);
-  const [searchParams, setSearchParams] = useSearchParams();
   const sourceParam = searchParams.get('source');
   const [filters, setFilters] = useState<SearchFiltersState>(() =>
     readFiltersFromParams(searchParams),
@@ -50,6 +50,14 @@ export function SearchView(): JSX.Element {
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  useEffect(() => {
+    const urlQuery = searchParams.get('q') ?? '';
+    if (urlQuery !== query) {
+      setQuery(urlQuery);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   useEffect(() => {
     if (registrations.length === 0) return;
@@ -135,10 +143,7 @@ export function SearchView(): JSX.Element {
 
   const deferredFilteredResults = useDeferredValue(filteredResults);
 
-  const totalTracks = deferredFilteredResults.reduce(
-    (sum, r) => sum + r.result.tracks.length,
-    0,
-  );
+  const totalTracks = deferredFilteredResults.reduce((sum, r) => sum + r.result.tracks.length, 0);
 
   const topTrack = useMemo(() => {
     for (const g of deferredFilteredResults) {
@@ -148,15 +153,11 @@ export function SearchView(): JSX.Element {
   }, [deferredFilteredResults]);
   const topTrackGroup = useMemo(() => {
     if (!topTrack) return null;
-    return (
-      deferredFilteredResults.find(
-        (g) => g.result.tracks[0]?.id === topTrack.id,
-      ) ?? null
-    );
+    return deferredFilteredResults.find((g) => g.result.tracks[0]?.id === topTrack.id) ?? null;
   }, [deferredFilteredResults, topTrack]);
 
   return (
-    <div className="p-8 max-w-4xl">
+    <div className="flex-1 p-8 max-w-4xl overflow-y-auto">
       <h1 className="text-2xl font-bold text-white mb-2">Search</h1>
       <p className="text-zinc-400 mb-4 text-sm">Search across all enabled music sources at once.</p>
 
@@ -169,7 +170,15 @@ export function SearchView(): JSX.Element {
           type="search"
           placeholder="Search for tracks, artists, albums…"
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          onChange={(e) => {
+            const next = e.target.value;
+            setQuery(next);
+            if (next.trim()) {
+              setSearchParams({ q: next }, { replace: true });
+            } else {
+              setSearchParams({}, { replace: true });
+            }
+          }}
           className="w-full bg-zinc-900 border border-zinc-800 rounded-lg pl-10 pr-4 py-3 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500/50 transition-all"
           autoFocus
         />
