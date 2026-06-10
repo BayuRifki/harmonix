@@ -5,7 +5,11 @@ import { AddToPlaylistMenu } from '@/features/playlist/AddToPlaylistMenu';
 import { useVirtualWindow } from '@/hooks/useVirtualWindow';
 import { useInsightsStore } from '@/stores/insightsStore';
 import type { Track } from '@/types/global';
-import { itemVariants } from '@/components/ui/StaggerAnimations';
+import {
+  itemVariants,
+  itemVariantsReduced,
+  useReducedMotion,
+} from '@/components/ui/StaggerAnimations';
 
 interface TrackListProps {
   tracks: Track[];
@@ -29,6 +33,8 @@ export function TrackList({ tracks, onPlay }: TrackListProps): JSX.Element {
   const isPlaying = usePlayerStore((s) => s.isPlaying);
   const openInsights = useInsightsStore((s) => s.open);
   const [addToPlaylistTrack, setAddToPlaylistTrack] = useState<Track | null>(null);
+  const reducedMotion = useReducedMotion();
+  const variants = reducedMotion ? itemVariantsReduced : itemVariants;
 
   const handleShowInsights = (t: Track): void => openInsights(t);
 
@@ -61,7 +67,7 @@ export function TrackList({ tracks, onPlay }: TrackListProps): JSX.Element {
             {tracks.map((track, i) => (
               <motion.tr
                 key={track.id}
-                variants={itemVariants}
+                variants={variants}
                 initial="hidden"
                 animate="show"
                 style={{ height: ROW_HEIGHT }}
@@ -185,6 +191,8 @@ function VirtualTrackList({
     overscan: OVERSCAN,
   });
   const isPlaying = usePlayerStore((s) => s.isPlaying);
+  const reducedMotion = useReducedMotion();
+  const variants = reducedMotion ? itemVariantsReduced : itemVariants;
 
   const visible = tracks.slice(startIndex, endIndex);
 
@@ -217,7 +225,7 @@ function VirtualTrackList({
               return (
                 <motion.tr
                   key={track.id}
-                  variants={itemVariants}
+                  variants={variants}
                   initial="hidden"
                   animate="show"
                   style={{ height: ROW_HEIGHT }}

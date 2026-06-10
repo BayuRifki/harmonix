@@ -208,7 +208,7 @@ export function Sidebar(): JSX.Element {
           <button
             type="button"
             onClick={() => resetNavOrder()}
-            className="p-1.5 rounded-md text-zinc-600 hover:text-zinc-300 hover:bg-zinc-800/60 transition-colors"
+            className="p-1.5 rounded-md text-zinc-600 hover:text-zinc-300 hover:bg-zinc-800/60 transition-colors focus-ring"
             aria-label="Reset nav order"
             title="Reset nav order"
             data-testid="sidebar-reset-nav"
@@ -296,7 +296,7 @@ export function Sidebar(): JSX.Element {
                     e.stopPropagation();
                     clearRecents();
                   }}
-                  className="p-0.5 rounded text-zinc-600 hover:text-zinc-300 transition-colors"
+                  className="p-0.5 rounded text-zinc-600 hover:text-zinc-300 transition-colors focus-ring"
                   aria-label="Clear recents"
                   title="Clear recents"
                 >
@@ -341,18 +341,18 @@ export function Sidebar(): JSX.Element {
               Your Playlists
             </p>
             <div className="flex items-center gap-1">
-              <span
-                role="button"
-                tabIndex={-1}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  void handleCreatePlaylist();
-                }}
-                className="p-0.5 rounded text-zinc-500 hover:text-brand-400 transition-colors disabled:opacity-40"
-                aria-label="Create playlist"
-                title="Create playlist"
-                data-testid="sidebar-create-playlist"
-              >
+            <span
+              role="button"
+              tabIndex={-1}
+              onClick={(e) => {
+                e.stopPropagation();
+                void handleCreatePlaylist();
+              }}
+              className="p-0.5 rounded text-zinc-500 hover:text-brand-400 transition-colors disabled:opacity-40 focus-ring"
+              aria-label="Create playlist"
+              title="Create playlist"
+              data-testid="sidebar-create-playlist"
+            >
                 <Plus size={14} />
               </span>
               <ChevronDown

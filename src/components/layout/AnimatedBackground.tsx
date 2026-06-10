@@ -120,7 +120,7 @@ export function AnimatedBackground(): JSX.Element {
       <div
         className={`absolute top-0 left-0 w-[60vw] h-[60vw] rounded-full blur-3xl ${
           reduced || userReducedMotion ? '' : 'animate-spin-very-slow'
-        }`}
+        } motion-reduce:animate-none`}
         style={{
           background: `conic-gradient(from 0deg, hsla(${accentHsl}, 0.4) 0%, hsla(${accentHsl}, 0.15) 50%, hsla(${accentHsl}, 0.4) 100%)`,
           transform: `translate(-25%, -25%) scale(${scale})`,
@@ -130,7 +130,7 @@ export function AnimatedBackground(): JSX.Element {
       <div
         className={`absolute bottom-0 right-0 w-[50vw] h-[50vw] rounded-full blur-3xl ${
           reduced || userReducedMotion ? '' : 'animate-spin-reverse-slow'
-        }`}
+        } motion-reduce:animate-none`}
         style={{
           background: `conic-gradient(from 180deg, hsla(${accentHsl}, 0.3) 0%, hsla(${accentHsl}, 0.08) 50%, hsla(${accentHsl}, 0.3) 100%)`,
           transform: `translate(20%, 20%) scale(${scale})`,

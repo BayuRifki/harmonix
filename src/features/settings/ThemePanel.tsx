@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useUiStore, type ThemeAccentMode, type GlassIntensity } from '@/stores/uiStore';
+import { useThemeStore, type Theme } from '@/stores/themeStore';
 import { extractDominantColor, hslToString, type HslColor } from '@/lib/colorExtractor';
 
 function hexToHsl(hex: string): HslColor | null {
@@ -101,6 +102,8 @@ export function ThemePanel(): JSX.Element {
   const setCustomAccentHex = useUiStore((s) => s.setCustomAccentHex);
   const glassIntensity = useUiStore((s) => s.glassIntensity);
   const setGlassIntensity = useUiStore((s) => s.setGlassIntensity);
+  const theme = useThemeStore((s) => s.theme);
+  const setTheme = useThemeStore((s) => s.setTheme);
   const [previewHsl, setPreviewHsl] = useState<HslColor | null>(null);
 
   useEffect(() => {
@@ -160,6 +163,18 @@ export function ThemePanel(): JSX.Element {
         <span className="text-accent">🎨</span> Theme
       </h2>
       <p className="text-xs text-app-muted mb-4">Customize the accent color and glass effects.</p>
+
+      <Select<Theme>
+        label="Theme"
+        value={theme}
+        options={[
+          { value: 'dark', label: 'Dark' },
+          { value: 'light', label: 'Light' },
+          { value: 'system', label: 'System' },
+        ]}
+        onChange={setTheme}
+        description="Choose dark, light, or follow system preference"
+      />
 
       <Select<ThemeAccentMode>
         label="Accent Color"

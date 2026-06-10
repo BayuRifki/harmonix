@@ -13,6 +13,15 @@ function makeCtx(overrides: Partial<ShortcutContext> = {}): {
   previous: ReturnType<typeof vi.fn>;
   setVolume: ReturnType<typeof vi.fn>;
   setPreviousVolume: ReturnType<typeof vi.fn>;
+  toggleShuffle: ReturnType<typeof vi.fn>;
+  cycleRepeat: ReturnType<typeof vi.fn>;
+  toggleQueue: ReturnType<typeof vi.fn>;
+  toggleMiniPlayer: ReturnType<typeof vi.fn>;
+  openCommandPalette: ReturnType<typeof vi.fn>;
+  openHelp: ReturnType<typeof vi.fn>;
+  seek: ReturnType<typeof vi.fn>;
+  setShuffle: ReturnType<typeof vi.fn>;
+  setRepeat: ReturnType<typeof vi.fn>;
 } {
   const pause = vi.fn();
   const resume = vi.fn();
@@ -20,6 +29,15 @@ function makeCtx(overrides: Partial<ShortcutContext> = {}): {
   const previous = vi.fn();
   const setVolume = vi.fn();
   const setPreviousVolume = vi.fn();
+  const toggleShuffle = vi.fn();
+  const cycleRepeat = vi.fn();
+  const toggleQueue = vi.fn();
+  const toggleMiniPlayer = vi.fn();
+  const openCommandPalette = vi.fn();
+  const openHelp = vi.fn();
+  const seek = vi.fn();
+  const setShuffle = vi.fn();
+  const setRepeat = vi.fn();
   const ctx: ShortcutContext = {
     isPlaying: false,
     hasTrack: true,
@@ -31,9 +49,20 @@ function makeCtx(overrides: Partial<ShortcutContext> = {}): {
     setVolume,
     previousVolume: null,
     setPreviousVolume,
+    toggleShuffle,
+    cycleRepeat,
+    toggleQueue,
+    toggleMiniPlayer,
+    openCommandPalette,
+    openHelp,
+    seek,
+    shuffle: false,
+    repeat: 'off',
+    durationMs: 0,
+    positionMs: 0,
     ...overrides,
   };
-  return { ctx, pause, resume, next, previous, setVolume, setPreviousVolume };
+  return { ctx, pause, resume, next, previous, setVolume, setPreviousVolume, toggleShuffle, cycleRepeat, toggleQueue, toggleMiniPlayer, openCommandPalette, openHelp, seek, setShuffle, setRepeat };
 }
 
 describe('isEditableTarget', () => {

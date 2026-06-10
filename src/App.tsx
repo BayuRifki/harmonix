@@ -22,6 +22,7 @@ import { ToastContainer } from '@/components/ui/Toast';
 import { CommandPalette } from '@/components/command/CommandPalette';
 import { TrackInsightsHost } from '@/features/trackInsights';
 import { PlayerAnnouncer } from '@/components/a11y/PlayerAnnouncer';
+import { QueueAnnouncer } from '@/components/a11y/QueueAnnouncer';
 import { SkipToContent } from '@/components/a11y/SkipToContent';
 import { RouteChangeIndicator } from '@/components/a11y/RouteLoader';
 import { RouteFallback } from '@/components/a11y/RouteFallback';
@@ -140,6 +141,7 @@ function MainApp(): JSX.Element {
       <GlobalDndProvider>
         <SkipToContent />
         <PlayerAnnouncer />
+        <QueueAnnouncer />
         <RouteChangeIndicator />
         <YtMusicDisclaimer />
         <AnimatedBackground />

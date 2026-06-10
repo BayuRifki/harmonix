@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useDeferredValue } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Search, SearchCheck, Sparkles, Play, History, Info } from 'lucide-react';
 import { useSourcesStore } from '@/stores/sourcesStore';
@@ -133,18 +133,27 @@ export function SearchView(): JSX.Element {
     [results, filters],
   );
 
-  const totalTracks = filteredResults.reduce((sum, r) => sum + r.result.tracks.length, 0);
+  const deferredFilteredResults = useDeferredValue(filteredResults);
+
+  const totalTracks = deferredFilteredResults.reduce(
+    (sum, r) => sum + r.result.tracks.length,
+    0,
+  );
 
   const topTrack = useMemo(() => {
-    for (const g of filteredResults) {
+    for (const g of deferredFilteredResults) {
       if (g.result.tracks.length > 0) return g.result.tracks[0];
     }
     return null;
-  }, [filteredResults]);
+  }, [deferredFilteredResults]);
   const topTrackGroup = useMemo(() => {
     if (!topTrack) return null;
-    return filteredResults.find((g) => g.result.tracks[0]?.id === topTrack.id) ?? null;
-  }, [filteredResults, topTrack]);
+    return (
+      deferredFilteredResults.find(
+        (g) => g.result.tracks[0]?.id === topTrack.id,
+      ) ?? null
+    );
+  }, [deferredFilteredResults, topTrack]);
 
   return (
     <div className="p-8 max-w-4xl">
@@ -272,7 +281,7 @@ export function SearchView(): JSX.Element {
                 <Play size={20} className="text-brand-300 shrink-0 mr-2" />
               </button>
             )}
-            {filteredResults
+            {deferredFilteredResults
               .filter((r) => r.result.tracks.length > 0)
               .map((group) => (
                 <section key={group.sourceId}>

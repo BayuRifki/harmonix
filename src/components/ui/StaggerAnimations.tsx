@@ -1,4 +1,4 @@
-import { motion, Variants } from 'framer-motion';
+import { motion, Variants, useReducedMotion as useFramerReducedMotion } from 'framer-motion';
 
 export const staggerContainer: Variants = {
   hidden: { opacity: 0 },
@@ -49,27 +49,15 @@ export const itemVariants: Variants = {
   },
 };
 
-export function StaggerList<T>(
-  items: T[],
-  renderItem: (item: T, index: number) => React.ReactElement,
-  options: { className?: string; itemClassName?: string } = {},
-): JSX.Element {
-  return (
-    <motion.ul
-      variants={listVariants}
-      initial="hidden"
-      animate="show"
-      className={options.className}
-      data-testid="stagger-list"
-    >
-      {items.map((item, index) => (
-        <motion.li key={index} variants={itemVariants} className={options.itemClassName}>
-          {renderItem(item, index)}
-        </motion.li>
-      ))}
-    </motion.ul>
-  );
-}
+export const listVariantsReduced: Variants = {
+  hidden: { opacity: 0 },
+  show: { opacity: 1 },
+};
+
+export const itemVariantsReduced: Variants = {
+  hidden: { opacity: 0 },
+  show: { opacity: 1 },
+};
 
 export const gridVariants: Variants = {
   hidden: { opacity: 0 },
@@ -92,31 +80,81 @@ export const cardVariants: Variants = {
   },
 };
 
+export const gridVariantsReduced: Variants = {
+  hidden: { opacity: 0 },
+  show: { opacity: 1 },
+};
+
+export const cardVariantsReduced: Variants = {
+  hidden: { opacity: 0 },
+  show: { opacity: 1 },
+};
+
+function getVariants(reduced: boolean) {
+  if (reduced) {
+    return {
+      list: listVariantsReduced,
+      item: itemVariantsReduced,
+      grid: gridVariantsReduced,
+      card: cardVariantsReduced,
+    };
+  }
+  return {
+    list: listVariants,
+    item: itemVariants,
+    grid: gridVariants,
+    card: cardVariants,
+  };
+}
+
+export function StaggerList<T>(
+  items: T[],
+  renderItem: (item: T, index: number) => React.ReactElement,
+  options: { className?: string; itemClassName?: string; reduced?: boolean } = {},
+): JSX.Element {
+  const prefersReduced = useFramerReducedMotion() ?? false;
+  const reduced = options.reduced ?? prefersReduced;
+  const v = getVariants(reduced);
+  return (
+    <motion.ul
+      variants={v.list}
+      initial="hidden"
+      animate="show"
+      className={options.className}
+      data-testid="stagger-list"
+    >
+      {items.map((item, index) => (
+        <motion.li key={index} variants={v.item} className={options.itemClassName}>
+          {renderItem(item, index)}
+        </motion.li>
+      ))}
+    </motion.ul>
+  );
+}
+
 export function StaggerGrid<T>(
   items: T[],
   renderItem: (item: T, index: number) => React.ReactElement,
-  options: { className?: string; itemClassName?: string } = {},
+  options: { className?: string; itemClassName?: string; reduced?: boolean } = {},
 ): JSX.Element {
+  const prefersReduced = useFramerReducedMotion() ?? false;
+  const reduced = options.reduced ?? prefersReduced;
+  const v = getVariants(reduced);
   return (
     <motion.div
-      variants={gridVariants}
+      variants={v.grid}
       initial="hidden"
       animate="show"
       className={`grid gap-4 ${options.className || 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'}`}
       data-testid="stagger-grid"
     >
       {items.map((item, index) => (
-        <motion.div key={index} variants={cardVariants} className={options.itemClassName}>
+        <motion.div key={index} variants={v.card} className={options.itemClassName}>
           {renderItem(item, index)}
         </motion.div>
       ))}
     </motion.div>
   );
-}
-
-export function useReducedMotion(): boolean {
-  if (typeof window === 'undefined') return false;
-  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
 
 export function createStaggeredTransition(
@@ -128,3 +166,5 @@ export function createStaggeredTransition(
     delayChildren: startDelayMs / 1000,
   };
 }
+
+export const useReducedMotion = useFramerReducedMotion;

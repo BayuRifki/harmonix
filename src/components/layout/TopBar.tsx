@@ -128,7 +128,7 @@ export function TopBar(): JSX.Element {
               <button
                 type="button"
                 onClick={() => setHistoryOpen((v) => !v)}
-                className="hidden sm:inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] text-zinc-500 bg-zinc-800/80 hover:bg-zinc-700/80 hover:text-zinc-200 border border-zinc-700/60 rounded transition-colors"
+                className="hidden sm:inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] text-zinc-500 bg-zinc-800/80 hover:bg-zinc-700/80 hover:text-zinc-200 border border-zinc-700/60 rounded transition-colors focus-ring"
                 aria-label="Show search history"
                 title="Search history"
                 data-testid="topbar-search-history-trigger"
@@ -139,7 +139,7 @@ export function TopBar(): JSX.Element {
             <button
               type="button"
               onClick={openCommandPalette}
-              className="hidden sm:inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] text-zinc-500 bg-zinc-800/80 hover:bg-zinc-700/80 hover:text-zinc-200 border border-zinc-700/60 rounded transition-colors"
+              className="hidden sm:inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] text-zinc-500 bg-zinc-800/80 hover:bg-zinc-700/80 hover:text-zinc-200 border border-zinc-700/60 rounded transition-colors focus-ring"
               aria-label="Open command palette"
               title="Command palette"
               data-testid="topbar-command-palette-trigger"
@@ -170,7 +170,7 @@ export function TopBar(): JSX.Element {
                     <button
                       type="button"
                       onClick={clear}
-                      className="text-[10px] text-zinc-500 hover:text-zinc-300"
+                      className="text-[10px] text-zinc-500 hover:text-zinc-300 focus-ring"
                       data-testid="topbar-search-history-clear"
                     >
                       Clear all
@@ -212,7 +212,7 @@ export function TopBar(): JSX.Element {
                             e.stopPropagation();
                             remove(h);
                           }}
-                          className="opacity-0 group-hover:opacity-100 text-zinc-500 hover:text-zinc-200"
+                          className="opacity-0 group-hover:opacity-100 text-zinc-500 hover:text-zinc-200 focus-ring"
                           aria-label={`Remove ${h} from search history`}
                         >
                           <X size={11} />
@@ -235,7 +235,7 @@ export function TopBar(): JSX.Element {
       <button
         type="button"
         onClick={() => setHasNotification(false)}
-        className="relative p-2 rounded-full text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/60 transition-colors"
+        className="relative p-2 rounded-full text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/60 transition-colors focus-ring"
         aria-label="Notifications"
         title="Notifications"
       >
@@ -248,7 +248,7 @@ export function TopBar(): JSX.Element {
       <button
         type="button"
         onClick={() => navigate('/settings')}
-        className="p-2 rounded-full text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/60 transition-colors"
+        className="p-2 rounded-full text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/60 transition-colors focus-ring"
         aria-label="Settings"
         title="Settings"
       >

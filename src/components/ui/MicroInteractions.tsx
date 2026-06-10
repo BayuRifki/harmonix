@@ -57,10 +57,10 @@ export function Ripple({
         {ripples.map((r) => (
           <motion.span
             key={r.id}
-            initial={{ scale: 0, opacity: 0.5 }}
-            animate={{ scale: 1.5, opacity: 0 }}
+            initial={reduced ? { opacity: 0 } : { scale: 0, opacity: 0.5 }}
+            animate={reduced ? { opacity: 0 } : { scale: 1.5, opacity: 0 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.6, ease: 'easeOut' }}
+            transition={{ duration: reduced ? 0.01 : 0.6, ease: 'easeOut' }}
             className="absolute rounded-full pointer-events-none"
             style={{
               left: r.x - r.size / 2,
@@ -116,6 +116,7 @@ export function MagneticButton({
       onMouseMove={onMouseMove as unknown as React.MouseEventHandler<HTMLDivElement>}
       onMouseLeave={onMouseLeave as unknown as React.MouseEventHandler<HTMLDivElement>}
       className={`transition-transform duration-150 ease-out will-change-transform ${className}`}
+      style={reduced ? { transform: 'none' } : undefined}
     >
       {children}
     </Tag>

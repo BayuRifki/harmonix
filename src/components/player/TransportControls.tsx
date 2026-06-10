@@ -48,7 +48,7 @@ export function TransportControls({ variant = 'compact' }: TransportControlsProp
         <button
           type="button"
           onClick={toggleShuffle}
-          className={`p-2 rounded-lg transition-all duration-100 active:scale-95 ${
+          className={`p-2 rounded-lg transition-all duration-100 active:scale-95 focus-ring ${
             shuffle
               ? 'text-brand-400 bg-brand-500/15'
               : 'text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/60'
@@ -63,7 +63,7 @@ export function TransportControls({ variant = 'compact' }: TransportControlsProp
           type="button"
           onClick={() => void previous()}
           disabled={!hasTrack}
-          className="p-2 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800/60 disabled:opacity-40 transition-all duration-100 active:scale-95"
+          className="p-2 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800/60 disabled:opacity-40 transition-all duration-100 active:scale-95 focus-ring"
           aria-label="Previous track"
           title="Previous"
         >
@@ -73,7 +73,7 @@ export function TransportControls({ variant = 'compact' }: TransportControlsProp
           type="button"
           onClick={() => (isPlaying ? pause() : void resume())}
           disabled={!hasTrack || loading}
-          className={`mx-1 ${playButtonSize} rounded-full flex items-center justify-center transition-all duration-150 hover:scale-105 active:scale-95 disabled:opacity-40 ${playButtonColor}`}
+          className={`mx-1 ${playButtonSize} rounded-full flex items-center justify-center transition-all duration-150 hover:scale-105 active:scale-95 disabled:opacity-40 ${playButtonColor} focus-ring`}
           aria-label={isPlaying ? 'Pause' : 'Play'}
           title={isPlaying ? 'Pause (Space)' : 'Play (Space)'}
         >
@@ -91,7 +91,7 @@ export function TransportControls({ variant = 'compact' }: TransportControlsProp
           type="button"
           onClick={() => void next()}
           disabled={!hasTrack}
-          className="p-2 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800/60 disabled:opacity-40 transition-all duration-100 active:scale-95"
+          className="p-2 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800/60 disabled:opacity-40 transition-all duration-100 active:scale-95 focus-ring"
           aria-label="Next track"
           title="Next"
         >
@@ -100,7 +100,7 @@ export function TransportControls({ variant = 'compact' }: TransportControlsProp
         <button
           type="button"
           onClick={cycleRepeat}
-          className={`p-2 rounded-lg transition-all duration-100 active:scale-95 ${
+          className={`p-2 rounded-lg transition-all duration-100 active:scale-95 focus-ring ${
             repeat !== 'off'
               ? 'text-brand-400 bg-brand-500/15'
               : 'text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/60'

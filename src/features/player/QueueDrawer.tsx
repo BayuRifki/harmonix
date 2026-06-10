@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   X,
@@ -48,7 +48,7 @@ interface QueueRowProps {
   isDragging: boolean;
 }
 
-function QueueRow({
+const QueueRow = memo(function QueueRow({
   track,
   index,
   isCurrent,
@@ -128,7 +128,9 @@ function QueueRow({
       </span>
     </li>
   );
-}
+});
+
+QueueRow.displayName = 'QueueRow';
 
 export function QueueDrawer({ open, onClose }: QueueDrawerProps): JSX.Element | null {
   const queue = usePlayerStore((s) => s.queue);
@@ -141,6 +143,9 @@ export function QueueDrawer({ open, onClose }: QueueDrawerProps): JSX.Element | 
   const toast = useToastStore();
   const reducedMotion = useUiStore((s) => s.reducedMotion);
 
+  const drawerRef = useRef<HTMLDivElement>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
+
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [selectionMode, setSelectionMode] = useState(false);
@@ -149,6 +154,25 @@ export function QueueDrawer({ open, onClose }: QueueDrawerProps): JSX.Element | 
   const [dragOver, setDragOver] = useState<number | null>(null);
 
   useEffect(() => {
+    if (open) {
+      previousFocusRef.current = (document.activeElement as HTMLElement | null) ?? null;
+      const container = drawerRef.current;
+      if (container) {
+        const focusables = container.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        );
+        if (focusables.length > 0) {
+          (focusables[0] as HTMLElement).focus();
+        } else {
+          container.setAttribute('tabindex', '-1');
+          container.focus();
+        }
+      }
+    } else {
+      if (previousFocusRef.current && document.contains(previousFocusRef.current)) {
+        previousFocusRef.current.focus();
+      }
+    }
     if (!open) {
       setQuery('');
       setSelected(new Set());
@@ -292,7 +316,7 @@ export function QueueDrawer({ open, onClose }: QueueDrawerProps): JSX.Element | 
               <button
                 type="button"
                 onClick={onClose}
-                className="text-zinc-400 hover:text-zinc-200 transition-colors p-1 -m-1"
+                className="text-zinc-400 hover:text-zinc-200 transition-colors p-1 -m-1 focus-ring"
                 aria-label="Close queue"
               >
                 <X size={16} />
@@ -326,7 +350,7 @@ export function QueueDrawer({ open, onClose }: QueueDrawerProps): JSX.Element | 
                     selectionMode
                       ? 'bg-brand-500/20 text-brand-300'
                       : 'bg-zinc-800/60 text-zinc-400 hover:text-zinc-200'
-                  }`}
+                  } focus-ring`}
                   data-testid="queue-selection-toggle"
                 >
                   {selectionMode ? 'Cancel select' : 'Select'}
@@ -337,7 +361,7 @@ export function QueueDrawer({ open, onClose }: QueueDrawerProps): JSX.Element | 
                       type="button"
                       onClick={removeSelected}
                       disabled={selected.size === 0}
-                      className="text-[11px] px-2 py-1 rounded bg-zinc-800/60 text-zinc-400 hover:text-red-300 disabled:opacity-40 transition-colors inline-flex items-center gap-1"
+                      className="text-[11px] px-2 py-1 rounded bg-zinc-800/60 text-zinc-400 hover:text-red-300 disabled:opacity-40 transition-colors inline-flex items-center gap-1 focus-ring"
                     >
                       <Trash2 size={10} aria-hidden />
                       Remove ({selected.size})
@@ -346,7 +370,7 @@ export function QueueDrawer({ open, onClose }: QueueDrawerProps): JSX.Element | 
                       type="button"
                       onClick={saveAsPlaylist}
                       disabled={selected.size === 0}
-                      className="text-[11px] px-2 py-1 rounded bg-zinc-800/60 text-zinc-400 hover:text-brand-300 disabled:opacity-40 transition-colors inline-flex items-center gap-1"
+                      className="text-[11px] px-2 py-1 rounded bg-zinc-800/60 text-zinc-400 hover:text-brand-300 disabled:opacity-40 transition-colors inline-flex items-center gap-1 focus-ring"
                     >
                       <Save size={10} aria-hidden />
                       Save ({selected.size})
@@ -358,7 +382,7 @@ export function QueueDrawer({ open, onClose }: QueueDrawerProps): JSX.Element | 
                     <button
                       type="button"
                       onClick={saveAsPlaylist}
-                      className="text-[11px] px-2 py-1 rounded bg-zinc-800/60 text-zinc-400 hover:text-brand-300 transition-colors inline-flex items-center gap-1"
+                      className="text-[11px] px-2 py-1 rounded bg-zinc-800/60 text-zinc-400 hover:text-brand-300 transition-colors inline-flex items-center gap-1 focus-ring"
                     >
                       <Save size={10} aria-hidden />
                       Save all
@@ -367,7 +391,7 @@ export function QueueDrawer({ open, onClose }: QueueDrawerProps): JSX.Element | 
                       <button
                         type="button"
                         onClick={clearPlayed}
-                        className="text-[11px] px-2 py-1 rounded bg-zinc-800/60 text-zinc-400 hover:text-zinc-200 transition-colors inline-flex items-center gap-1"
+                        className="text-[11px] px-2 py-1 rounded bg-zinc-800/60 text-zinc-400 hover:text-zinc-200 transition-colors inline-flex items-center gap-1 focus-ring"
                       >
                         <XCircle size={10} aria-hidden />
                         Clear played
@@ -376,7 +400,7 @@ export function QueueDrawer({ open, onClose }: QueueDrawerProps): JSX.Element | 
                     <button
                       type="button"
                       onClick={clearAll}
-                      className="text-[11px] px-2 py-1 rounded bg-zinc-800/60 text-zinc-400 hover:text-red-300 transition-colors inline-flex items-center gap-1"
+                      className="text-[11px] px-2 py-1 rounded bg-zinc-800/60 text-zinc-400 hover:text-red-300 transition-colors inline-flex items-center gap-1 focus-ring"
                     >
                       <XCircle size={10} aria-hidden />
                       Clear all
@@ -437,7 +461,7 @@ export function QueueDrawer({ open, onClose }: QueueDrawerProps): JSX.Element | 
                           onClick={() => setHistoryOpen((v) => !v)}
                           aria-expanded={historyOpen}
                           aria-controls="queue-history-list"
-                          className="w-full flex items-center justify-between px-2 py-1.5 text-[10px] uppercase tracking-wider text-zinc-500 hover:text-zinc-300"
+                          className="w-full flex items-center justify-between px-2 py-1.5 text-[10px] uppercase tracking-wider text-zinc-500 hover:text-zinc-300 focus-ring"
                         >
                           <span className="inline-flex items-center gap-1.5 font-semibold">
                             <RotateCcw size={10} aria-hidden />

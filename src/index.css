@@ -24,17 +24,17 @@
   --bg-tertiary: #e4e4e7;
   --bg-hover: #f0f0f3;
   --bg-overlay: rgba(0, 0, 0, 0.4);
-  --border-primary: #e4e4e7;
-  --border-secondary: #d4d4d8;
+  --border-primary: #cbd5e1;
+  --border-secondary: #94a3b8;
   --text-primary: #09090b;
   --text-secondary: #3f3f46;
-  --text-muted: #71717a;
-  --text-faint: #a1a1aa;
+  --text-muted: #52525b;
+  --text-faint: #71717a;
   --accent: #0284c7;
   --accent-hover: #0369a1;
   --scrollbar-track: #f4f4f5;
-  --scrollbar-thumb: #d4d4d8;
-  --scrollbar-thumb-hover: #a1a1aa;
+  --scrollbar-thumb: #94a3b8;
+  --scrollbar-thumb-hover: #64748b;
   color-scheme: light;
 }
 
@@ -160,15 +160,15 @@
   }
   :root.light .glass-thin {
     background: rgba(255, 255, 255, 0.55);
-    border-color: rgba(0, 0, 0, 0.06);
+    border-color: rgba(0, 0, 0, 0.12);
   }
   :root.light .glass {
     background: rgba(255, 255, 255, 0.7);
-    border-color: rgba(0, 0, 0, 0.08);
+    border-color: rgba(0, 0, 0, 0.15);
   }
   :root.light .glass-heavy {
     background: rgba(255, 255, 255, 0.86);
-    border-color: rgba(0, 0, 0, 0.1);
+    border-color: rgba(0, 0, 0, 0.18);
   }
 
   [data-glass='off'] .glass,

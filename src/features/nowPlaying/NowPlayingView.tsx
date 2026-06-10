@@ -1,6 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion, useMotionValue, useSpring, AnimatePresence } from 'framer-motion';
+import {
+  motion,
+  useMotionValue,
+  useSpring,
+  AnimatePresence,
+  useReducedMotion,
+} from 'framer-motion';
 import {
   X,
   Music,
@@ -77,7 +83,10 @@ function sourceLabel(source: string): string {
   return source;
 }
 
-function useMouseParallax(strength: number = 10): {
+function useMouseParallax(
+  strength: number = 10,
+  reduced: boolean = false,
+): {
   onMouseMove: (e: React.MouseEvent<HTMLDivElement>) => void;
   onMouseLeave: () => void;
   style: { x: ReturnType<typeof useSpring>; y: ReturnType<typeof useSpring> };
@@ -86,8 +95,11 @@ function useMouseParallax(strength: number = 10): {
   const y = useMotionValue(0);
   const sx = useSpring(x, { stiffness: 80, damping: 18 });
   const sy = useSpring(y, { stiffness: 80, damping: 18 });
+  const zeroX = useMotionValue(0);
+  const zeroY = useMotionValue(0);
   return {
     onMouseMove: (e: React.MouseEvent<HTMLDivElement>) => {
+      if (reduced) return;
       const rect = e.currentTarget.getBoundingClientRect();
       const px = (e.clientX - rect.left) / rect.width - 0.5;
       const py = (e.clientY - rect.top) / rect.height - 0.5;
@@ -98,7 +110,7 @@ function useMouseParallax(strength: number = 10): {
       x.set(0);
       y.set(0);
     },
-    style: { x: sx, y: sy },
+    style: reduced ? { x: zeroX, y: zeroY } : { x: sx, y: sy },
   };
 }
 
@@ -141,8 +153,11 @@ export function NowPlayingView(): JSX.Element {
   const next = usePlayerStore((s) => s.next);
   const previous = usePlayerStore((s) => s.previous);
   const seek = usePlayerStore((s) => s.seek);
+  const reducedMotion = useUiStore((s) => s.reducedMotion);
+  const prefersReduced = useReducedMotion() ?? false;
+  const reduced = reducedMotion || prefersReduced;
 
-  const parallax = useMouseParallax(12);
+  const parallax = useMouseParallax(12, reduced);
   const [creditsOpen, setCreditsOpen] = useState(false);
   const [visualizer, setVisualizer] = useState<VisualizerMode>(() => loadVisualizerMode());
   const [theme, setTheme] = useState<ThemeMode>(() => loadThemeMode());

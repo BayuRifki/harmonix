@@ -27,6 +27,10 @@ interface PersistedUi {
   showExitAnimations: boolean;
   showSnapPoints: boolean;
   showScrollIndicators: boolean;
+  miniPlayerEnabled: boolean;
+  miniPlayerAlwaysOnTop: boolean;
+  miniPlayerWidth: number;
+  miniPlayerHeight: number;
 }
 
 interface UiState extends PersistedUi {
@@ -62,6 +66,10 @@ interface UiState extends PersistedUi {
   setShowExitAnimations: (v: boolean) => void;
   setShowSnapPoints: (v: boolean) => void;
   setShowScrollIndicators: (v: boolean) => void;
+  setMiniPlayerEnabled: (v: boolean) => void;
+  setMiniPlayerAlwaysOnTop: (v: boolean) => void;
+  setMiniPlayerWidth: (v: number) => void;
+  setMiniPlayerHeight: (v: number) => void;
 
   load: () => void;
   reset: () => void;
@@ -96,6 +104,10 @@ const DEFAULTS: PersistedUi = {
   showExitAnimations: true,
   showSnapPoints: true,
   showScrollIndicators: true,
+  miniPlayerEnabled: true,
+  miniPlayerAlwaysOnTop: false,
+  miniPlayerWidth: 360,
+  miniPlayerHeight: 120,
 };
 
 function isValidHex(v: unknown): v is string {
@@ -161,6 +173,14 @@ function load(): PersistedUi {
       showSnapPoints: typeof p.showSnapPoints === 'boolean' ? p.showSnapPoints : true,
       showScrollIndicators:
         typeof p.showScrollIndicators === 'boolean' ? p.showScrollIndicators : true,
+      miniPlayerEnabled:
+        typeof p.miniPlayerEnabled === 'boolean' ? p.miniPlayerEnabled : true,
+      miniPlayerAlwaysOnTop:
+        typeof p.miniPlayerAlwaysOnTop === 'boolean' ? p.miniPlayerAlwaysOnTop : false,
+      miniPlayerWidth:
+        typeof p.miniPlayerWidth === 'number' ? p.miniPlayerWidth : 360,
+      miniPlayerHeight:
+        typeof p.miniPlayerHeight === 'number' ? p.miniPlayerHeight : 120,
     };
   } catch {
     return DEFAULTS;
@@ -296,6 +316,22 @@ export const useUiStore = create<UiState>((set, get) => ({
   setShowScrollIndicators: (v) => {
     set({ showScrollIndicators: v });
     persist({ ...get(), showScrollIndicators: v });
+  },
+  setMiniPlayerEnabled: (v) => {
+    set({ miniPlayerEnabled: v });
+    persist({ ...get(), miniPlayerEnabled: v });
+  },
+  setMiniPlayerAlwaysOnTop: (v) => {
+    set({ miniPlayerAlwaysOnTop: v });
+    persist({ ...get(), miniPlayerAlwaysOnTop: v });
+  },
+  setMiniPlayerWidth: (v) => {
+    set({ miniPlayerWidth: v });
+    persist({ ...get(), miniPlayerWidth: v });
+  },
+  setMiniPlayerHeight: (v) => {
+    set({ miniPlayerHeight: v });
+    persist({ ...get(), miniPlayerHeight: v });
   },
 
   load: () => {
