@@ -17,7 +17,7 @@ export function ArtistList({ artists }: ArtistListProps): JSX.Element {
       {artists.map((artist) => (
         <div
           key={artist.name}
-          className="bg-zinc-900 border border-zinc-800 rounded p-3 hover:bg-zinc-800 transition cursor-pointer flex items-center gap-3"
+          className="bg-zinc-900 border border-zinc-800 rounded p-3 hover:bg-zinc-800 transition flex items-center gap-3"
         >
           <div className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center text-lg shrink-0">
             🎤

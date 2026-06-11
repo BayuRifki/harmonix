@@ -168,6 +168,7 @@ export function KeyboardHelpOverlay(): JSX.Element | null {
                   }}
                   placeholder="Search shortcuts..."
                   className="w-full bg-zinc-950 border border-zinc-800 rounded pl-8 pr-3 py-1.5 text-xs text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:border-brand-500/50"
+                  aria-label="Search keyboard shortcuts"
                 />
               </div>
               <button

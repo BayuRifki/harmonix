@@ -55,7 +55,15 @@ function TrackRow({
         onDragOver(position);
       }}
       onDrop={() => onDrop(position)}
-      onDoubleClick={() => onPlay(position)}
+      onClick={() => onPlay(position)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onPlay(position);
+        }
+      }}
+      role="button"
+      tabIndex={0}
       onMouseEnter={() => setHovering(true)}
       onMouseLeave={() => setHovering(false)}
       className={`flex items-center gap-3 px-3 py-2 rounded border-b border-zinc-900 cursor-grab ${
@@ -96,6 +104,7 @@ function TrackRow({
           hovering ? 'opacity-100' : 'opacity-0'
         } transition`}
         title="Remove from playlist"
+        aria-label="Remove from playlist"
       >
         ✕
       </button>

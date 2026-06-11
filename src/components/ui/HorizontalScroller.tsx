@@ -24,6 +24,8 @@ export function HorizontalScroller({
   const ref = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
+  const canScrollLeftRef = useRef(false);
+  const canScrollRightRef = useRef(false);
   const showIndicatorsStored = useUiStore((s) => s.showScrollIndicators);
   const snapPointsStored = useUiStore((s) => s.showSnapPoints);
   const indicatorsOn = showIndicators ?? showIndicatorsStored;
@@ -32,8 +34,12 @@ export function HorizontalScroller({
   function update(): void {
     const el = ref.current;
     if (!el) return;
-    setCanScrollLeft(el.scrollLeft > 4);
-    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
+    const left = el.scrollLeft > 4;
+    const right = el.scrollLeft + el.clientWidth < el.scrollWidth - 4;
+    canScrollLeftRef.current = left;
+    canScrollRightRef.current = right;
+    setCanScrollLeft(left);
+    setCanScrollRight(right);
   }
 
   useEffect(() => {
@@ -44,10 +50,10 @@ export function HorizontalScroller({
     const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(update) : null;
     if (ro) ro.observe(el);
     const onKey = (e: KeyboardEvent): void => {
-      if (e.key === 'ArrowLeft' && canScrollLeft) {
+      if (e.key === 'ArrowLeft' && canScrollLeftRef.current) {
         e.preventDefault();
         scrollBy(-1);
-      } else if (e.key === 'ArrowRight' && canScrollRight) {
+      } else if (e.key === 'ArrowRight' && canScrollRightRef.current) {
         e.preventDefault();
         scrollBy(1);
       }
@@ -64,7 +70,7 @@ export function HorizontalScroller({
       }
       ro?.disconnect();
     };
-  }, [canScrollLeft, canScrollRight, snapOn]);
+  }, [snapOn]);
 
   const scrollBy = (dir: 1 | -1): void => {
     const el = ref.current;
@@ -73,9 +79,7 @@ export function HorizontalScroller({
     el.scrollBy({ left: dir * step, behavior: 'smooth' });
   };
 
-  const snapClass = snapOn
-    ? 'scroll-snap-type-x-mandatory [&>*]:scroll-snap-align-start'
-    : '';
+  const snapClass = snapOn ? 'scroll-snap-type-x-mandatory [&>*]:scroll-snap-align-start' : '';
 
   return (
     <div className={`relative group ${className}`} data-testid="horizontal-scroller">

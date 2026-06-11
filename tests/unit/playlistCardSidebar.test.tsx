@@ -34,7 +34,7 @@ describe('PlaylistCardSidebar', () => {
   it('invokes onClick when clicked', () => {
     const onClick = vi.fn();
     render(<PlaylistCardSidebar playlist={makePlaylist()} onClick={onClick} />);
-    fireEvent.click(screen.getByRole('button'));
+    fireEvent.click(screen.getByText('Chill Vibes'));
     expect(onClick).toHaveBeenCalledTimes(1);
   });
 

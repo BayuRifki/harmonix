@@ -116,6 +116,7 @@ function PlaylistRow({ playlist, onOpen, onDelete }: PlaylistRowProps): JSX.Elem
           onClick={() => setConfirmDelete(true)}
           className="text-zinc-500 hover:text-red-400 text-sm px-2 opacity-0 group-hover:opacity-100 transition-opacity"
           title="Delete playlist"
+          aria-label="Delete playlist"
         >
           ✕
         </button>

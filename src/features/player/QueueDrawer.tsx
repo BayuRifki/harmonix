@@ -44,11 +44,6 @@ function formatDuration(ms: number): string {
   return `${m}:${(s % 60).toString().padStart(2, '0')}`;
 }
 
-export interface QueueDrawerProps {
-  open: boolean;
-  onClose: () => void;
-}
-
 interface SortableQueueRowProps {
   track: Track;
   index: number;
@@ -99,10 +94,10 @@ function SortableQueueRow({
         isCurrent
           ? 'bg-brand-500/15 ring-1 ring-brand-500/40'
           : isSelected
-          ? 'bg-zinc-800/80'
-          : isOver
-          ? 'bg-zinc-800/50'
-          : 'hover:bg-zinc-900'
+            ? 'bg-zinc-800/80'
+            : isOver
+              ? 'bg-zinc-800/50'
+              : 'hover:bg-zinc-900'
       } ${isPlayed ? 'opacity-60' : ''}`}
       aria-label={isCurrent ? `Now playing: ${track.title}` : track.title}
       aria-selected={isSelected}
@@ -114,7 +109,8 @@ function SortableQueueRow({
           onClick();
         }
       }}
-      {...attributes} {...listeners}
+      {...attributes}
+      {...listeners}
     >
       <div
         className="flex items-center justify-center w-8 h-8 text-zinc-600 hover:text-zinc-400 transition-colors shrink-0"
@@ -133,9 +129,13 @@ function SortableQueueRow({
           className="w-3.5 h-3.5 accent-brand-500 shrink-0"
         />
       ) : isPlayed ? (
-        <span className="text-[10px] w-5 text-right text-zinc-600" aria-label="Played">↺</span>
+        <span className="text-[10px] w-5 text-right text-zinc-600" aria-label="Played">
+          ↺
+        </span>
       ) : isCurrent ? (
-        <span className="text-[10px] w-5 text-right text-brand-300" aria-label="Now playing">▶</span>
+        <span className="text-[10px] w-5 text-right text-brand-300" aria-label="Now playing">
+          ▶
+        </span>
       ) : (
         <span className="text-[10px] w-5 text-right text-zinc-500 tabular-nums">{index + 1}</span>
       )}
@@ -248,35 +248,46 @@ export function QueueDrawer({ open, onClose }: QueueDrawerProps): JSX.Element | 
     });
   }, []);
 
-  const playAt = useCallback((originalIndex: number): void => {
-    const item = queue[originalIndex];
-    if (!item) return;
-    const targetIndex = shuffle ? queue.findIndex((t) => t.id === item.id) : originalIndex;
-    usePlayerStore.getState().setQueue(queue, targetIndex, { shuffle: false, smartShuffle: false });
-  }, [queue, shuffle]);
+  const playAt = useCallback(
+    (originalIndex: number): void => {
+      const item = queue[originalIndex];
+      if (!item) return;
+      const targetIndex = shuffle ? queue.findIndex((t) => t.id === item.id) : originalIndex;
+      usePlayerStore
+        .getState()
+        .setQueue(queue, targetIndex, { shuffle: false, smartShuffle: false });
+    },
+    [queue, shuffle],
+  );
 
-  const removeAt = useCallback((originalIndex: number): void => {
-    removeFromQueue(originalIndex);
-    toast.success('Removed track from queue');
-  }, [removeFromQueue, toast]);
+  const removeAt = useCallback(
+    (originalIndex: number): void => {
+      removeFromQueue(originalIndex);
+      toast.success('Removed track from queue');
+    },
+    [removeFromQueue, toast],
+  );
 
-  const handleDragOver = useCallback((event: DragOverEvent) => {
-    const { active, over } = event;
-    if (!over) return;
+  const handleDragOver = useCallback(
+    (event: DragOverEvent) => {
+      const { active, over } = event;
+      if (!over) return;
 
-    const activeItem = queue.find((t) => t.id === active.id);
-    const overItem = queue.find((t) => t.id === over.id);
+      const activeItem = queue.find((t) => t.id === active.id);
+      const overItem = queue.find((t) => t.id === over.id);
 
-    if (!activeItem || !overItem) return;
-    if (activeItem.id === overItem.id) return;
+      if (!activeItem || !overItem) return;
+      if (activeItem.id === overItem.id) return;
 
-    const activeIdx = queue.indexOf(activeItem);
-    const overIdx = queue.indexOf(overItem);
+      const activeIdx = queue.indexOf(activeItem);
+      const overIdx = queue.indexOf(overItem);
 
-    if (activeIdx === -1 || overIdx === -1) return;
+      if (activeIdx === -1 || overIdx === -1) return;
 
-    moveQueueItem(activeIdx, overIdx);
-  }, [queue, moveQueueItem]);
+      moveQueueItem(activeIdx, overIdx);
+    },
+    [queue, moveQueueItem],
+  );
 
   const handleDragEnd = useCallback(() => {
     setDraggingId(null);
@@ -500,7 +511,9 @@ export function QueueDrawer({ open, onClose }: QueueDrawerProps): JSX.Element | 
                       />
                     )}
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm text-white truncate font-medium">{currentTrack.title}</p>
+                      <p className="text-sm text-white truncate font-medium">
+                        {currentTrack.title}
+                      </p>
                       <p className="text-[11px] text-zinc-500 truncate">
                         {currentTrack.artists.map((a) => a.name).join(', ') || 'Unknown'}
                       </p>

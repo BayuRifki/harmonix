@@ -1,43 +1,12 @@
 import { useUiStore } from '@/stores/uiStore';
 import { useToastStore } from '@/components/ui/toastStore';
-import { getCrossfadeConfig, setCrossfadeConfig, subscribeCrossfadeConfig } from '@/lib/audio/crossfade';
+import { Toggle } from '@/components/ui/Toggle';
+import {
+  getCrossfadeConfig,
+  setCrossfadeConfig,
+  subscribeCrossfadeConfig,
+} from '@/lib/audio/crossfade';
 import { useEffect, useState } from 'react';
-
-function Toggle({
-  label,
-  checked,
-  onChange,
-  description,
-}: {
-  label: string;
-  checked: boolean;
-  onChange: (v: boolean) => void;
-  description?: string;
-}) {
-  return (
-    <div className="flex items-center justify-between mb-3">
-      <div>
-        <label className="text-sm text-app font-medium">{label}</label>
-        {description && <p className="text-xs text-app-muted mt-0.5">{description}</p>}
-      </div>
-      <button
-        type="button"
-        role="switch"
-        aria-checked={checked}
-        onClick={() => onChange(!checked)}
-        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-150 focus-ring ${
-          checked ? 'bg-brand-500' : 'bg-zinc-700'
-        }`}
-      >
-        <span
-          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-150 ${
-            checked ? 'translate-x-6' : 'translate-x-1'
-          }`}
-        />
-      </button>
-    </div>
-  );
-}
 
 export function PlayerPanel(): JSX.Element {
   const gesturesEnabled = useUiStore((s) => s.gesturesEnabled);
@@ -128,9 +97,7 @@ export function PlayerPanel(): JSX.Element {
                 }}
                 className="w-full h-2 bg-zinc-800 rounded-lg appearance-none accent-brand-500 cursor-pointer"
               />
-              <p className="text-xs text-zinc-500 mt-1">
-                0s = no crossfade, 12s = maximum overlap
-              </p>
+              <p className="text-xs text-zinc-500 mt-1">0s = no crossfade, 12s = maximum overlap</p>
             </div>
           )}
         </div>

@@ -104,6 +104,13 @@ export function RightRail({ onPlayHistoryEntry }: RightRailProps): JSX.Element {
                 <li
                   key={`u-${realIndex}-${track.id}`}
                   onClick={() => playQueueItem(realIndex)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      playQueueItem(realIndex);
+                    }
+                  }}
+                  tabIndex={0}
                   className="group flex items-center gap-3 px-2 py-1.5 rounded-md hover:bg-zinc-900/60 cursor-pointer transition-colors"
                 >
                   <ArtworkThumb url={artworkUrl} alt={track.title} size={40} />

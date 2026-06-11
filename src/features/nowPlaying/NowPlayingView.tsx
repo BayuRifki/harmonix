@@ -146,6 +146,7 @@ export function NowPlayingView(): JSX.Element {
   const history = useListeningHistoryStore((s) => s.entries);
   const libraryTracks = useLibraryStore((s) => s.tracks);
   const setVolume = usePlayerStore((s) => s.setVolume);
+  const toggleMute = usePlayerStore((s) => s.toggleMute);
   const toggleShuffle = usePlayerStore((s) => s.toggleShuffle);
   const cycleRepeat = usePlayerStore((s) => s.cycleRepeat);
   const resume = usePlayerStore((s) => s.resume);
@@ -404,6 +405,7 @@ export function NowPlayingView(): JSX.Element {
                     type="button"
                     role="radio"
                     aria-checked={visualizer === mode}
+                    aria-label={label}
                     onClick={() => setVisualizer(mode)}
                     className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] uppercase tracking-wider transition-colors ${
                       visualizer === mode
@@ -414,6 +416,7 @@ export function NowPlayingView(): JSX.Element {
                     data-testid={`np-visualizer-${mode}`}
                   >
                     <Icon size={10} aria-hidden />
+                    <span className="sr-only">{label}</span>
                   </button>
                 ))}
               </div>
@@ -606,10 +609,10 @@ export function NowPlayingView(): JSX.Element {
 
           <LyricsPanel className="px-2" />
 
-          <div className="flex items-center gap-3 mt-6 w-full max-w-xs">
+          <div className="relative flex items-center gap-3 mt-6 w-full max-w-xs">
             <button
               type="button"
-              onClick={() => setVolume(volume === 0 ? 0.5 : 0)}
+              onClick={toggleMute}
               className="text-zinc-400 hover:text-zinc-100 transition-colors"
               aria-label="Toggle mute"
             >

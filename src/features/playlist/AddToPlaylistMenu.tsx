@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { Track } from '@/types/global';
 import { usePlaylistsStore } from '@/stores/playlistsStore';
+import { useToastStore } from '@/components/ui/toastStore';
 import type { PlaylistSummary } from '@/types/global';
 
 interface AddToPlaylistMenuProps {
@@ -21,6 +22,9 @@ export function AddToPlaylistMenu({
   const current = usePlaylistsStore((s) => s.current);
   const [busy, setBusy] = useState(false);
   const [filter, setFilter] = useState('');
+  const [newName, setNewName] = useState('');
+  const [creating, setCreating] = useState(false);
+  const toast = useToastStore();
 
   useEffect(() => {
     if (open) void refresh();
@@ -36,24 +40,27 @@ export function AddToPlaylistMenu({
       }
       const store = usePlaylistsStore.getState();
       await store.addTrack(track);
+      toast.success('Added to playlist');
       onClose();
     } catch (err) {
-      alert(`Failed to add: ${(err as Error).message}`);
+      toast.error(`Failed to add: ${(err as Error).message}`);
     } finally {
       setBusy(false);
     }
   };
 
   const handleCreate = async (): Promise<void> => {
-    const name = prompt('New playlist name:');
-    if (!name?.trim()) return;
+    if (!newName.trim()) return;
     setBusy(true);
     try {
-      const id = await createPlaylist(name.trim());
+      const id = await createPlaylist(newName.trim());
       await load(id);
       const store = usePlaylistsStore.getState();
       await store.addTrack(track);
+      toast.success(`Created "${newName.trim()}" and added track`);
       onClose();
+    } catch (err) {
+      toast.error(`Failed to create: ${(err as Error).message}`);
     } finally {
       setBusy(false);
     }
@@ -65,6 +72,9 @@ export function AddToPlaylistMenu({
     <div
       className="fixed inset-0 z-40 flex items-center justify-center bg-black/50"
       onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Add to playlist"
     >
       <div
         className="bg-zinc-950 border border-zinc-800 rounded-lg p-4 w-96 max-w-[90vw]"
@@ -80,6 +90,7 @@ export function AddToPlaylistMenu({
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
           className="w-full mb-2 bg-zinc-900 border border-zinc-800 rounded px-3 py-1.5 text-sm text-zinc-100 focus:outline-none focus:border-brand-500"
+          aria-label="Filter playlists"
         />
         <div className="max-h-64 overflow-y-auto">
           {filtered.length === 0 ? (
@@ -99,15 +110,51 @@ export function AddToPlaylistMenu({
             ))
           )}
         </div>
-        <div className="border-t border-zinc-800 mt-3 pt-3 flex justify-between">
-          <button
-            type="button"
-            onClick={() => void handleCreate()}
-            disabled={busy}
-            className="text-xs text-brand-400 hover:text-brand-300"
-          >
-            + New playlist
-          </button>
+        <div className="border-t border-zinc-800 mt-3 pt-3 flex justify-between items-center">
+          {creating ? (
+            <div className="flex items-center gap-2 flex-1">
+              <input
+                type="text"
+                placeholder="Playlist name"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') void handleCreate();
+                  if (e.key === 'Escape') setCreating(false);
+                }}
+                className="flex-1 bg-zinc-900 border border-zinc-800 rounded px-3 py-1 text-sm text-zinc-100 focus:outline-none focus:border-brand-500"
+                autoFocus
+                aria-label="New playlist name"
+              />
+              <button
+                type="button"
+                onClick={() => void handleCreate()}
+                disabled={busy || !newName.trim()}
+                className="text-xs text-brand-400 hover:text-brand-300 disabled:opacity-50"
+              >
+                Create
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setCreating(false);
+                  setNewName('');
+                }}
+                className="text-xs text-zinc-500 hover:text-zinc-300"
+              >
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setCreating(true)}
+              disabled={busy}
+              className="text-xs text-brand-400 hover:text-brand-300"
+            >
+              + New playlist
+            </button>
+          )}
           <button
             type="button"
             onClick={onClose}

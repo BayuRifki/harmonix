@@ -7,14 +7,6 @@ import { useInsightsStore } from '@/stores/insightsStore';
 import { useSearchHistoryStore } from '@/stores/searchHistoryStore';
 import { Skeleton } from '@/components/ui/Skeleton';
 import type { Track, SourceSearchResult } from '@/types/global';
-import { SearchFiltersBar } from '@/features/search/SearchFiltersBar';
-import {
-  applyFilters,
-  DEFAULT_FILTERS,
-  readFiltersFromParams,
-  writeFiltersToParams,
-  type SearchFiltersState,
-} from '@/features/search/searchFilters';
 
 type GroupedResults = SourceSearchResult & { sourceName: string };
 
@@ -37,15 +29,10 @@ export function SearchView(): JSX.Element {
   const [query, setQuery] = useState(() => searchParams.get('q') ?? '');
   const [results, setResults] = useState<GroupedResults[]>([]);
   const [searching, setSearching] = useState(false);
-  const [activeSourceIds, setActiveSourceIds] = useState<string[]>([]);
   const playQueue = usePlayerStore((s) => s.setQueue);
   const recent = useSearchHistoryStore((s) => s.queries);
   const addRecent = useSearchHistoryStore((s) => s.add);
   const clearRecent = useSearchHistoryStore((s) => s.clear);
-  const sourceParam = searchParams.get('source');
-  const [filters, setFilters] = useState<SearchFiltersState>(() =>
-    readFiltersFromParams(searchParams),
-  );
 
   useEffect(() => {
     void refresh();
@@ -67,15 +54,6 @@ export function SearchView(): JSX.Element {
       setSearchParams({}, { replace: true });
     }
   }, [query, setSearchParams]);
-
-  useEffect(() => {
-    if (registrations.length === 0) return;
-    if (sourceParam && activeSourceIds.length === 0) {
-      setActiveSourceIds([sourceParam]);
-    } else if (activeSourceIds.length === 0) {
-      setActiveSourceIds(registrations.filter((r) => r.enabled).map((r) => r.id));
-    }
-  }, [registrations, activeSourceIds.length, sourceParam]);
 
   // AbortController for search concurrency
   const abortRef = useRef<AbortController | null>(null);
@@ -100,9 +78,8 @@ export function SearchView(): JSX.Element {
       addRecent(q);
     }, 1500);
     const handle = window.setTimeout(async () => {
-      const sourceIds = activeSourceIds.length > 0 ? activeSourceIds : undefined;
       try {
-        const r = await search(q, { limit: 25 }, sourceIds);
+        const r = await search(q, { limit: 25 });
         if (!controller.signal.aborted) {
           const regMap = new Map(registrations.map((rr) => [rr.id, rr.name]));
           const grouped: GroupedResults[] = r.map((sr) => ({
@@ -124,59 +101,22 @@ export function SearchView(): JSX.Element {
       window.clearTimeout(handle);
       window.clearTimeout(saveHandle);
     };
-  }, [query, activeSourceIds, search, registrations, addRecent]);
+  }, [query, search, registrations, addRecent]);
 
-  const toggleSource = (id: string): void => {
-    setActiveSourceIds((prev) => {
-      const next = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
-      if (sourceParam) {
-        const params = new URLSearchParams(searchParams);
-        if (next.length === 0) params.delete('source');
-        else params.set('source', next.join(','));
-        setSearchParams(params, { replace: true });
-      }
-      return next;
-    });
-  };
+  const deferredResults = useDeferredValue(results);
 
-  const handleFiltersChange = (next: SearchFiltersState): void => {
-    setFilters(next);
-    const params = writeFiltersToParams(next, searchParams);
-    setSearchParams(params, { replace: true });
-  };
-
-  const handleResetFilters = (): void => {
-    setFilters(DEFAULT_FILTERS);
-    const params = writeFiltersToParams(DEFAULT_FILTERS, searchParams);
-    setSearchParams(params, { replace: true });
-  };
-
-  const filteredResults = useMemo(
-    () =>
-      results.map((g) => ({
-        ...g,
-        result: {
-          ...g.result,
-          tracks: applyFilters(g.result.tracks, filters),
-        },
-      })),
-    [results, filters],
-  );
-
-  const deferredFilteredResults = useDeferredValue(filteredResults);
-
-  const totalTracks = deferredFilteredResults.reduce((sum, r) => sum + r.result.tracks.length, 0);
+  const totalTracks = deferredResults.reduce((sum, r) => sum + r.result.tracks.length, 0);
 
   const topTrack = useMemo(() => {
-    for (const g of deferredFilteredResults) {
+    for (const g of deferredResults) {
       if (g.result.tracks.length > 0) return g.result.tracks[0];
     }
     return null;
-  }, [deferredFilteredResults]);
+  }, [deferredResults]);
   const topTrackGroup = useMemo(() => {
     if (!topTrack) return null;
-    return deferredFilteredResults.find((g) => g.result.tracks[0]?.id === topTrack.id) ?? null;
-  }, [deferredFilteredResults, topTrack]);
+    return deferredResults.find((g) => g.result.tracks[0]?.id === topTrack.id) ?? null;
+  }, [deferredResults, topTrack]);
 
   return (
     <div className="p-8 max-w-4xl">
@@ -201,36 +141,11 @@ export function SearchView(): JSX.Element {
               setSearchParams({}, { replace: true });
             }
           }}
-          className="w-full bg-zinc-900 border border-zinc-800 rounded-lg pl-10 pr-4 py-3 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500/50 transition-all"
+          className="w-full bg-zinc-900 border border-zinc-700 rounded-lg pl-10 pr-4 py-3 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-600 transition-all"
           autoFocus
+          aria-label="Search for tracks, artists, albums"
         />
       </div>
-
-      {enabledSources.length > 1 && (
-        <div className="flex flex-wrap gap-2 mb-4">
-          {enabledSources.map((s) => (
-            <button
-              key={s.id}
-              type="button"
-              onClick={() => toggleSource(s.id)}
-              className={`px-3 py-1.5 text-xs rounded-full border transition-all duration-150 active:scale-[0.95] ${
-                activeSourceIds.includes(s.id)
-                  ? 'bg-brand-500/20 border-brand-500/60 text-brand-300'
-                  : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:border-zinc-700'
-              }`}
-            >
-              {s.name}
-            </button>
-          ))}
-        </div>
-      )}
-
-      <SearchFiltersBar
-        sources={enabledSources.map((s) => ({ id: s.id, name: s.name }))}
-        filters={filters}
-        onChange={handleFiltersChange}
-        onReset={handleResetFilters}
-      />
 
       <div className="mt-2">
         {query.trim() === '' ? (
@@ -255,7 +170,7 @@ export function SearchView(): JSX.Element {
                       key={q}
                       type="button"
                       onClick={() => setQuery(q)}
-                      className="group flex items-center gap-1.5 px-3 py-1.5 bg-zinc-900/60 border border-zinc-800 rounded-full text-xs text-zinc-300 hover:border-brand-500/50 hover:text-white transition-all active:scale-95"
+                      className="group flex items-center gap-1.5 px-3 py-1.5 bg-zinc-900/60 border border-zinc-800 rounded-full text-xs text-zinc-300 hover:border-zinc-600 hover:text-white transition-all active:scale-95"
                     >
                       <Search size={12} className="opacity-50" />
                       {q}
@@ -264,13 +179,15 @@ export function SearchView(): JSX.Element {
                 </div>
               </div>
             )}
-            <div className="text-zinc-400 text-sm py-12 text-center border border-dashed border-zinc-700 rounded-xl animate-fade-in">
-              <Sparkles size={24} className="mx-auto mb-3 opacity-50" />
-              <p>
-                Start typing to search across {enabledSources.length} source
-                {enabledSources.length === 1 ? '' : 's'}.
-              </p>
-            </div>
+            {recent.length === 0 && (
+              <div className="text-zinc-500 text-sm py-16 text-center">
+                <Sparkles size={20} className="mx-auto mb-2 opacity-40" />
+                <p>
+                  Start typing to search across {enabledSources.length} source
+                  {enabledSources.length === 1 ? '' : 's'}.
+                </p>
+              </div>
+            )}
           </div>
         ) : searching ? (
           <div className="space-y-2">
@@ -279,8 +196,8 @@ export function SearchView(): JSX.Element {
             ))}
           </div>
         ) : totalTracks === 0 ? (
-          <div className="text-zinc-400 text-sm py-12 text-center border border-dashed border-zinc-700 rounded-xl animate-fade-in">
-            <SearchCheck size={24} className="mx-auto mb-3 opacity-50" />
+          <div className="text-zinc-500 text-sm py-16 text-center">
+            <SearchCheck size={20} className="mx-auto mb-2 opacity-40" />
             <p>No results for &quot;{query}&quot;.</p>
           </div>
         ) : (
@@ -293,7 +210,11 @@ export function SearchView(): JSX.Element {
               >
                 <div className="w-16 h-16 rounded-xl bg-zinc-800/60 overflow-hidden flex items-center justify-center text-zinc-600 shrink-0">
                   {topTrack.artworkUrl ? (
-                    <img src={topTrack.artworkUrl} alt="" className="w-full h-full object-cover" />
+                    <img
+                      src={topTrack.artworkUrl}
+                      alt={`${topTrack.title} artwork`}
+                      className="w-full h-full object-cover"
+                    />
                   ) : (
                     <Play size={20} />
                   )}
@@ -312,7 +233,7 @@ export function SearchView(): JSX.Element {
                 <Play size={20} className="text-brand-300 shrink-0 mr-2" />
               </button>
             )}
-            {deferredFilteredResults
+            {deferredResults
               .filter((r) => r.result.tracks.length > 0)
               .map((group) => (
                 <section key={group.sourceId}>
@@ -325,9 +246,16 @@ export function SearchView(): JSX.Element {
                     {group.result.tracks.map((track) => (
                       <li
                         key={track.id}
-                        onDoubleClick={() =>
+                        onClick={() =>
                           void playQueue(group.result.tracks, group.result.tracks.indexOf(track))
                         }
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            void playQueue(group.result.tracks, group.result.tracks.indexOf(track));
+                          }
+                        }}
+                        tabIndex={0}
                         className="group flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-zinc-900 cursor-pointer transition-colors"
                       >
                         <span className="text-zinc-500 text-xs w-8 text-right tabular-nums">

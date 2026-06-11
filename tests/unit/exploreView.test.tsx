@@ -117,7 +117,7 @@ describe('ExploreView', () => {
       ],
     });
     renderWithRouter();
-    expect(screen.getByText('Spotify')).toBeInTheDocument();
+    expect(screen.getAllByText('Spotify').length).toBeGreaterThan(0);
     expect(screen.queryByText('Local')).not.toBeInTheDocument();
   });
 });

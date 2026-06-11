@@ -118,6 +118,7 @@ interface PlayerState {
   isPlaying: boolean;
   loading: boolean;
   volume: number;
+  previousVolume: number | null;
   positionMs: number;
   durationMs: number;
   shuffle: boolean;
@@ -128,6 +129,7 @@ interface PlayerState {
   preloadTriggeredTrackId: string | null;
 
   setVolume: (volume: number) => void;
+  toggleMute: () => void;
   toggleShuffle: () => void;
   cycleRepeat: () => void;
   play: (track: Track) => Promise<void>;
@@ -193,6 +195,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
     isPlaying: false,
     loading: false,
     volume: 0.8,
+    previousVolume: null,
     positionMs: 0,
     durationMs: 0,
     shuffle: false,
@@ -206,6 +209,17 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
       const v = Math.max(0, Math.min(1, volume));
       audioEngine.setVolume(v);
       set({ volume: v });
+    },
+    toggleMute: () => {
+      const { volume, previousVolume } = get();
+      if (volume > 0) {
+        set({ previousVolume: volume, volume: 0 });
+        audioEngine.setVolume(0);
+      } else {
+        const restore = previousVolume ?? 0.8;
+        set({ previousVolume: null, volume: restore });
+        audioEngine.setVolume(restore);
+      }
     },
     toggleShuffle: () => set((s) => ({ shuffle: !s.shuffle })),
     cycleRepeat: () =>

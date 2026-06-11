@@ -232,7 +232,15 @@ export function SourceView(): JSX.Element {
                 {liked.slice(0, 50).map((track) => (
                   <li
                     key={track.id}
-                    onDoubleClick={() => canPlay && void playQueue(liked, liked.indexOf(track))}
+                    onClick={() => canPlay && void playQueue(liked, liked.indexOf(track))}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        if (canPlay) void playQueue(liked, liked.indexOf(track));
+                      }
+                    }}
+                    role="button"
+                    tabIndex={0}
                     className="flex items-center gap-3 px-3 py-2 rounded hover:bg-zinc-900 cursor-pointer"
                   >
                     <span className="text-zinc-500 text-xs w-8 text-right tabular-nums">
@@ -396,7 +404,15 @@ function PlaylistRow({
               {tracks.slice(0, 50).map((t) => (
                 <li
                   key={t.id}
-                  onDoubleClick={() => canPlay && void playQueue(tracks, tracks.indexOf(t))}
+                  onClick={() => canPlay && void playQueue(tracks, tracks.indexOf(t))}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      if (canPlay) void playQueue(tracks, tracks.indexOf(t));
+                    }
+                  }}
+                  role="button"
+                  tabIndex={0}
                   className="flex items-center gap-2 px-2 py-1 rounded hover:bg-zinc-800 cursor-pointer"
                 >
                   <span className="text-xs text-zinc-500 truncate flex-1">

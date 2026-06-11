@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSourcesStore } from '@/stores/sourcesStore';
 import { usePlayerStore } from '@/stores/playerStore';
+import { useToastStore } from '@/components/ui/toastStore';
 import { Skeleton } from '@/components/ui/Skeleton';
 import type { SourceRegistration } from '@/types/global';
 
@@ -272,12 +273,12 @@ export function SourcePicker(): JSX.Element {
                 if (!enabled) {
                   const currentTrack = usePlayerStore.getState().currentTrack;
                   if (currentTrack && currentTrack.source === id) {
-                    if (!confirm('Music from this source is currently playing. Disabling will stop playback. Continue?')) {
-                      return;
-                    }
+                    useToastStore.getState().success('Stopping playback and disabling source');
                   }
                 }
-                void setEnabled(id, enabled);
+                void setEnabled(id, enabled).catch(() => {
+                  useToastStore.getState().error('Failed to update source');
+                });
               }}
               onConfigure={setConfigSource}
             />

@@ -7,16 +7,7 @@ import type {
   MiniPlayerConfig,
   MiniPlayerBounds,
 } from '../../../electron/preload';
-import {
-  SkipBack,
-  Play,
-  Pause,
-  SkipForward,
-  Maximize2,
-  X,
-  Pin,
-  PinOff,
-} from 'lucide-react';
+import { SkipBack, Play, Pause, SkipForward, Maximize2, X, Pin, PinOff } from 'lucide-react';
 
 type Snapshot = MiniPlayerStateSnapshot;
 type Action = MiniPlayerAction;
@@ -146,9 +137,14 @@ export function MiniPlayerView(): JSX.Element {
 
   const onToggleAlwaysOnTop = useCallback(() => {
     const next = !(config?.alwaysOnTop ?? false);
-    void window.api.miniPlayer.setAlwaysOnTop(next).then(() => {
-      setConfig((c) => (c ? { ...c, alwaysOnTop: next } : c));
-    });
+    void window.api.miniPlayer
+      .setAlwaysOnTop(next)
+      .then(() => {
+        setConfig((c) => (c ? { ...c, alwaysOnTop: next } : c));
+      })
+      .catch(() => {
+        // ignore IPC errors
+      });
     setContextOpen(false);
   }, [config?.alwaysOnTop]);
 
@@ -161,11 +157,18 @@ export function MiniPlayerView(): JSX.Element {
     let snapX = bounds.x;
     let snapY = bounds.y;
     if (bounds.x < SNAP_THRESHOLD) snapX = SNAP_MARGIN;
-    else if (vw - (bounds.x + bounds.width) < SNAP_THRESHOLD) snapX = vw - bounds.width - SNAP_MARGIN;
+    else if (vw - (bounds.x + bounds.width) < SNAP_THRESHOLD)
+      snapX = vw - bounds.width - SNAP_MARGIN;
     if (bounds.y < SNAP_THRESHOLD) snapY = SNAP_MARGIN;
-    else if (vh - (bounds.y + bounds.height) < SNAP_THRESHOLD) snapY = vh - bounds.height - SNAP_MARGIN;
+    else if (vh - (bounds.y + bounds.height) < SNAP_THRESHOLD)
+      snapY = vh - bounds.height - SNAP_MARGIN;
     if (snapX !== bounds.x || snapY !== bounds.y) {
-      const snappedBounds: MiniPlayerBounds = { x: snapX, y: snapY, width: bounds.width, height: bounds.height };
+      const snappedBounds: MiniPlayerBounds = {
+        x: snapX,
+        y: snapY,
+        width: bounds.width,
+        height: bounds.height,
+      };
       await window.api.miniPlayer.setBounds(snappedBounds);
     }
   }, []);
@@ -197,10 +200,13 @@ export function MiniPlayerView(): JSX.Element {
   });
 
   // Combined ref callback for both dnd-kit and our own ref
-  const combinedRef = useCallback((el: HTMLDivElement | null) => {
-    setNodeRef(el);
-    artworkRef.current = el;
-  }, [setNodeRef]);
+  const combinedRef = useCallback(
+    (el: HTMLDivElement | null) => {
+      setNodeRef(el);
+      artworkRef.current = el;
+    },
+    [setNodeRef],
+  );
 
   return (
     <div
@@ -354,7 +360,9 @@ export function MiniPlayerView(): JSX.Element {
             className="w-full text-left px-3 py-1.5 hover:bg-zinc-800 flex items-center justify-between focus-ring"
           >
             <span>{config?.alwaysOnTop ? 'Unpin (always on top)' : 'Pin (always on top)'}</span>
-            <span className="text-accent">{config?.alwaysOnTop ? <PinOff size={12} /> : <Pin size={12} />}</span>
+            <span className="text-accent">
+              {config?.alwaysOnTop ? <PinOff size={12} /> : <Pin size={12} />}
+            </span>
           </button>
           <button
             type="button"

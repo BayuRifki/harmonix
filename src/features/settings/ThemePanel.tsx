@@ -190,9 +190,15 @@ export function ThemePanel(): JSX.Element {
 
       {themeAccentMode === 'custom' && (
         <div className="mb-3">
-          <label className="text-sm text-app font-medium block mb-1.5">Custom accent</label>
+          <label
+            htmlFor="custom-accent-picker"
+            className="text-sm text-app font-medium block mb-1.5"
+          >
+            Custom accent
+          </label>
           <div className="flex items-center gap-2">
             <input
+              id="custom-accent-picker"
               type="color"
               value={customAccentHex}
               onChange={(e) => setCustomAccentHex(e.target.value)}
@@ -200,6 +206,7 @@ export function ThemePanel(): JSX.Element {
               data-testid="custom-accent-picker"
             />
             <input
+              id="custom-accent-input"
               type="text"
               value={customAccentHex}
               onChange={(e) => {
@@ -216,6 +223,7 @@ export function ThemePanel(): JSX.Element {
               className="w-24 bg-zinc-900/60 border border-zinc-800 rounded px-2 py-1 text-sm text-app font-mono"
               pattern="^#[0-9A-Fa-f]{6}$"
               data-testid="custom-accent-input"
+              aria-label="Custom accent color hex"
             />
             <span
               className="w-9 h-9 rounded border border-zinc-800"

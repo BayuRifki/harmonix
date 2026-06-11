@@ -286,21 +286,28 @@ export function Sidebar(): JSX.Element {
 
         {recentsToShow.length > 0 && (
           <div className="mt-4 pt-3 border-t border-zinc-800/40">
-            <button
-              type="button"
+            <div
+              role="button"
+              tabIndex={0}
               onClick={() => toggleSection(RECENTS_SECTION_KEY)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  toggleSection(RECENTS_SECTION_KEY);
+                }
+              }}
               aria-expanded={!recentsCollapsed}
               aria-controls="sidebar-recents-section"
-              className="w-full flex items-center justify-between px-3 mb-1.5 group"
+              className="w-full flex items-center justify-between px-3 mb-1.5 group cursor-pointer"
             >
               <p className="text-[10px] uppercase tracking-wider text-zinc-600 font-medium inline-flex items-center gap-1.5">
                 <Clock size={10} aria-hidden />
                 Recents
               </p>
               <div className="flex items-center gap-1">
-                <span
-                  role="button"
-                  tabIndex={-1}
+                <button
+                  type="button"
+                  tabIndex={0}
                   onClick={(e) => {
                     e.stopPropagation();
                     clearRecents();
@@ -310,7 +317,7 @@ export function Sidebar(): JSX.Element {
                   title="Clear recents"
                 >
                   <X size={11} />
-                </span>
+                </button>
                 <ChevronDown
                   size={12}
                   className={`text-zinc-600 transition-transform duration-150 ${
@@ -319,7 +326,7 @@ export function Sidebar(): JSX.Element {
                   aria-hidden
                 />
               </div>
-            </button>
+            </div>
             {!recentsCollapsed && (
               <div id="sidebar-recents-section" className="space-y-0.5">
                 {recentsToShow.map((path) => (
@@ -339,20 +346,27 @@ export function Sidebar(): JSX.Element {
         )}
 
         <div className="mt-4 pt-3 border-t border-zinc-800/60">
-          <button
-            type="button"
+          <div
+            role="button"
+            tabIndex={0}
             onClick={() => toggleSection(PLAYLISTS_SECTION_KEY)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                toggleSection(PLAYLISTS_SECTION_KEY);
+              }
+            }}
             aria-expanded={!playlistsCollapsed}
             aria-controls="sidebar-playlists-section"
-            className="w-full flex items-center justify-between px-3 mb-2 focus-ring rounded"
+            className="w-full flex items-center justify-between px-3 mb-2 focus-ring rounded cursor-pointer"
           >
             <p className="text-[10px] uppercase tracking-wider text-zinc-600 font-medium">
               Your Playlists
             </p>
             <div className="flex items-center gap-1">
-              <span
-                role="button"
-                tabIndex={-1}
+              <button
+                type="button"
+                tabIndex={0}
                 onClick={(e) => {
                   e.stopPropagation();
                   void handleCreatePlaylist();
@@ -363,7 +377,7 @@ export function Sidebar(): JSX.Element {
                 data-testid="sidebar-create-playlist"
               >
                 <Plus size={14} />
-              </span>
+              </button>
               <ChevronDown
                 size={12}
                 className={`text-zinc-600 transition-transform duration-150 ${
@@ -372,7 +386,7 @@ export function Sidebar(): JSX.Element {
                 aria-hidden
               />
             </div>
-          </button>
+          </div>
           {!playlistsCollapsed && (
             <div id="sidebar-playlists-section">
               {visiblePlaylists.length === 0 ? (

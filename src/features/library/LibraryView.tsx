@@ -133,6 +133,7 @@ export function LibraryView(): JSX.Element {
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           className="flex-1 bg-zinc-900 border border-zinc-800 rounded px-4 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-brand-500"
+          aria-label="Search library"
         />
         {registrations.length > 0 && (
           <select

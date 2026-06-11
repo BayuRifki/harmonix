@@ -48,9 +48,10 @@ interface PlayerBarProps {
 interface ArtworkProps {
   url: string;
   alt: string;
+  onClick?: () => void;
 }
 
-function Artwork({ url, alt }: ArtworkProps): JSX.Element {
+function Artwork({ url, alt, onClick }: ArtworkProps): JSX.Element {
   const [failed, setFailed] = useState(false);
   const [hovered, setHovered] = useState(false);
   const isPlaying = usePlayerStore((s) => s.isPlaying);
@@ -75,6 +76,13 @@ function Artwork({ url, alt }: ArtworkProps): JSX.Element {
       className="w-12 h-12 rounded-lg shrink-0 overflow-hidden relative group cursor-pointer"
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
+      onClick={onClick}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') onClick?.();
+      }}
+      aria-label="Go to Now Playing"
     >
       <motion.img
         layoutId="current-artwork"
@@ -132,6 +140,7 @@ export function PlayerBar({ isHomePage = false }: PlayerBarProps): JSX.Element {
       : null;
 
   const setVolume = usePlayerStore((s) => s.setVolume);
+  const toggleMute = usePlayerStore((s) => s.toggleMute);
 
   const hasTrack = currentTrack !== null;
   const artworkUrl = currentTrack?.artworkUrl ?? currentTrack?.album?.artworkUrl ?? null;
@@ -232,7 +241,12 @@ export function PlayerBar({ isHomePage = false }: PlayerBarProps): JSX.Element {
         {/* Left: Track info */}
         <div className="flex items-center gap-3 w-1/3 min-w-0">
           {artworkUrl ? (
-            <Artwork key={artworkUrl} url={artworkUrl} alt={currentTrack?.title ?? ''} />
+            <Artwork
+              key={artworkUrl}
+              url={artworkUrl}
+              alt={currentTrack?.title ?? ''}
+              onClick={() => navigate('/now-playing')}
+            />
           ) : (
             <div
               className="w-12 h-12 bg-zinc-800/80 rounded-lg shrink-0 flex items-center justify-center text-zinc-600"
@@ -332,7 +346,7 @@ export function PlayerBar({ isHomePage = false }: PlayerBarProps): JSX.Element {
           <div className="flex items-center gap-2 group/vol">
             <button
               type="button"
-              onClick={() => setVolume(volume === 0 ? 0.5 : 0)}
+              onClick={toggleMute}
               disabled={!hasTrack}
               className="text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/60 disabled:opacity-40 transition-all duration-100 active:scale-95 focus-ring"
               aria-label="Toggle mute"

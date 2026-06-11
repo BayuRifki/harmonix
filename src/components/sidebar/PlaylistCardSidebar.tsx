@@ -26,7 +26,6 @@ export function PlaylistCardSidebar({
 }: PlaylistCardSidebarProps): JSX.Element {
   return (
     <div
-      role="button"
       tabIndex={0}
       onClick={onClick}
       onKeyDown={(e) => {

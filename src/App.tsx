@@ -5,6 +5,7 @@ import { Sidebar } from '@/components/layout/Sidebar';
 import { PlayerBar } from '@/components/layout/PlayerBar';
 import { TopBar } from '@/components/layout/TopBar';
 import { RightRail } from '@/components/layout/RightRail';
+import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { useEqualizerStore } from '@/stores/equalizerStore';
 import { useThemeStore } from '@/stores/themeStore';
 import { useUiStore } from '@/stores/uiStore';
@@ -75,9 +76,17 @@ function PageTransition({ children }: { children: ReactNode }): JSX.Element {
 
 export default function App(): JSX.Element {
   if (window.api?.miniPlayer?.isMini()) {
-    return <MiniPlayerView />;
+    return (
+      <ErrorBoundary>
+        <MiniPlayerView />
+      </ErrorBoundary>
+    );
   }
-  return <MainApp />;
+  return (
+    <ErrorBoundary>
+      <MainApp />
+    </ErrorBoundary>
+  );
 }
 
 function MainApp(): JSX.Element {
@@ -145,7 +154,7 @@ function MainApp(): JSX.Element {
           <Sidebar />
           <main
             id="main-content"
-            className="flex-1 min-h-0 overflow-y-auto min-w-0 bg-[var(--bg-primary)]"
+            className="flex-1 min-h-0 overflow-y-auto min-w-0 pb-20 bg-[var(--bg-primary)]"
           >
             <AnimatePresence mode="wait" initial={false}>
               <Suspense fallback={<RouteFallback variant="page" />} key={location.pathname}>
