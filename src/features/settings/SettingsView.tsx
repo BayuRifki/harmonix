@@ -12,11 +12,11 @@ import { PlayerPanel } from '@/features/settings/PlayerPanel';
 
 export function SettingsView(): JSX.Element {
   return (
-    <div className="flex-1 min-h-0 overflow-y-auto p-8">
+    <div className="p-8">
       <h1 className="text-2xl font-bold text-app mb-2">Settings</h1>
       <p className="text-app-muted mb-6">Configure Harmonix to your liking.</p>
 
-      <div className="space-y-4 max-w-2xl">
+      <div className="space-y-4 max-w-4xl">
         <section className="bg-surface border border-app rounded-lg p-4">
           <h2 className="text-sm font-semibold text-app mb-3">Appearance</h2>
           <ThemePicker />

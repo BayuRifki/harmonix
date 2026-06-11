@@ -179,7 +179,7 @@ export function SearchView(): JSX.Element {
   }, [deferredFilteredResults, topTrack]);
 
   return (
-    <div className="flex-1 min-h-0 overflow-y-auto p-8 max-w-4xl">
+    <div className="p-8 max-w-4xl">
       <h1 className="text-2xl font-bold text-white mb-2">Search</h1>
       <p className="text-zinc-400 mb-4 text-sm">Search across all enabled music sources at once.</p>
 

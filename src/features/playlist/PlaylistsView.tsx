@@ -164,7 +164,7 @@ export function PlaylistsView({ selectedId, onSelect }: PlaylistsViewProps): JSX
   }
 
   return (
-    <div className="flex-1 min-h-0 overflow-y-auto p-8 max-w-4xl">
+    <div className="p-8 max-w-4xl">
       <header className="mb-6 flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-3xl font-bold text-white">Playlists</h1>
