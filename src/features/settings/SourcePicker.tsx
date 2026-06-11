@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSourcesStore } from '@/stores/sourcesStore';
+import { usePlayerStore } from '@/stores/playerStore';
 import { Skeleton } from '@/components/ui/Skeleton';
 import type { SourceRegistration } from '@/types/global';
 
@@ -266,7 +267,18 @@ export function SourcePicker(): JSX.Element {
             <SourceRow
               key={source.id}
               source={source}
-              onToggle={(id, enabled) => void setEnabled(id, enabled)}
+              onToggle={(id, enabled) => {
+                // Check if disabling a source that's currently playing
+                if (!enabled) {
+                  const currentTrack = usePlayerStore.getState().currentTrack;
+                  if (currentTrack && currentTrack.source === id) {
+                    if (!confirm('Music from this source is currently playing. Disabling will stop playback. Continue?')) {
+                      return;
+                    }
+                  }
+                }
+                void setEnabled(id, enabled);
+              }}
               onConfigure={setConfigSource}
             />
           ))}

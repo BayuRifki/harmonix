@@ -94,9 +94,12 @@ export function HeroPlayer({ playlistName, showHiFiBadge = true }: HeroPlayerPro
     if (!favoritesPlaylist) {
       try {
         const id = await createPlaylist(FAVORITES_NAME);
-        favoritesPlaylist = playlists.find((p) => p.id === id);
+        // Reload playlists to get the new one
+        await loadPlaylist(id);
+        favoritesPlaylist = usePlaylistsStore.getState().playlists.find((p) => p.id === id);
         if (!favoritesPlaylist) {
-          await loadPlaylist(id);
+          toast.error('Failed to find or create Favorites playlist');
+          return;
         }
       } catch {
         toast.error('Failed to create Favorites playlist');

@@ -249,7 +249,11 @@ export function KeyboardShortcutsPanel(): JSX.Element {
       <div className="mt-4 pt-3 border-t border-zinc-800">
         <button
           type="button"
-          onClick={() => useKeyboardSettingsStore.getState().resetDefaults()}
+          onClick={() => {
+            if (confirm('Reset all keyboard shortcuts to defaults? This cannot be undone.')) {
+              useKeyboardSettingsStore.getState().resetDefaults();
+            }
+          }}
           className="inline-flex items-center gap-1.5 px-2 py-1.5 text-[11px] text-zinc-400 hover:text-zinc-200 border border-zinc-800 rounded transition-colors"
         >
           <RotateCcw size={12} />

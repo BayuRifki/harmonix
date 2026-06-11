@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { Search, Bell, Settings as SettingsIcon, History, X, Clock, SearchX } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Breadcrumb } from '@/components/layout/Breadcrumb';
@@ -10,7 +10,9 @@ import { fuzzySearch, highlightMatches } from '@/components/command/fuzzyMatch';
 const SEARCH_DEBOUNCE_MS = 400;
 
 export function TopBar(): JSX.Element {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
+  const isOnSearchPage = location.pathname.startsWith('/search');
   const [query, setQuery] = useState(() => searchParams.get('q') ?? '');
   const [hasNotification, setHasNotification] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -75,13 +77,21 @@ export function TopBar(): JSX.Element {
     if (next.trim().length === 0) {
       debounceRef.current = window.setTimeout(() => {
         if (next.trim().length === 0) {
-          void navigate('/search');
+          if (isOnSearchPage) {
+            void setSearchParams({}, { replace: true });
+          } else {
+            void navigate('/search');
+          }
         }
       }, SEARCH_DEBOUNCE_MS);
       return;
     }
     debounceRef.current = window.setTimeout(() => {
-      void navigate(`/search?q=${encodeURIComponent(next.trim())}`);
+      if (isOnSearchPage) {
+        void setSearchParams({ q: next.trim() }, { replace: true });
+      } else {
+        void navigate(`/search?q=${encodeURIComponent(next.trim())}`);
+      }
     }, SEARCH_DEBOUNCE_MS);
   };
 
@@ -91,9 +101,17 @@ export function TopBar(): JSX.Element {
     }
     if (q.trim().length > 0) {
       push(q);
-      void navigate(`/search?q=${encodeURIComponent(q.trim())}`);
+      if (isOnSearchPage) {
+        void setSearchParams({ q: q.trim() }, { replace: true });
+      } else {
+        void navigate(`/search?q=${encodeURIComponent(q.trim())}`);
+      }
     } else {
-      void navigate('/search');
+      if (isOnSearchPage) {
+        void setSearchParams({}, { replace: true });
+      } else {
+        void navigate('/search');
+      }
     }
     setHistoryOpen(false);
     inputRef.current?.blur();

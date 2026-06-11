@@ -202,9 +202,19 @@ export function ThemePanel(): JSX.Element {
             <input
               type="text"
               value={customAccentHex}
-              onChange={(e) => setCustomAccentHex(e.target.value)}
+              onChange={(e) => {
+                const val = e.target.value;
+                if (/^#[0-9A-Fa-f]{6}$/.test(val) || val === '') {
+                  setCustomAccentHex(val);
+                }
+              }}
+              onBlur={() => {
+                if (!/^#[0-9A-Fa-f]{6}$/.test(customAccentHex)) {
+                  setCustomAccentHex('#EC4899');
+                }
+              }}
               className="w-24 bg-zinc-900/60 border border-zinc-800 rounded px-2 py-1 text-sm text-app font-mono"
-              pattern="^#[0-9a-fA-F]{6}$"
+              pattern="^#[0-9A-Fa-f]{6}$"
               data-testid="custom-accent-input"
             />
             <span

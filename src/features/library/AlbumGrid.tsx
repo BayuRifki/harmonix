@@ -19,6 +19,7 @@ export function AlbumGrid({ albums }: AlbumGridProps): JSX.Element {
         <div
           key={`${album.artist}-${album.title}`}
           className="bg-zinc-900 border border-zinc-800 rounded p-3 hover:bg-zinc-800 transition cursor-pointer"
+          title={`${album.title} by ${album.artist}`}
         >
           <div className="aspect-square bg-zinc-800 rounded mb-3 flex items-center justify-center text-3xl text-zinc-600">
             <Music size={28} />

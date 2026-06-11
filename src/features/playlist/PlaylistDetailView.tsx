@@ -130,6 +130,7 @@ export function PlaylistDetailView({ playlistId, onBack }: PlaylistDetailViewPro
   const [dragOver, setDragOver] = useState<number | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [renaming, setRenaming] = useState(false);
   const toast = useToastStore((s) => s.success);
 
   useEffect(() => {
@@ -168,8 +169,13 @@ export function PlaylistDetailView({ playlistId, onBack }: PlaylistDetailViewPro
   };
   const commitRename = async (): Promise<void> => {
     const next = nameDraft.trim();
-    if (next && next !== detail.name) {
-      await rename(detail.id, next);
+    if (next && next !== detail.name && !renaming) {
+      setRenaming(true);
+      try {
+        await rename(detail.id, next);
+      } finally {
+        setRenaming(false);
+      }
     }
     setEditingName(false);
   };

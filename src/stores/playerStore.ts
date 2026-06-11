@@ -364,12 +364,18 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
     removeFromQueue: (position) => {
       const { queue, queueIndex } = get();
       if (position < 0 || position >= queue.length) return;
+      const isCurrentlyPlaying = position === queueIndex;
       const next = queue.slice();
       next.splice(position, 1);
       let nextIndex = queueIndex;
       if (position < queueIndex) nextIndex = Math.max(0, queueIndex - 1);
       else if (position === queueIndex) nextIndex = Math.min(nextIndex, next.length - 1);
       set({ queue: next, queueIndex: nextIndex });
+      // If we removed the currently playing track, stop playback
+      if (isCurrentlyPlaying) {
+        audioEngine.pause();
+        set({ currentTrack: null, stream: null, isPlaying: false, loading: false });
+      }
     },
 
     teardown: () => {

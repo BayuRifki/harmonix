@@ -150,7 +150,7 @@ export function LyricsPanel({
         {collapsed ? <ChevronDown size={11} /> : <ChevronUp size={11} />}
       </button>
       {!collapsed && (
-        <div id="lyrics-panel-body" className="mt-2 max-h-72 overflow-y-auto glass rounded-lg p-4">
+        <div id="lyrics-panel-body" className="mt-2 max-h-[60vh] overflow-y-auto glass rounded-lg p-4">
           {loading && (
             <div
               className="flex items-center justify-center py-8 text-zinc-500"

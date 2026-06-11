@@ -103,9 +103,8 @@ export function TrackInsightsPanel({ track, onClose }: TrackInsightsPanelProps):
 
   const handlePlaySimilar = useCallback(async () => {
     if (!track) return;
-    // Insert the selected track at the head, then play a tiny queue of
-    // similar recommendations. Best-effort; failures just play the
-    // single track.
+    // Show loading state
+    addToast('Finding similar tracks…', 'info', 3000);
     try {
       const results = await window.api.sources.search({
         query: track.artists[0]?.name ?? track.title,
@@ -129,8 +128,9 @@ export function TrackInsightsPanel({ track, onClose }: TrackInsightsPanelProps):
         onClose();
         return;
       }
-    } catch {
-      // fall through to single-track play
+    } catch (err) {
+      console.error('[TrackInsights] Play Similar failed:', err);
+      addToast('Failed to find similar tracks', 'error', 3000);
     }
     void play(track);
     onClose();

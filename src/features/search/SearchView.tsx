@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useDeferredValue } from 'react';
+import { useEffect, useMemo, useState, useRef, useDeferredValue } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Search, SearchCheck, Sparkles, Play, History, Info } from 'lucide-react';
 import { useSourcesStore } from '@/stores/sourcesStore';
@@ -59,6 +59,15 @@ export function SearchView(): JSX.Element {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
+  // Sync local query to URL when user types in SearchView
+  useEffect(() => {
+    if (query.trim()) {
+      setSearchParams({ q: query }, { replace: true });
+    } else {
+      setSearchParams({}, { replace: true });
+    }
+  }, [query, setSearchParams]);
+
   useEffect(() => {
     if (registrations.length === 0) return;
     if (sourceParam && activeSourceIds.length === 0) {
@@ -68,6 +77,9 @@ export function SearchView(): JSX.Element {
     }
   }, [registrations, activeSourceIds.length, sourceParam]);
 
+  // AbortController for search concurrency
+  const abortRef = useRef<AbortController | null>(null);
+
   const enabledSources = useMemo(() => registrations.filter((r) => r.enabled), [registrations]);
 
   useEffect(() => {
@@ -76,7 +88,13 @@ export function SearchView(): JSX.Element {
       setResults([]);
       return;
     }
-    let cancelled = false;
+    // Cancel previous search
+    if (abortRef.current) {
+      abortRef.current.abort();
+    }
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     setSearching(true);
     const saveHandle = window.setTimeout(() => {
       addRecent(q);
@@ -85,7 +103,7 @@ export function SearchView(): JSX.Element {
       const sourceIds = activeSourceIds.length > 0 ? activeSourceIds : undefined;
       try {
         const r = await search(q, { limit: 25 }, sourceIds);
-        if (!cancelled) {
+        if (!controller.signal.aborted) {
           const regMap = new Map(registrations.map((rr) => [rr.id, rr.name]));
           const grouped: GroupedResults[] = r.map((sr) => ({
             ...sr,
@@ -93,12 +111,16 @@ export function SearchView(): JSX.Element {
           }));
           setResults(grouped);
         }
+      } catch (err) {
+        if ((err as Error).name !== 'AbortError' && !controller.signal.aborted) {
+          console.error('[SearchView] search error:', err);
+        }
       } finally {
-        if (!cancelled) setSearching(false);
+        if (!controller.signal.aborted) setSearching(false);
       }
     }, 250);
     return () => {
-      cancelled = true;
+      controller.abort();
       window.clearTimeout(handle);
       window.clearTimeout(saveHandle);
     };
@@ -327,7 +349,7 @@ export function SearchView(): JSX.Element {
                             e.stopPropagation();
                             useInsightsStore.getState().open(track);
                           }}
-                          className="opacity-0 group-hover:opacity-100 p-1.5 rounded-full hover:bg-brand-500/20 text-zinc-400 hover:text-brand-400 transition-all active:scale-95"
+                          className="opacity-0 group-hover:opacity-100 focus:opacity-100 p-1.5 rounded-full hover:bg-brand-500/20 text-zinc-400 hover:text-brand-400 transition-all active:scale-95"
                           aria-label={`Show insights for ${track.title}`}
                           title="Show insights"
                         >
@@ -338,7 +360,7 @@ export function SearchView(): JSX.Element {
                           onClick={() =>
                             void playQueue(group.result.tracks, group.result.tracks.indexOf(track))
                           }
-                          className="opacity-0 group-hover:opacity-100 p-1.5 rounded-full hover:bg-brand-500/20 text-zinc-400 hover:text-brand-400 transition-all active:scale-95"
+                          className="opacity-0 group-hover:opacity-100 focus:opacity-100 p-1.5 rounded-full hover:bg-brand-500/20 text-zinc-400 hover:text-brand-400 transition-all active:scale-95"
                           aria-label="Play track"
                         >
                           <Play size={14} />

@@ -24,7 +24,12 @@ function gradientForId(id: string): string {
 
 export function RecommendationCard({ entry, onPlay }: RecommendationCardProps): JSX.Element {
   return (
-    <div className="group flex items-center gap-3 p-2 rounded-lg hover:bg-zinc-900/60 transition-colors duration-150 cursor-pointer">
+    <button
+      type="button"
+      onClick={onPlay}
+      className="group flex items-center gap-3 p-2 rounded-lg hover:bg-zinc-900/60 transition-colors duration-150 focus-ring w-full"
+      aria-label={onPlay ? `Play ${entry.title} by ${entry.artist}` : undefined}
+    >
       <div
         className="w-12 h-12 rounded-md shrink-0 flex items-center justify-center text-white/90 relative overflow-hidden"
         style={{ background: gradientForId(entry.id) }}
@@ -43,23 +48,15 @@ export function RecommendationCard({ entry, onPlay }: RecommendationCardProps): 
           <Music size={18} />
         )}
         {onPlay && (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onPlay();
-            }}
-            className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
-            aria-label={`Play ${entry.title}`}
-          >
+          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
             <Play size={18} className="text-white fill-white" />
-          </button>
+          </div>
         )}
       </div>
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0 flex-1 text-left">
         <p className="text-sm text-zinc-100 truncate">{entry.title}</p>
         <p className="text-xs text-zinc-500 truncate">{entry.artist}</p>
       </div>
-    </div>
+    </button>
   );
 }

@@ -84,18 +84,21 @@ export function TrackList({ tracks, onPlay }: TrackListProps): JSX.Element {
                   className="py-2 px-2 text-zinc-100 truncate max-w-xs cursor-pointer"
                   onClick={() => onPlay(track)}
                   style={{ height: ROW_HEIGHT }}
+                  title={track.title}
                 >
                   {track.title}
                 </td>
                 <td
                   className="py-2 px-2 text-zinc-400 truncate max-w-xs"
                   style={{ height: ROW_HEIGHT }}
+                  title={track.artists.map((a) => a.name).join(', ') || '—'}
                 >
                   {track.artists.map((a) => a.name).join(', ') || '—'}
                 </td>
                 <td
                   className="py-2 px-2 text-zinc-500 truncate max-w-xs"
                   style={{ height: ROW_HEIGHT }}
+                  title={track.album?.title ?? '—'}
                 >
                   {track.album?.title ?? '—'}
                 </td>
@@ -241,18 +244,21 @@ function VirtualTrackList({
                     className="py-2 px-2 text-zinc-100 truncate max-w-xs cursor-pointer"
                     onClick={() => onPlay(track)}
                     style={{ height: ROW_HEIGHT }}
+                    title={track.title}
                   >
                     {track.title}
                   </td>
                   <td
                     className="py-2 px-2 text-zinc-400 truncate max-w-xs"
                     style={{ height: ROW_HEIGHT }}
+                    title={track.artists.map((a) => a.name).join(', ') || '—'}
                   >
                     {track.artists.map((a) => a.name).join(', ') || '—'}
                   </td>
                   <td
                     className="py-2 px-2 text-zinc-500 truncate max-w-xs"
                     style={{ height: ROW_HEIGHT }}
+                    title={track.album?.title ?? '—'}
                   >
                     {track.album?.title ?? '—'}
                   </td>

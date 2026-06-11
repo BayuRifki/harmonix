@@ -4,8 +4,9 @@ vi.mock('@/lib/audio/engine', () => ({
   audioEngine: {
     on: () => () => undefined,
     setVolume: () => undefined,
+    pause: () => undefined,
   },
-}));
+}))
 
 vi.mock('@/lib/audio/sourceResolver', () => ({
   playTrack: vi.fn(),

@@ -51,6 +51,13 @@ export function EqualizerView(): JSX.Element {
   const handleSave = async (): Promise<void> => {
     const trimmed = newPresetName.trim();
     if (!trimmed) return;
+    // Check if preset already exists
+    const exists = custom.some((p) => p.name.toLowerCase() === trimmed.toLowerCase());
+    if (exists) {
+      if (!confirm(`A preset named "${trimmed}" already exists. Overwrite it?`)) {
+        return;
+      }
+    }
     await saveCustom(trimmed);
     setNewPresetName('');
     setSaveDialogOpen(false);
@@ -100,7 +107,7 @@ export function EqualizerView(): JSX.Element {
               setSaveDialogOpen(true);
             }}
           >
-            <Save size={14} /> Save as…
+            <Save size={14} /> Save as&amp;hellip;
           </Button>
           {activePreset && custom.some((p) => p.name === activePreset) && (
             <Button variant="ghost" size="sm" onClick={() => void deleteCustom(activePreset)}>
@@ -124,59 +131,63 @@ export function EqualizerView(): JSX.Element {
           />
         </div>
 
-        <div className="flex justify-center gap-2 h-72">
-          {EQ_BAND_FREQUENCIES.map((freq, i) => {
-            const gain = currentGains[i] ?? 0;
-            const pct = ((gain - EQ_MIN_GAIN) / (EQ_MAX_GAIN - EQ_MIN_GAIN)) * 100;
-            return (
-              <div key={freq} className="flex flex-col items-center w-12">
-                <div className="text-xs text-zinc-400 tabular-nums mb-1">
-                  {gain > 0 ? '+' : ''}
-                  {gain.toFixed(1)}
-                </div>
-                <div className="relative flex-1 w-2 bg-zinc-800 rounded-full">
-                  <div
-                    className="absolute left-0 right-0 bg-zinc-700"
-                    style={{ top: '50%', height: '1px' }}
-                  />
-                  <div
-                    className="absolute left-0 right-0 bg-brand-500 rounded-full"
-                    style={{
-                      top: gain >= 0 ? `${50 - (gain / EQ_MAX_GAIN) * 50}%` : '50%',
-                      height: `${Math.abs(pct - 50)}%`,
-                    }}
-                  />
-                  <input
-                    type="range"
-                    min={EQ_MIN_GAIN}
-                    max={EQ_MAX_GAIN}
-                    step={0.5}
-                    value={gain}
-                    onChange={(e) => void setBandGain(i, Number(e.target.value))}
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                    style={{
-                      writingMode: 'vertical-lr' as const,
-                      WebkitAppearance: 'slider-vertical' as const,
-                      direction: 'rtl' as const,
-                    }}
-                    aria-label={`${freq} Hz band`}
-                  />
-                  <div
-                    className="absolute left-1/2 -translate-x-1/2 w-3 h-3 bg-white border-2 border-brand-500 rounded-full pointer-events-none"
-                    style={{ top: `${100 - pct}%`, transform: 'translate(-50%, -50%)' }}
-                  />
-                </div>
-                <div className="text-[10px] text-zinc-500 mt-2">{EQ_BAND_LABELS[i]}</div>
-                <div className="text-[9px] text-zinc-600">Hz</div>
-              </div>
-            );
-          })}
-        </div>
-
-        <div className="flex justify-between text-[10px] text-zinc-500 mt-1 px-12">
-          <span>+{EQ_MAX_GAIN} dB</span>
-          <span>0 dB</span>
-          <span>{EQ_MIN_GAIN} dB</span>
+        <div className="relative flex-1 w-full max-w-4xl">
+          <div className="flex items-center h-72">
+            {/* Y-axis labels on the left */}
+            <div className="flex flex-col justify-between h-full w-20 px-2 text-right text-[10px] text-zinc-500 shrink-0">
+              <span>+{EQ_MAX_GAIN} dB</span>
+              <span>0 dB</span>
+              <span>{EQ_MIN_GAIN} dB</span>
+            </div>
+            <div className="flex flex-1 items-end justify-center gap-2 h-72">
+              {EQ_BAND_FREQUENCIES.map((freq, i) => {
+                const gain = currentGains[i] ?? 0;
+                const pct = ((gain - EQ_MIN_GAIN) / (EQ_MAX_GAIN - EQ_MIN_GAIN)) * 100;
+                return (
+                  <div key={freq} className="flex flex-col items-center w-12">
+                    <div className="text-xs text-zinc-400 tabular-nums mb-1">
+                      {gain > 0 ? '+' : ''}
+                      {gain.toFixed(1)}
+                    </div>
+                    <div className="relative flex-1 w-2 bg-zinc-800 rounded-full">
+                      <div
+                        className="absolute left-0 right-0 bg-zinc-700"
+                        style={{ top: '50%', height: '1px' }}
+                      />
+                      <div
+                        className="absolute left-0 right-0 bg-brand-500 rounded-full"
+                        style={{
+                          top: gain >= 0 ? `${50 - (gain / EQ_MAX_GAIN) * 50}%` : '50%',
+                          height: `${Math.abs(pct - 50)}%`,
+                        }}
+                      />
+                      <input
+                        type="range"
+                        min={EQ_MIN_GAIN}
+                        max={EQ_MAX_GAIN}
+                        step={0.5}
+                        value={gain}
+                        onChange={(e) => void setBandGain(i, Number(e.target.value))}
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                        style={{
+                          writingMode: 'vertical-lr' as const,
+                          WebkitAppearance: 'slider-vertical' as const,
+                          direction: 'rtl' as const,
+                        }}
+                        aria-label={`${freq} Hz band`}
+                      />
+                      <div
+                        className="absolute left-1/2 -translate-x-1/2 w-3 h-3 bg-white border-2 border-brand-500 rounded-full pointer-events-none"
+                        style={{ top: `${100 - pct}%`, transform: 'translate(-50%, -50%)' }}
+                      />
+                    </div>
+                    <div className="text-[10px] text-zinc-500 mt-2">{EQ_BAND_LABELS[i]}</div>
+                    <div className="text-[9px] text-zinc-600">Hz</div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -189,7 +200,7 @@ export function EqualizerView(): JSX.Element {
         </p>
         <p>
           It does <span className="text-white">not</span> apply to Spotify Web Playback SDK streams
-          — Spotify controls the audio output directly and the EQ cannot be inserted in that path.
+          &mdash; Spotify controls the audio output directly and the EQ cannot be inserted in that path.
         </p>
       </div>
 

@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Music, MoreHorizontal, X, Play } from 'lucide-react';
+import { Music, X, Play, Trash2 } from 'lucide-react';
 import { usePlayerStore } from '@/stores/playerStore';
 import { useListeningHistoryStore } from '@/stores/listeningHistoryStore';
 import { ForYouSection, STARTER_RECOMMENDATIONS } from '@/components/recommendations/ForYouSection';
 import type { HistoryEntry } from '@/stores/listeningHistoryStore';
+import { Modal } from '@/components/ui/Modal';
+import { Button } from '@/components/ui/Button';
 
 interface RightRailProps {
   onPlayHistoryEntry?: (entry: HistoryEntry) => void;
@@ -69,6 +71,8 @@ export function RightRail({ onPlayHistoryEntry }: RightRailProps): JSX.Element {
     usePlayerStore.setState({ queue: newQueue });
   };
 
+  const [clearHistoryConfirm, setClearHistoryConfirm] = useState(false);
+
   return (
     <aside className="w-80 h-full border-l border-zinc-800/60 glass flex flex-col overflow-hidden">
       <section className="p-4 border-b border-zinc-800">
@@ -122,7 +126,7 @@ export function RightRail({ onPlayHistoryEntry }: RightRailProps): JSX.Element {
                         queueIndex: Math.min(queueIndex, newQueue.length - 1),
                       });
                     }}
-                    className="opacity-0 group-hover:opacity-100 text-zinc-500 hover:text-zinc-300 transition-all p-1"
+                    className="opacity-0 group-hover:opacity-100 focus:opacity-100 text-zinc-500 hover:text-zinc-300 transition-all p-1"
                     aria-label="Remove from queue"
                     title="Remove from queue"
                   >
@@ -140,12 +144,13 @@ export function RightRail({ onPlayHistoryEntry }: RightRailProps): JSX.Element {
           {recent.length > 0 && (
             <button
               type="button"
-              onClick={clearHistory}
-              className="text-[11px] text-zinc-500 hover:text-zinc-300 transition-colors"
+              onClick={() => setClearHistoryConfirm(true)}
+              className="text-[11px] text-zinc-500 hover:text-zinc-300 transition-colors flex items-center gap-1"
               aria-label="Clear history"
               title="Clear history"
             >
-              <MoreHorizontal size={14} />
+              <Trash2 size={12} />
+              Clear
             </button>
           )}
         </header>
@@ -173,6 +178,29 @@ export function RightRail({ onPlayHistoryEntry }: RightRailProps): JSX.Element {
           }
         />
       </section>
+
+      <Modal
+        open={clearHistoryConfirm}
+        onClose={() => setClearHistoryConfirm(false)}
+        title="Clear listening history"
+        description="Are you sure you want to clear all listening history? This cannot be undone."
+        actions={
+          <>
+            <Button variant="ghost" onClick={() => setClearHistoryConfirm(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              onClick={() => {
+                clearHistory();
+                setClearHistoryConfirm(false);
+              }}
+            >
+              Clear history
+            </Button>
+          </>
+        }
+      />
     </aside>
   );
 }

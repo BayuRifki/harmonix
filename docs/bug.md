@@ -9,30 +9,23 @@
 
 ## Critical / High Priority
 
-### [x] Double Media Controls (Layout Glitch)
+### [] Double Media Controls (Layout Glitch)
 
 - **File**: `App.tsx`, `PlayerBar.tsx`, `HeroPlayer.tsx`
 - **Issue**: `TransportControls` tampil di HeroPlayer (Home) DAN PlayerBar secara bersamaan
-- **Fix**: Implement PlayerBar mini mode di Home - sembunyikan transport controls saat `isHomePage=true`, adjust width right section
-- **Date**: 2026-06-10
 
-### [x] Search Input Desync
+
+### [] Search Input Desync
 
 - **File**: `TopBar.tsx`, `SearchView.tsx`
 - **Issue**: 2 search inputs dengan state terpisah. Ketik di TopBar → SearchView input kosong
-- **Fix**: URL as single source of truth. Both components read/write to `searchParams.get('q')`
-- **Date**: 2026-06-10
 
-### [x] Blank Space Luas di Bawah PlayerBar
+
+### [] Blank Space Luas di Bawah PlayerBar pada menu setting
 
 - **File**: `App.tsx`, Multiple view files
-- **Issue**: Area kosong transparan di bawah PlayerBar karena layout height tidak benar
-- **Fix**:
-  - Tambah `min-h-0` ke flex container di `App.tsx`
-  - Tambah `flex flex-col` ke main element
-  - Update semua view files menggunakan `flex-1` + `overflow-y-auto`
-  - Tambah `h-full` ke `RightRail.tsx`
-- **Date**: 2026-06-10
+- **Issue**: Area kosong transparan di bawah PlayerBar pada menu setting karena layout height tidak benar
+
 
 ### [ ] Ghost Playback
 
@@ -154,14 +147,3 @@
 
 - **Issue**: Play icons, Remove buttons (`opacity-0 group-hover:opacity-100`)
 - **Fix**: Tambah `focus:opacity-100` untuk keyboard users
-
----
-
-## Changelog
-
-### 2026-06-10
-
-- Fixed: Double Media Controls (PlayerBar mini mode)
-- Fixed: Search Input Desync (URL sync)
-- Fixed: Blank Space layout issue
-- Fixed: Dead button More Options in HeroPlayer
