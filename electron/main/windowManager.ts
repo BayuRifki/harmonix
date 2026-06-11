@@ -11,7 +11,7 @@ const MINI_DEFAULT_WIDTH = 360;
 const MINI_DEFAULT_HEIGHT = 120;
 const MINI_MIN_HEIGHT = 80;
 const MINI_MAX_HEIGHT = 400;
-const MAIN_FALLBACK_SHOW_MS = 2000;
+const MAIN_FALLBACK_SHOW_MS = 10000;
 
 function loadRendererInto(win: BrowserWindow, isMini: boolean): void {
   const devUrl = process.env.ELECTRON_RENDERER_URL;
