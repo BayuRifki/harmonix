@@ -230,6 +230,7 @@ export function Sidebar(): JSX.Element {
 
       {currentTrack && (
         <button
+          key={`now-playing-${currentTrack.id}`}
           type="button"
           onClick={() => navigate('/now-playing')}
           className="group flex items-center gap-2.5 mx-2 mt-2 px-2 py-2 rounded-lg bg-zinc-900/60 hover:bg-zinc-800/80 border border-zinc-800/60 hover:border-zinc-700 transition-colors text-left focus-ring"
@@ -238,6 +239,7 @@ export function Sidebar(): JSX.Element {
         >
           {artworkUrl ? (
             <img
+              key={artworkUrl}
               src={artworkUrl}
               alt=""
               className="w-9 h-9 rounded object-cover shrink-0"
@@ -249,8 +251,8 @@ export function Sidebar(): JSX.Element {
             </div>
           )}
           <div className="min-w-0 flex-1">
-            <p className="text-xs text-zinc-100 truncate font-medium">{currentTrack.title}</p>
-            <p className="text-[10px] text-zinc-500 truncate">{artistLine}</p>
+            <p key={`title-${currentTrack.id}`} className="text-xs text-zinc-100 truncate font-medium">{currentTrack.title}</p>
+            <p key={`artist-${currentTrack.id}`} className="text-[10px] text-zinc-500 truncate">{artistLine}</p>
           </div>
           <Play
             size={11}

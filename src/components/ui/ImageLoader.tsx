@@ -27,15 +27,31 @@ export function ImageLoader({
 }: ImageLoaderProps): JSX.Element {
   const [loaded, setLoaded] = useState(false);
   const [errored, setErrored] = useState(false);
-  const lastSrcRef = useRef<string | null>(null);
+  const currentSrcRef = useRef<string | null>(null);
+  const pendingSrcRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (src !== lastSrcRef.current) {
-      lastSrcRef.current = src ?? null;
+    const normalizedSrc = src ?? null;
+    pendingSrcRef.current = normalizedSrc;
+    
+    if (normalizedSrc !== currentSrcRef.current) {
+      currentSrcRef.current = normalizedSrc;
       setLoaded(false);
       setErrored(false);
     }
   }, [src]);
+
+  const handleLoad = (): void => {
+    if (pendingSrcRef.current === currentSrcRef.current) {
+      setLoaded(true);
+    }
+  };
+
+  const handleError = (): void => {
+    if (pendingSrcRef.current === currentSrcRef.current) {
+      setErrored(true);
+    }
+  };
 
   const showFallback = !src || errored;
 
@@ -71,8 +87,8 @@ export function ImageLoader({
             {...rest}
             src={src}
             alt={alt}
-            onLoad={() => setLoaded(true)}
-            onError={() => setErrored(true)}
+            onLoad={handleLoad}
+            onError={handleError}
             className="relative w-full h-full object-cover"
             style={{ opacity: loaded ? 1 : 0, transition: `opacity ${fadeMs}ms ease-out` }}
             data-testid="image-loader-img"

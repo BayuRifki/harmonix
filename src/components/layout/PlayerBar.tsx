@@ -143,6 +143,12 @@ export function PlayerBar({ isHomePage = false }: PlayerBarProps): JSX.Element {
   const isExpanded = playerBarPinned || hoverExpanded;
 
   useEffect(() => {
+    if (!playerBarPinned) {
+      setHoverExpanded(false);
+    }
+  }, [playerBarPinned, currentTrack?.id]);
+
+  useEffect(() => {
     if (!isExpanded) return undefined;
     const onKey = (e: KeyboardEvent): void => {
       if (e.key === 'Escape' && !playerBarPinned) setHoverExpanded(false);
@@ -177,7 +183,10 @@ export function PlayerBar({ isHomePage = false }: PlayerBarProps): JSX.Element {
                   Up next
                 </p>
                 <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
-                  <div className="h-full bg-brand-500 rounded-full" style={{ width: '60%' }} />
+                  <div
+                    className="h-full bg-brand-500 rounded-full transition-all duration-300"
+                    style={{ width: `${Math.min(100, (queueIndex / Math.max(1, queue.length)) * 100)}%` }}
+                  />
                 </div>
               </div>
               <ul className="flex-1 flex items-center gap-2 min-w-0">

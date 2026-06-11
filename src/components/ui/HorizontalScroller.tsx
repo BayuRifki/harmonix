@@ -43,20 +43,39 @@ export function HorizontalScroller({
     el.addEventListener('scroll', update, { passive: true });
     const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(update) : null;
     if (ro) ro.observe(el);
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key === 'ArrowLeft' && canScrollLeft) {
+        e.preventDefault();
+        scrollBy(-1);
+      } else if (e.key === 'ArrowRight' && canScrollRight) {
+        e.preventDefault();
+        scrollBy(1);
+      }
+    };
+    if (snapOn) {
+      el.addEventListener('keydown', onKey);
+      el.setAttribute('tabindex', '0');
+    }
     return () => {
       el.removeEventListener('scroll', update);
+      if (snapOn) {
+        el.removeEventListener('keydown', onKey);
+        el.removeAttribute('tabindex');
+      }
       ro?.disconnect();
     };
-  }, []);
+  }, [canScrollLeft, canScrollRight, snapOn]);
 
   const scrollBy = (dir: 1 | -1): void => {
     const el = ref.current;
     if (!el) return;
     const step = Math.max(itemWidth, el.clientWidth * 0.6);
-    el.scrollBy({ left: dir * step, behavior: snapOn ? 'smooth' : 'auto' });
+    el.scrollBy({ left: dir * step, behavior: 'smooth' });
   };
 
-  const snapClass = snapOn ? '[scroll-snap-type:x_mandatory] [&>*]:[scroll-snap-align:start]' : '';
+  const snapClass = snapOn
+    ? 'scroll-snap-type-x-mandatory [&>*]:scroll-snap-align-start'
+    : '';
 
   return (
     <div className={`relative group ${className}`} data-testid="horizontal-scroller">
@@ -74,7 +93,7 @@ export function HorizontalScroller({
           type="button"
           aria-label="Scroll left"
           onClick={() => scrollBy(-1)}
-          className="absolute left-0 top-1/2 -translate-y-1/2 z-10 w-8 h-12 flex items-center justify-center bg-gradient-to-r from-black/80 to-transparent text-white opacity-0 group-hover:opacity-100 transition-opacity"
+          className="absolute left-0 top-1/2 -translate-y-1/2 z-10 w-8 h-12 flex items-center justify-center bg-gradient-to-r from-black/80 to-transparent text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200 focus:outline-none focus:opacity-100"
           data-testid="horizontal-scroller-left"
         >
           <ChevronLeft size={18} />
@@ -85,7 +104,7 @@ export function HorizontalScroller({
           type="button"
           aria-label="Scroll right"
           onClick={() => scrollBy(1)}
-          className="absolute right-0 top-1/2 -translate-y-1/2 z-10 w-8 h-12 flex items-center justify-center bg-gradient-to-l from-black/80 to-transparent text-white opacity-0 group-hover:opacity-100 transition-opacity"
+          className="absolute right-0 top-1/2 -translate-y-1/2 z-10 w-8 h-12 flex items-center justify-center bg-gradient-to-l from-black/80 to-transparent text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200 focus:outline-none focus:opacity-100"
           data-testid="horizontal-scroller-right"
         >
           <ChevronRight size={18} />

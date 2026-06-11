@@ -16,7 +16,7 @@ export function SettingsView(): JSX.Element {
       <h1 className="text-2xl font-bold text-app mb-2">Settings</h1>
       <p className="text-app-muted mb-6">Configure Harmonix to your liking.</p>
 
-      <div className="space-y-4 max-w-4xl">
+      <div className="space-y-4 max-w-6xl">
         <section className="bg-surface border border-app rounded-lg p-4">
           <h2 className="text-sm font-semibold text-app mb-3">Appearance</h2>
           <ThemePicker />

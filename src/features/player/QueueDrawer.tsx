@@ -61,6 +61,7 @@ interface SortableQueueRowProps {
   onToggleSelect: () => void;
   isDragging: boolean;
   disabled?: boolean;
+  onRemove: () => void;
 }
 
 function SortableQueueRow({
@@ -75,6 +76,7 @@ function SortableQueueRow({
   onToggleSelect,
   isDragging,
   disabled,
+  onRemove,
 }: SortableQueueRowProps): JSX.Element {
   const { attributes, listeners, setNodeRef, transform, transition, isOver } = useSortable({
     id: track.id,
@@ -169,6 +171,7 @@ function SortableQueueRow({
           type="button"
           onClick={(e) => {
             e.stopPropagation();
+            onRemove();
           }}
           className="w-7 h-7 rounded hover:bg-zinc-800 text-zinc-400 hover:text-red-300 transition-colors flex items-center justify-center focus-ring shrink-0"
           aria-label={`Remove ${track.title} from queue`}
@@ -193,6 +196,7 @@ export function QueueDrawer({ open, onClose }: QueueDrawerProps): JSX.Element | 
   const isPlaying = usePlayerStore((s) => s.isPlaying);
   const shuffle = usePlayerStore((s) => s.shuffle);
   const moveQueueItem = usePlayerStore((s) => s.moveQueueItem);
+  const removeFromQueue = usePlayerStore((s) => s.removeFromQueue);
   const addTrackToPlaylist = usePlaylistsStore((s) => s.addTrack);
   const createPlaylist = usePlaylistsStore((s) => s.create);
   const toast = useToastStore();
@@ -250,6 +254,11 @@ export function QueueDrawer({ open, onClose }: QueueDrawerProps): JSX.Element | 
     const targetIndex = shuffle ? queue.findIndex((t) => t.id === item.id) : originalIndex;
     usePlayerStore.getState().setQueue(queue, targetIndex, { shuffle: false, smartShuffle: false });
   }, [queue, shuffle]);
+
+  const removeAt = useCallback((originalIndex: number): void => {
+    removeFromQueue(originalIndex);
+    toast.success('Removed track from queue');
+  }, [removeFromQueue, toast]);
 
   const handleDragOver = useCallback((event: DragOverEvent) => {
     const { active, over } = event;
@@ -554,6 +563,7 @@ export function QueueDrawer({ open, onClose }: QueueDrawerProps): JSX.Element | 
                                       else playAt(originalIndex);
                                     }}
                                     onToggleSelect={() => toggleSelect(track.id)}
+                                    onRemove={() => removeAt(originalIndex)}
                                     isDragging={false}
                                     disabled={selectionMode}
                                   />
@@ -590,6 +600,7 @@ export function QueueDrawer({ open, onClose }: QueueDrawerProps): JSX.Element | 
                                     }
                                   }}
                                   onToggleSelect={() => toggleSelect(track.id)}
+                                  onRemove={() => removeAt(originalIndex)}
                                   isDragging={false}
                                   disabled={selectionMode || isCurrent}
                                 />

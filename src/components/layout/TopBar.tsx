@@ -182,8 +182,9 @@ export function TopBar(): JSX.Element {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -4 }}
                 transition={{ duration: 0.15, ease: 'easeOut' }}
-                className="absolute top-full left-0 right-0 mt-2 glass rounded-lg border border-zinc-800/60 shadow-2xl overflow-hidden z-30"
+                className="absolute top-full left-0 right-0 mt-2 glass rounded-lg border border-zinc-800/60 shadow-2xl overflow-hidden z-50"
                 data-testid="topbar-search-history-dropdown"
+                style={{ maxHeight: 'min(400px, 60vh)' }}
               >
                 <div className="flex items-center justify-between px-3 py-2 border-b border-zinc-800/60">
                   <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-zinc-500 font-semibold">
@@ -201,8 +202,9 @@ export function TopBar(): JSX.Element {
                     </button>
                   )}
                 </div>
+                <div className="max-h-96 overflow-y-auto">
                 {filteredHistory.length > 0 ? (
-                  <ul className="max-h-80 overflow-y-auto py-1">
+                  <ul className="py-1">
                     {filteredHistory.map((h) => (
                       <li
                         key={h}
@@ -250,6 +252,7 @@ export function TopBar(): JSX.Element {
                     {query.trim() ? 'No matches in history' : 'No recent searches'}
                   </div>
                 )}
+                </div>
               </motion.div>
             )}
           </AnimatePresence>
