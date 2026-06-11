@@ -5,9 +5,6 @@ import { Sidebar } from '@/components/layout/Sidebar';
 import { PlayerBar } from '@/components/layout/PlayerBar';
 import { TopBar } from '@/components/layout/TopBar';
 import { RightRail } from '@/components/layout/RightRail';
-import { AnimatedBackground } from '@/components/layout/AnimatedBackground';
-import { AudioReactiveBackground } from '@/components/layout/AudioReactiveBackground';
-import { ArtworkBlurBackground } from '@/components/layout/ArtworkBlurBackground';
 import { useEqualizerStore } from '@/stores/equalizerStore';
 import { useThemeStore } from '@/stores/themeStore';
 import { useUiStore } from '@/stores/uiStore';
@@ -122,7 +119,6 @@ function MainApp(): JSX.Element {
         <SkipToContent />
         <PlayerAnnouncer />
         <YtMusicDisclaimer />
-        <AudioReactiveBackground />
         <div className="flex-1 overflow-hidden">
           <Routes location={location}>
             <Route path="/now-playing" element={<NowPlayingView />} />
@@ -144,13 +140,13 @@ function MainApp(): JSX.Element {
         <QueueAnnouncer />
         <RouteChangeIndicator />
         <YtMusicDisclaimer />
-        <AnimatedBackground />
-        {isHome && <AudioReactiveBackground />}
-        <ArtworkBlurBackground opacity={0.18} />
         {showTopBar && <TopBar />}
         <div className="flex-1 flex min-h-0">
           <Sidebar />
-          <main id="main-content" className="flex-1 overflow-y-auto min-w-0 flex flex-col pb-20">
+          <main
+            id="main-content"
+            className="flex-1 min-h-0 overflow-y-auto min-w-0 bg-[var(--bg-primary)]"
+          >
             <AnimatePresence mode="wait" initial={false}>
               <Suspense fallback={<RouteFallback variant="page" />} key={location.pathname}>
                 <Routes location={location} key={location.pathname}>

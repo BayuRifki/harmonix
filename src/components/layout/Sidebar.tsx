@@ -251,8 +251,15 @@ export function Sidebar(): JSX.Element {
             </div>
           )}
           <div className="min-w-0 flex-1">
-            <p key={`title-${currentTrack.id}`} className="text-xs text-zinc-100 truncate font-medium">{currentTrack.title}</p>
-            <p key={`artist-${currentTrack.id}`} className="text-[10px] text-zinc-500 truncate">{artistLine}</p>
+            <p
+              key={`title-${currentTrack.id}`}
+              className="text-xs text-zinc-100 truncate font-medium"
+            >
+              {currentTrack.title}
+            </p>
+            <p key={`artist-${currentTrack.id}`} className="text-[10px] text-zinc-500 truncate">
+              {artistLine}
+            </p>
           </div>
           <Play
             size={11}
@@ -343,18 +350,18 @@ export function Sidebar(): JSX.Element {
               Your Playlists
             </p>
             <div className="flex items-center gap-1">
-            <span
-              role="button"
-              tabIndex={-1}
-              onClick={(e) => {
-                e.stopPropagation();
-                void handleCreatePlaylist();
-              }}
-              className="p-0.5 rounded text-zinc-500 hover:text-brand-400 transition-colors disabled:opacity-40 focus-ring"
-              aria-label="Create playlist"
-              title="Create playlist"
-              data-testid="sidebar-create-playlist"
-            >
+              <span
+                role="button"
+                tabIndex={-1}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  void handleCreatePlaylist();
+                }}
+                className="p-0.5 rounded text-zinc-500 hover:text-brand-400 transition-colors disabled:opacity-40 focus-ring"
+                aria-label="Create playlist"
+                title="Create playlist"
+                data-testid="sidebar-create-playlist"
+              >
                 <Plus size={14} />
               </span>
               <ChevronDown

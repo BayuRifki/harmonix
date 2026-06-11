@@ -15,6 +15,88 @@ if (typeof globalThis !== 'undefined' && typeof window !== 'undefined') {
   }
 }
 
+// Mock HTMLCanvasElement.getContext for jsdom (which doesn't implement Canvas API)
+if (typeof HTMLCanvasElement !== 'undefined') {
+  const originalGetContext = HTMLCanvasElement.prototype.getContext;
+  HTMLCanvasElement.prototype.getContext = function (
+    this: HTMLCanvasElement,
+    contextId: string,
+    options?: unknown,
+  ): CanvasRenderingContext2D | null {
+    if (contextId === '2d') {
+      const ctx = {
+        canvas: this,
+        fillRect: vi.fn(),
+        clearRect: vi.fn(),
+        getImageData: vi.fn(),
+        putImageData: vi.fn(),
+        createImageData: vi.fn(),
+        setTransform: vi.fn(),
+        drawImage: vi.fn(),
+        save: vi.fn(),
+        fillText: vi.fn(),
+        restore: vi.fn(),
+        beginPath: vi.fn(),
+        moveTo: vi.fn(),
+        lineTo: vi.fn(),
+        closePath: vi.fn(),
+        stroke: vi.fn(),
+        fill: vi.fn(),
+        translate: vi.fn(),
+        scale: vi.fn(),
+        rotate: vi.fn(),
+        arc: vi.fn(),
+        rect: vi.fn(),
+        roundRect: vi.fn(),
+        clip: vi.fn(),
+        measureText: vi.fn(() => ({ width: 0 })),
+        getContextAttributes: vi.fn(),
+        getLineDash: vi.fn(),
+        setLineDash: vi.fn(),
+        isPointInPath: vi.fn(),
+        isPointInStroke: vi.fn(),
+        strokeRect: vi.fn(),
+        fillStyle: '',
+        strokeStyle: '',
+        lineWidth: 1,
+        lineCap: 'butt',
+        lineJoin: 'miter',
+        miterLimit: 10,
+        globalAlpha: 1,
+        globalCompositeOperation: 'source-over',
+        shadowOffsetX: 0,
+        shadowOffsetY: 0,
+        shadowBlur: 0,
+        shadowColor: 'rgba(0, 0, 0, 0)',
+        font: '10px sans-serif',
+        textAlign: 'start',
+        textBaseline: 'alphabetic',
+        direction: 'inherit',
+        imageSmoothingEnabled: true,
+        imageSmoothingQuality: 'low',
+        filter: 'none',
+        createConicGradient: vi.fn(),
+        createLinearGradient: vi.fn(),
+        createPattern: vi.fn(),
+        createRadialGradient: vi.fn(),
+        transform: vi.fn(),
+        resetTransform: vi.fn(),
+        quadraticCurveTo: vi.fn(),
+        bezierCurveTo: vi.fn(),
+        ellipse: vi.fn(),
+        strokeText: vi.fn(),
+        getTransform: vi.fn(),
+        isContextLost: vi.fn(() => false),
+        drawFocusIfNeeded: vi.fn(),
+        scrollPathIntoView: vi.fn(),
+      };
+      return ctx as unknown as CanvasRenderingContext2D;
+    }
+    return (originalGetContext?.call(this, contextId, options) ??
+      null) as CanvasRenderingContext2D | null;
+  } as typeof HTMLCanvasElement.prototype.getContext;
+}
+
 afterEach(async () => {
   cleanup();
   await new Promise((r) => setTimeout(r, 0));

@@ -12,7 +12,7 @@ import { PlayerPanel } from '@/features/settings/PlayerPanel';
 
 export function SettingsView(): JSX.Element {
   return (
-    <div className="p-8">
+    <div className="h-full p-8">
       <h1 className="text-2xl font-bold text-app mb-2">Settings</h1>
       <p className="text-app-muted mb-6">Configure Harmonix to your liking.</p>
 

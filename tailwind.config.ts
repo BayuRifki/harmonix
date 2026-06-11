@@ -54,12 +54,8 @@ const config: Config = {
         'slide-in': 'slideIn 0.3s ease-out',
         'scale-in': 'scaleIn 0.2s ease-out',
         'spin-slow': 'spin 1.5s linear infinite',
-        'spin-very-slow': 'spin 30s linear infinite',
-        'spin-reverse-slow': 'spinReverse 40s linear infinite',
         'vinyl-spin': 'vinylSpin 8s linear infinite',
         'bounce-subtle': 'bounceSubtle 0.3s ease-in-out',
-        'gradient-shift': 'gradientShift 15s ease infinite',
-        'artwork-pulse': 'artworkPulse 4s ease-in-out infinite',
         'shared-morph': 'sharedMorph 350ms cubic-bezier(0.2, 0.7, 0.3, 1)',
       },
       keyframes: {
@@ -84,21 +80,9 @@ const config: Config = {
           '50%': { transform: 'scale(1.02)' },
           '100%': { transform: 'scale(1)' },
         },
-        spinReverse: {
-          from: { transform: 'rotate(360deg)' },
-          to: { transform: 'rotate(0deg)' },
-        },
         vinylSpin: {
           from: { transform: 'rotate(0deg)' },
           to: { transform: 'rotate(360deg)' },
-        },
-        gradientShift: {
-          '0%, 100%': { 'background-position': '0% 50%' },
-          '50%': { 'background-position': '100% 50%' },
-        },
-        artworkPulse: {
-          '0%, 100%': { transform: 'scale(1)' },
-          '50%': { transform: 'scale(1.01)' },
         },
         sharedMorph: {
           '0%': { transform: 'scale(0.96)', opacity: '0.8' },

@@ -163,7 +163,7 @@ export function PlayerBar({ isHomePage = false }: PlayerBarProps): JSX.Element {
     <div
       onMouseEnter={() => !playerBarPinned && setHoverExpanded(true)}
       onMouseLeave={() => !playerBarPinned && setHoverExpanded(false)}
-      className="relative"
+      className="fixed bottom-0 left-0 right-0 z-50"
       data-testid="player-bar-wrapper"
     >
       <AnimatePresence initial={false}>
@@ -185,7 +185,9 @@ export function PlayerBar({ isHomePage = false }: PlayerBarProps): JSX.Element {
                 <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
                   <div
                     className="h-full bg-brand-500 rounded-full transition-all duration-300"
-                    style={{ width: `${Math.min(100, (queueIndex / Math.max(1, queue.length)) * 100)}%` }}
+                    style={{
+                      width: `${Math.min(100, (queueIndex / Math.max(1, queue.length)) * 100)}%`,
+                    }}
                   />
                 </div>
               </div>
