@@ -150,7 +150,7 @@ function MainApp(): JSX.Element {
         {showTopBar && <TopBar />}
         <div className="flex-1 flex min-h-0">
           <Sidebar />
-          <main id="main-content" className="flex-1 overflow-y-auto min-w-0 flex flex-col">
+          <main id="main-content" className="flex-1 overflow-y-auto min-w-0 flex flex-col pb-20">
             <AnimatePresence mode="wait" initial={false}>
               <Suspense fallback={<RouteFallback variant="page" />} key={location.pathname}>
                 <Routes location={location} key={location.pathname}>

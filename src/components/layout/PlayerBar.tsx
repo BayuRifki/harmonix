@@ -322,7 +322,8 @@ export function PlayerBar({ isHomePage = false }: PlayerBarProps): JSX.Element {
             <button
               type="button"
               onClick={() => setVolume(volume === 0 ? 0.5 : 0)}
-              className="text-zinc-400 hover:text-zinc-100 transition-colors focus-ring"
+              disabled={!hasTrack}
+              className="text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/60 disabled:opacity-40 transition-all duration-100 active:scale-95 focus-ring"
               aria-label="Toggle mute"
             >
               <VolumeIcon volume={volume} />
@@ -338,7 +339,8 @@ export function PlayerBar({ isHomePage = false }: PlayerBarProps): JSX.Element {
                 max={100}
                 value={volume * 100}
                 onChange={(e) => setVolume(Number(e.target.value) / 100)}
-                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                disabled={!hasTrack}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
                 aria-label="Volume"
               />
             </div>
