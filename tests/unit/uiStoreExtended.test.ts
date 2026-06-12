@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { useUiStore, DEFAULT_NAV_ORDER } from '@/stores/uiStore';
+import { useUiStore, DEFAULT_NAV_ORDER, flushUiPersist } from '@/stores/uiStore';
 
 function reset(): void {
   useUiStore.setState({
@@ -95,6 +95,8 @@ describe('uiStore extended fields', () => {
   it('persists across loads from localStorage', () => {
     useUiStore.getState().setVisualizerQuality('off');
     useUiStore.getState().setGlassIntensity('subtle');
+    // Persist is debounced (100ms); force-flush for deterministic test.
+    flushUiPersist();
     useUiStore.getState().load();
     expect(useUiStore.getState().visualizerQuality).toBe('off');
     expect(useUiStore.getState().glassIntensity).toBe('subtle');

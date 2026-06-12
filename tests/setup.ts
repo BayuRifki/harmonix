@@ -115,6 +115,7 @@ export interface MockWindowApiOptions {
     userPlaylists?: (payload: unknown) => Promise<unknown[]>;
     likedTracks?: (payload: unknown) => Promise<unknown[]>;
     playlistTracks?: (payload: unknown) => Promise<unknown[]>;
+    getAuthStatuses?: () => Promise<unknown[]>;
   };
   library?: Record<string, unknown>;
 }
@@ -130,7 +131,7 @@ export function installMockWindowApi(opts: MockWindowApiOptions = {}): {
       loadConfigs: opts.sources?.loadConfigs ?? (async () => ({})),
       saveConfig: opts.sources?.saveConfig ?? (async () => ({ id: '', settings: {} })),
       getConfig: opts.sources?.getConfig ?? (async () => ({})),
-      getAuthStatuses: async () => [],
+      getAuthStatuses: opts.sources?.getAuthStatuses ?? (async () => []),
       search: opts.sources?.search ?? (async () => []),
       playTrack:
         opts.sources?.playTrack ?? (async () => ({ url: 'http://test', protocol: 'http' })),

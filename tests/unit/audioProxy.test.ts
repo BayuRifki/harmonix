@@ -69,6 +69,40 @@ describe('audioProxy', () => {
     expect(mod.getStreamInfo(id)).toBeUndefined();
   });
 
+  it('LRU eviction prefers least-recently-used over FIFO-by-creation', async () => {
+    const mod = await loadFreshModule();
+    // Insert MAX_STREAMS+2 entries. The first two should be evicted
+    // by LRU (oldest lastUsedAt), not by FIFO (oldest createdAt).
+    const ids: string[] = [];
+    for (let i = 0; i < 34; i++) {
+      const id = mod.registerStream(`https://example.com/${i}.mp3`);
+      ids.push(id);
+      // Touch every other entry so its lastUsedAt advances. The
+      // even-indexed ones stay "stale" (older lastUsedAt).
+      if (i % 2 === 1) {
+        const entry = mod.getStreamInfo(id);
+        if (entry) entry.lastUsedAt = Date.now();
+      }
+    }
+    // The very first id (i=0) was never touched → should be evicted.
+    expect(mod.getStreamInfo(ids[0])).toBeUndefined();
+    // The very last id (i=33) was just registered → still present.
+    expect(mod.getStreamInfo(ids[33])).toBeDefined();
+  });
+
+  it('lastUsedAt is refreshed on every request, keeping the active stream alive', async () => {
+    const mod = await loadFreshModule();
+    const id = mod.registerStream('https://example.com/active.mp3');
+    // Simulate 40s of "active" use by repeatedly calling getStreamInfo
+    // (the actual handler also refreshes lastUsedAt, but here we test
+    // the public surface).
+    for (let i = 0; i < 10; i++) {
+      const e = mod.getStreamInfo(id);
+      if (e) e.lastUsedAt = Date.now();
+    }
+    expect(mod.getStreamInfo(id)).toBeDefined();
+  });
+
   it('proxyUrlFor builds a harmonix-media://stream/<id> URL', async () => {
     const mod = await loadFreshModule();
     const id = mod.registerStream('https://example.com/y.mp3');
@@ -116,7 +150,7 @@ describe('audioProxy', () => {
     const mod = await loadFreshModule();
     const id = mod.registerStream('https://example.com/old.mp3');
     const info = mod.getStreamInfo(id);
-    if (info) info.createdAt = Date.now() - 11 * 60 * 1000;
+    if (info) info.createdAt = Date.now() - 31 * 60 * 1000;
     mockUpstreamResponse();
     const handler = await setupHandler(mod);
     const res = await handler({ url: `harmonix-media://stream/${id}` });

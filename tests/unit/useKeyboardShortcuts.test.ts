@@ -62,7 +62,24 @@ function makeCtx(overrides: Partial<ShortcutContext> = {}): {
     positionMs: 0,
     ...overrides,
   };
-  return { ctx, pause, resume, next, previous, setVolume, setPreviousVolume, toggleShuffle, cycleRepeat, toggleQueue, toggleMiniPlayer, openCommandPalette, openHelp, seek, setShuffle, setRepeat };
+  return {
+    ctx,
+    pause,
+    resume,
+    next,
+    previous,
+    setVolume,
+    setPreviousVolume,
+    toggleShuffle,
+    cycleRepeat,
+    toggleQueue,
+    toggleMiniPlayer,
+    openCommandPalette,
+    openHelp,
+    seek,
+    setShuffle,
+    setRepeat,
+  };
 }
 
 describe('isEditableTarget', () => {
@@ -167,5 +184,17 @@ describe('handleShortcut', () => {
     const { ctx } = makeCtx();
     expect(handleShortcut('KeyA', ctx)).toBe(false);
     expect(handleShortcut('Enter', ctx)).toBe(false);
+  });
+
+  it('KeyQ calls ctx.toggleQueue (and NOT openHelp)', () => {
+    // Regression test for the bug where `Q` opened the keyboard
+    // help overlay instead of the queue drawer. The fix is two-
+    // fold: the ctx's `toggleQueue` field must point to the
+    // queue-drawer action (not help), and `handleShortcut` must
+    // continue to call `ctx.toggleQueue` for KeyQ.
+    const { ctx, toggleQueue, openHelp } = makeCtx();
+    expect(handleShortcut('KeyQ', ctx)).toBe(true);
+    expect(toggleQueue).toHaveBeenCalledTimes(1);
+    expect(openHelp).not.toHaveBeenCalled();
   });
 });

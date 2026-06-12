@@ -49,26 +49,47 @@ export function useAdaptiveAccent(): void {
   const interpolationStartRef = useRef<number>(0);
   const interpolationFromRef = useRef<AdaptivePalette>(currentPaletteRef.current);
   const themeObserverRef = useRef<MutationObserver | null>(null);
+  // Generation counter. Incremented on every artwork change so an
+  // in-flight `extractDominantColor` call from an older artwork URL
+  // can be discarded on the microtask it resolves, rather than
+  // after it has already been awaited.
+  const generationRef = useRef<number>(0);
 
   useEffect(() => {
     if (typeof document === 'undefined') return undefined;
     const target = document.documentElement;
+    let pending: number | null = null;
     const observer = new MutationObserver(() => {
-      if (lastUrlRef.current === null) {
-        applyPalette(fallbackPaletteForTheme());
-      }
+      // Coalesce rapid class changes (e.g. theme toggle that flips
+      // both `light` and `dark` in the same tick) into a single
+      // applyPalette call. Without this, each class toggle does
+      // 4 setProperty() calls synchronously.
+      if (pending !== null) return;
+      pending = window.setTimeout(() => {
+        pending = null;
+        if (lastUrlRef.current === null) {
+          applyPalette(fallbackPaletteForTheme());
+        }
+      }, 16);
     });
     observer.observe(target, { attributes: true, attributeFilter: ['class'] });
     themeObserverRef.current = observer;
     return () => {
       observer.disconnect();
       themeObserverRef.current = null;
+      if (pending !== null) {
+        clearTimeout(pending);
+        pending = null;
+      }
     };
   }, []);
 
   useEffect(() => {
     if (artworkUrl === lastUrlRef.current) return undefined;
     lastUrlRef.current = artworkUrl ?? null;
+    // Bump the generation so any in-flight extract from the
+    // previous URL is dropped on resolve.
+    const myGeneration = ++generationRef.current;
 
     if (debounceRef.current !== null) {
       window.clearTimeout(debounceRef.current);
@@ -84,7 +105,9 @@ export function useAdaptiveAccent(): void {
 
     debounceRef.current = window.setTimeout(() => {
       void extractDominantColor(artworkUrl).then((color) => {
-        if (lastUrlRef.current !== artworkUrl) return;
+        // Drop stale results: if a newer artwork has been seen
+        // since this fetch started, don't overwrite the palette.
+        if (myGeneration !== generationRef.current) return;
         if (color) {
           const palette = buildPalette(color);
           targetPaletteRef.current = palette;

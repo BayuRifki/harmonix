@@ -149,43 +149,71 @@ interface PlayerState {
   teardown: () => void;
 }
 
+// Module-scope: holds the unsubscribe fns for the currently-attached
+// audio engine listeners. The store factory below detects prior
+// instances on HMR reload and detaches them before re-attaching,
+// preventing an unbounded listener leak across HMR cycles.
+let hmrPreviousUnsubs: Array<() => void> | null = null;
+
 export const usePlayerStore = create<PlayerState>((set, get) => {
-  const offState = audioEngine.on('state', (state) => {
-    set({
-      isPlaying: state === 'playing',
-      loading: state === 'loading',
+  const attachEngineListeners = (): Array<() => void> => {
+    const offState = audioEngine.on('state', (state) => {
+      set({
+        isPlaying: state === 'playing',
+        loading: state === 'loading',
+      });
     });
-  });
-  const offTime = audioEngine.on('time', (positionMs, durationMs) => {
-    set({ positionMs, durationMs });
-    // 80% trigger: pre-buffer the next track if we haven't already for
-    // this track. The on-play trigger in `play()` covers the common case;
-    // this catches edge cases (long tracks, manual queue replacements).
-    const s = get();
-    const trackId = s.currentTrack?.id;
-    if (
-      trackId &&
-      durationMs > 0 &&
-      positionMs / durationMs >= 0.8 &&
-      s.preloadTriggeredTrackId !== trackId
-    ) {
-      set({ preloadTriggeredTrackId: trackId });
-      void preloadNextInQueue(get);
+    const offTime = audioEngine.on('time', (positionMs, durationMs) => {
+      set({ positionMs, durationMs });
+      // 80% trigger: pre-buffer the next track if we haven't already for
+      // this track. The on-play trigger in `play()` covers the common case;
+      // this catches edge cases (long tracks, manual queue replacements).
+      const s = get();
+      const trackId = s.currentTrack?.id;
+      if (
+        trackId &&
+        durationMs > 0 &&
+        positionMs / durationMs >= 0.8 &&
+        s.preloadTriggeredTrackId !== trackId
+      ) {
+        set({ preloadTriggeredTrackId: trackId });
+        void preloadNextInQueue(get);
+      }
+    });
+    const offEnded = audioEngine.on('ended', () => {
+      void get().next();
+    });
+    const offError = audioEngine.on('error', (message) => {
+      set({ error: message });
+    });
+    return [offState, offTime, offEnded, offError];
+  };
+
+  // Detach any listeners attached by a previous instance of this
+  // module (HMR / Fast Refresh scenario). Without this, every code
+  // edit would add 4 more listeners to the audio engine, each
+  // holding a closure over the previous store instance.
+  if (hmrPreviousUnsubs) {
+    for (const u of hmrPreviousUnsubs) {
+      try {
+        u();
+      } catch {
+        // ignore
+      }
     }
-  });
-  const offEnded = audioEngine.on('ended', () => {
-    void get().next();
-  });
-  const offError = audioEngine.on('error', (message) => {
-    set({ error: message });
-  });
+  }
+  const unsubs: Array<() => void> = attachEngineListeners();
+  hmrPreviousUnsubs = unsubs;
 
   if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
     window.addEventListener('beforeunload', () => {
-      offState();
-      offTime();
-      offEnded();
-      offError();
+      for (const u of unsubs) {
+        try {
+          u();
+        } catch {
+          // ignore
+        }
+      }
     });
   }
 
@@ -393,10 +421,14 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
     },
 
     teardown: () => {
-      offState();
-      offTime();
-      offEnded();
-      offError();
+      for (const u of unsubs) {
+        try {
+          u();
+        } catch {
+          // ignore
+        }
+      }
+      if (hmrPreviousUnsubs === unsubs) hmrPreviousUnsubs = null;
     },
   };
 });

@@ -2,14 +2,29 @@ import { net, protocol, type Session } from 'electron';
 import { Readable } from 'node:stream';
 
 const PROXY_SCHEME = 'harmonix-media';
-const STREAM_TTL_MS = 10 * 60 * 1000;
-const MAX_STREAMS = 20;
+/**
+ * Maximum age a registered stream can be before we treat it as
+ * expired. The previous value (10 min) was too short for long
+ * tracks (DJ mixes, audiobooks, podcasts) and produced audible
+ * gaps when Chromium's audio element re-fetched the proxy URL
+ * after Range-requested seeks beyond the TTL. 30 min comfortably
+ * covers anything the user is actively playing.
+ */
+const STREAM_TTL_MS = 30 * 60 * 1000;
+const MAX_STREAMS = 32;
 const DEFAULT_USER_AGENT =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36';
 
 interface StreamEntry {
   realUrl: string;
   createdAt: number;
+  /**
+   * Wall-clock timestamp of the most recent request for this stream
+   * (any new request, including Range probes, updates this). Used
+   * by the LRU eviction policy to keep actively-playing streams
+   * alive even when many other streams are registered.
+   */
+  lastUsedAt: number;
   headers: Record<string, string>;
 }
 
@@ -45,8 +60,21 @@ protocol.registerSchemesAsPrivileged([
 
 function evictOldest(): void {
   if (streamRegistry.size < MAX_STREAMS) return;
-  const oldest = [...streamRegistry.entries()].sort((a, b) => a[1].createdAt - b[1].createdAt)[0];
-  if (oldest) streamRegistry.delete(oldest[0]);
+  // LRU eviction: pick the entry with the oldest `lastUsedAt`.
+  // This is more important than FIFO-by-createdAt because the
+  // audio element periodically re-requests the proxy URL for
+  // Range probes — if we evicted by `createdAt`, a long-playing
+  // track would lose its registry entry mid-song and subsequent
+  // requests would 404.
+  let oldestKey: string | null = null;
+  let oldestTime = Number.POSITIVE_INFINITY;
+  for (const [key, entry] of streamRegistry) {
+    if (entry.lastUsedAt < oldestTime) {
+      oldestTime = entry.lastUsedAt;
+      oldestKey = key;
+    }
+  }
+  if (oldestKey !== null) streamRegistry.delete(oldestKey);
 }
 
 /**
@@ -137,9 +165,11 @@ export interface RegisterStreamOptions {
 export function registerStream(realUrl: string, opts: RegisterStreamOptions = {}): string {
   evictOldest();
   const id = `s_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+  const now = Date.now();
   streamRegistry.set(id, {
     realUrl,
-    createdAt: Date.now(),
+    createdAt: now,
+    lastUsedAt: now,
     headers: opts.headers ?? {},
   });
   return id;
@@ -196,6 +226,11 @@ export function registerAudioProxyProtocol(session: Session | null = null): void
         console.log(`[audioProxy] 410 expired id=${id}`);
         return new Response('Stream expired', { status: 410 });
       }
+      // Refresh LRU timestamp on every request (including Range
+      // probes). This keeps actively-playing streams alive across
+      // many Range fetches while still allowing old streams to be
+      // evicted once the user actually stops listening.
+      entry.lastUsedAt = Date.now();
 
       // Forward Range requests (the audio element does partial-content
       // fetches when starting playback). Without this, the upstream

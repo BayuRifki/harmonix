@@ -141,15 +141,29 @@ describe('AudioEngine.preload', () => {
     expect(engine.hasPreloaded('https://example.com/a.mp3')).toBe(false);
   });
 
-  it('local file:// preload sets crossOrigin=anonymous', () => {
+  it('local file:// preload does NOT set crossOrigin (would CORS-taint the audio)', () => {
+    // Regression test: setting crossOrigin='anonymous' on a
+    // file:// URL makes Chromium treat the load as CORS-tainted
+    // and break `createMediaElementSource`. Local files are
+    // intrinsically same-origin; omit the attribute.
     const audio = makeFakeAudio();
     AudioMock.mockImplementation(() => audio);
 
     const engine = new AudioEngine();
     engine.preload('file:///C:/music/track.mp3');
 
-    expect(audio.crossOrigin).toBe('anonymous');
+    expect(audio.crossOrigin).toBe('');
     expect(engine.hasPreloaded('file:///C:/music/track.mp3')).toBe(true);
+  });
+
+  it('http(s) preload sets crossOrigin=anonymous', () => {
+    const audio = makeFakeAudio();
+    AudioMock.mockImplementation(() => audio);
+
+    const engine = new AudioEngine();
+    engine.preload('https://example.com/stream.mp3');
+
+    expect(audio.crossOrigin).toBe('anonymous');
   });
 
   it('cancelPreload() pauses the preloaded element and clears state', () => {

@@ -91,14 +91,18 @@ function useMouseParallax(
   onMouseLeave: () => void;
   style: { x: ReturnType<typeof useSpring>; y: ReturnType<typeof useSpring> };
 } {
-  const x = useMotionValue(0);
-  const y = useMotionValue(0);
+  // Keep MotionValues in refs so they survive across re-renders
+  // and are not reallocated on every parent state change. This
+  // also prevents framer-motion from tearing down and re-creating
+  // the spring animation on each render of the parent.
+  const x = useRef(useMotionValue(0)).current;
+  const y = useRef(useMotionValue(0)).current;
   const sx = useSpring(x, { stiffness: 80, damping: 18 });
   const sy = useSpring(y, { stiffness: 80, damping: 18 });
-  const zeroX = useMotionValue(0);
-  const zeroY = useMotionValue(0);
+  const zeroX = useRef(useMotionValue(0)).current;
+  const zeroY = useRef(useMotionValue(0)).current;
   return {
-    onMouseMove: (e: React.MouseEvent<HTMLDivElement>) => {
+    onMouseMove: (e: React.MouseEvent<HTMLDivElement>): void => {
       if (reduced) return;
       const rect = e.currentTarget.getBoundingClientRect();
       const px = (e.clientX - rect.left) / rect.width - 0.5;
@@ -106,7 +110,7 @@ function useMouseParallax(
       x.set(px * strength);
       y.set(py * strength);
     },
-    onMouseLeave: () => {
+    onMouseLeave: (): void => {
       x.set(0);
       y.set(0);
     },

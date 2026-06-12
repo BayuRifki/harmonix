@@ -292,8 +292,27 @@ export function deleteTrack(id: number): void {
   persist();
 }
 
-export function deleteTracksNotIn(filePaths: string[]): number {
+/**
+ * Delete every track whose `file_path` is not present in `filePaths`.
+ *
+ * SAFETY: passing an empty array is treated as a no-op (returns 0)
+ * rather than wiping the entire library. This guards against an
+ * upstream race where the scanner returns no files (e.g. the user
+ * picked an empty folder, or the directory walk was cancelled) and
+ * the caller would otherwise destroy the user's entire collection.
+ * Callers that genuinely want to wipe everything must opt in by
+ * passing `{ wipeAll: true }` as the second argument, which the
+ * IPC layer exposes only to explicit "Reset library" admin actions.
+ */
+export function deleteTracksNotIn(
+  filePaths: string[],
+  options: { wipeAll?: boolean } = {},
+): number {
   const db = getDb();
+  if (filePaths.length === 0 && !options.wipeAll) {
+    // Empty input without explicit opt-in: refuse to delete anything.
+    return 0;
+  }
   if (filePaths.length === 0) {
     const row = db.prepare('SELECT COUNT(*) AS c FROM tracks').get() as
       | { c: number | bigint }

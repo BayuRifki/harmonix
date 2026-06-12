@@ -367,11 +367,12 @@ export function Sidebar(): JSX.Element {
               <button
                 type="button"
                 tabIndex={0}
+                disabled={creating}
                 onClick={(e) => {
                   e.stopPropagation();
                   void handleCreatePlaylist();
                 }}
-                className="p-0.5 rounded text-zinc-500 hover:text-brand-400 transition-colors disabled:opacity-40 focus-ring"
+                className="p-0.5 rounded text-zinc-500 hover:text-brand-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-ring"
                 aria-label="Create playlist"
                 title="Create playlist"
                 data-testid="sidebar-create-playlist"

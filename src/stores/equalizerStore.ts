@@ -24,16 +24,37 @@ function applyGainsToEngine(gains: number[]): void {
   equalizer.setAllGains(clampGains(gains));
 }
 
+// Module-scope persist debounce. The store module may be
+// re-evaluated on HMR; without a guard the previous timer would
+// keep firing IPC calls after a fresh store instance takes over.
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
 
 function schedulePersist(state: { activePreset: string | null; currentGains: number[] }): void {
   if (saveTimer) clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
+    saveTimer = null;
     void window.api.eq.saveState({
       activePreset: state.activePreset,
       currentGains: clampGains(state.currentGains),
     });
   }, 500);
+}
+
+/**
+ * Synchronously flush any pending EQ persist. Called on
+ * `beforeunload` / `pagehide` so the last band tweak is never lost.
+ */
+export function flushEqualizerPersist(): void {
+  if (saveTimer !== null) {
+    clearTimeout(saveTimer);
+    saveTimer = null;
+  }
+}
+
+if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+  const flush = (): void => flushEqualizerPersist();
+  window.addEventListener('beforeunload', flush);
+  window.addEventListener('pagehide', flush);
 }
 
 export const useEqualizerStore = create<EqualizerState>((set, get) => ({

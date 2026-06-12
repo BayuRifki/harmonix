@@ -9,6 +9,7 @@ function supportsMediaSession(): boolean {
 
 export function useMediaSession(): void {
   const lastTrackIdRef = useRef<string | null>(null);
+  const lastIsPlayingRef = useRef<boolean | null>(null);
 
   useEffect(() => {
     if (!supportsMediaSession()) return undefined;
@@ -86,7 +87,13 @@ export function useMediaSession(): void {
           ms.metadata = null;
         }
       }
-      ms.playbackState = state.isPlaying ? 'playing' : 'paused';
+      // Only update playbackState when the value actually changes.
+      // Without this guard, `state` updates 4x/sec from positionMs
+      // would cause the OS media UI to flash on every tick.
+      if (state.isPlaying !== lastIsPlayingRef.current) {
+        lastIsPlayingRef.current = state.isPlaying;
+        ms.playbackState = state.isPlaying ? 'playing' : 'paused';
+      }
     });
     return unsub;
   }, []);

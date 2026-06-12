@@ -82,14 +82,18 @@ export function MiniPlayerView(): JSX.Element {
       setSnapshot(s);
     });
     const tick = window.setInterval(() => {
-      if (isPlayingRef.current) {
-        setSnapshot((prev) => {
-          if (!prev.isPlaying) return prev;
-          const next = prev.positionMs + 500;
-          if (prev.durationMs > 0 && next > prev.durationMs) return prev;
-          return { ...prev, positionMs: next };
-        });
-      }
+      // Only schedule a state update if we're actually playing AND
+      // there is a track. Without this guard, the interval fires
+      // 2x/sec even when paused, triggering 2 wasted React renders
+      // per second. The inner check below is the same idea, but
+      // hoisting it here lets us skip the setState call entirely.
+      if (!isPlayingRef.current) return;
+      setSnapshot((prev) => {
+        if (!prev.isPlaying) return prev;
+        const next = prev.positionMs + 500;
+        if (prev.durationMs > 0 && next > prev.durationMs) return prev;
+        return { ...prev, positionMs: next };
+      });
     }, 500);
     return (): void => {
       cancelled = true;

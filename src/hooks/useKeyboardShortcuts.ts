@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { usePlayerStore } from '@/stores/playerStore';
+import { useUiStore } from '@/stores/uiStore';
 import { useKeyboardSettingsStore } from '@/stores/keyboardSettingsStore';
 
 export interface ShortcutContext {
@@ -40,18 +41,23 @@ export function isEditableTarget(target: EventTarget | null): boolean {
 
 function keysMatch(event: KeyboardEvent, keySequence: string[]): boolean {
   const pressed: string[] = [];
-  
+
   if (event.metaKey || event.ctrlKey) pressed.push('Mod');
   if (event.shiftKey && event.key !== 'Shift') pressed.push('Shift');
   if (event.altKey && event.key !== 'Alt') pressed.push('Alt');
-  
+
   // Skip modifier-only key events
-  if (event.key === 'Control' || event.key === 'Meta' || event.key === 'Shift' || event.key === 'Alt') {
+  if (
+    event.key === 'Control' ||
+    event.key === 'Meta' ||
+    event.key === 'Shift' ||
+    event.key === 'Alt'
+  ) {
     return false;
   }
-  
+
   pressed.push(event.key);
-  
+
   return pressed.length === keySequence.length && pressed.every((k, i) => k === keySequence[i]);
 }
 
@@ -121,9 +127,14 @@ export function useKeyboardShortcuts(): void {
       if (isEditableTarget(e.target)) return;
 
       // Check custom shortcuts first
-      const customShortcuts = useKeyboardSettingsStore.getState() as { enabled: Record<string, boolean>; customKeys: Record<string, string[]> };
-      
+      const customShortcuts = useKeyboardSettingsStore.getState() as {
+        enabled: Record<string, boolean>;
+        customKeys: Record<string, string[]>;
+      };
+
       const store = usePlayerStore.getState();
+      const ui = useUiStore.getState();
+      const helpStore = useKeyboardSettingsStore.getState();
       const ctx: ShortcutContext = {
         isPlaying: store.isPlaying,
         hasTrack: store.currentTrack !== null,
@@ -139,10 +150,10 @@ export function useKeyboardShortcuts(): void {
         },
         toggleShuffle: store.toggleShuffle,
         cycleRepeat: store.cycleRepeat,
-        toggleQueue: () => void useKeyboardSettingsStore.getState().openHelp(),
+        toggleQueue: () => ui.toggleQueueDrawer(),
         toggleMiniPlayer: () => void window.api?.miniPlayer?.toggle(),
-        openCommandPalette: () => void useKeyboardSettingsStore.getState().openHelp(),
-        openHelp: () => void useKeyboardSettingsStore.getState().openHelp(),
+        openCommandPalette: () => ui.openCommandPalette(),
+        openHelp: () => helpStore.openHelp(),
         seek: store.seek,
         shuffle: store.shuffle,
         repeat: store.repeat,
@@ -152,20 +163,58 @@ export function useKeyboardShortcuts(): void {
 
       // Build list of enabled custom shortcuts with their actions
       const shortcutActions: Record<string, () => void> = {
-        play_pause: () => { if (ctx.hasTrack) { if (ctx.isPlaying) ctx.pause(); else void ctx.resume(); } },
-        next_track: () => { if (ctx.hasTrack) void ctx.next(); },
-        prev_track: () => { if (ctx.hasTrack) void ctx.previous(); },
-        seek_forward: () => { if (ctx.hasTrack) void ctx.seek(Math.min(ctx.durationMs || Infinity, ctx.positionMs + 5000)); },
-        seek_backward: () => { if (ctx.hasTrack) void ctx.seek(Math.max(0, ctx.positionMs - 5000)); },
-        volume_up: () => { ctx.setVolume(Math.min(1, ctx.volume + VOLUME_STEP)); },
-        volume_down: () => { ctx.setVolume(Math.max(0, ctx.volume - VOLUME_STEP)); },
-        mute_toggle: () => { if (ctx.volume > 0) { ctx.setPreviousVolume(ctx.volume); ctx.setVolume(0); } else { ctx.setVolume(ctx.previousVolume ?? MUTE_RESTORE); ctx.setPreviousVolume(null); } },
-        shuffle_toggle: () => { if (ctx.hasTrack) void ctx.toggleShuffle(); },
-        repeat_cycle: () => { if (ctx.hasTrack) void ctx.cycleRepeat(); },
-        queue_toggle: () => { void ctx.toggleQueue(); },
-        mini_player_toggle: () => { void ctx.toggleMiniPlayer(); },
-        command_palette: () => { void ctx.openCommandPalette(); },
-        help_overlay: () => { void ctx.openHelp(); },
+        play_pause: () => {
+          if (ctx.hasTrack) {
+            if (ctx.isPlaying) ctx.pause();
+            else void ctx.resume();
+          }
+        },
+        next_track: () => {
+          if (ctx.hasTrack) void ctx.next();
+        },
+        prev_track: () => {
+          if (ctx.hasTrack) void ctx.previous();
+        },
+        seek_forward: () => {
+          if (ctx.hasTrack)
+            void ctx.seek(Math.min(ctx.durationMs || Infinity, ctx.positionMs + 5000));
+        },
+        seek_backward: () => {
+          if (ctx.hasTrack) void ctx.seek(Math.max(0, ctx.positionMs - 5000));
+        },
+        volume_up: () => {
+          ctx.setVolume(Math.min(1, ctx.volume + VOLUME_STEP));
+        },
+        volume_down: () => {
+          ctx.setVolume(Math.max(0, ctx.volume - VOLUME_STEP));
+        },
+        mute_toggle: () => {
+          if (ctx.volume > 0) {
+            ctx.setPreviousVolume(ctx.volume);
+            ctx.setVolume(0);
+          } else {
+            ctx.setVolume(ctx.previousVolume ?? MUTE_RESTORE);
+            ctx.setPreviousVolume(null);
+          }
+        },
+        shuffle_toggle: () => {
+          if (ctx.hasTrack) void ctx.toggleShuffle();
+        },
+        repeat_cycle: () => {
+          if (ctx.hasTrack) void ctx.cycleRepeat();
+        },
+        queue_toggle: () => {
+          void ctx.toggleQueue();
+        },
+        mini_player_toggle: () => {
+          void ctx.toggleMiniPlayer();
+        },
+        command_palette: () => {
+          void ctx.openCommandPalette();
+        },
+        help_overlay: () => {
+          void ctx.openHelp();
+        },
         list_down: () => {},
         list_up: () => {},
         list_top: () => {},

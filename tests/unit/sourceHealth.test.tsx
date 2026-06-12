@@ -56,10 +56,10 @@ describe('useSourceHealth', () => {
     });
   });
 
-  it('marks source as down when search fails', async () => {
+  it('marks source as down when auth status fails', async () => {
     installMockWindowApi({
       sources: {
-        search: async () => {
+        getAuthStatuses: async () => {
           throw new Error('network down');
         },
       },
@@ -88,6 +88,44 @@ describe('useSourceHealth', () => {
     await waitFor(() => {
       expect(screen.getByTestId('health-spotify')).toHaveAttribute('data-status', 'down');
     });
+  });
+
+  it('does not perform a real search call (uses getAuthStatuses instead)', async () => {
+    const searchSpy = vi.fn(async () => []);
+    installMockWindowApi({
+      sources: {
+        search: searchSpy,
+        getAuthStatuses: async () => [{ source: 'spotify', authenticated: true, userName: 'Test' }],
+      },
+    });
+    useSourcesStore.setState({
+      registrations: [
+        {
+          id: 'spotify',
+          name: 'Spotify',
+          capabilities: {
+            canSearch: true,
+            canStream: true,
+            canGetPlaylists: true,
+            canGetLikedTracks: true,
+            requiresAuth: true,
+            supportsFileStreaming: false,
+            supportsRemoteStreaming: true,
+            supportsPlaylists: true,
+          },
+          enabled: true,
+          authenticated: false,
+        },
+      ],
+    });
+    render(<Probe />);
+    await waitFor(() => {
+      expect(screen.getByTestId('health-spotify')).toHaveAttribute('data-status', 'healthy');
+    });
+    // The health check must use the cheap getAuthStatuses endpoint,
+    // not the expensive search endpoint. (Searching would burn API
+    // quota for a passive background poll.)
+    expect(searchSpy).not.toHaveBeenCalled();
   });
 });
 

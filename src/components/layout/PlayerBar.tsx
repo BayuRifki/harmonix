@@ -126,7 +126,6 @@ function VolumeIcon({ volume }: { volume: number }): JSX.Element {
 }
 
 export function PlayerBar({ isHomePage = false }: PlayerBarProps): JSX.Element {
-  const [queueOpen, setQueueOpen] = useState(false);
   const navigate = useNavigate();
   const currentTrack = usePlayerStore((s) => s.currentTrack);
   const volume = usePlayerStore((s) => s.volume);
@@ -148,6 +147,8 @@ export function PlayerBar({ isHomePage = false }: PlayerBarProps): JSX.Element {
 
   const playerBarPinned = useUiStore((s) => s.playerBarPinned);
   const setPlayerBarPinned = useUiStore((s) => s.setPlayerBarPinned);
+  const queueOpen = useUiStore((s) => s.queueDrawerOpen);
+  const setQueueOpen = useUiStore((s) => s.setQueueDrawerOpen);
   const [hoverExpanded, setHoverExpanded] = useState(false);
   const isExpanded = playerBarPinned || hoverExpanded;
 

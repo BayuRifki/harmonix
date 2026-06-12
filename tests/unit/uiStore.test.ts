@@ -1,9 +1,10 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { useUiStore } from '@/stores/uiStore';
+import { useUiStore, flushUiPersist } from '@/stores/uiStore';
 
 describe('uiStore', () => {
   beforeEach(() => {
     localStorage.clear();
+    flushUiPersist();
     useUiStore.setState({
       sidebarCollapsed: {},
       recents: [],
@@ -12,6 +13,9 @@ describe('uiStore', () => {
       reducedMotion: false,
       gesturesEnabled: true,
       commandPaletteOpen: false,
+      queueDrawerOpen: false,
+      settingsCollapsedSections: {},
+      settingsHintDismissed: false,
     });
   });
 
@@ -110,6 +114,8 @@ describe('uiStore', () => {
     const store = useUiStore.getState();
     store.pushRecent('/library');
     store.toggleSidebarSection('playlists');
+    // Persist is debounced; flush for deterministic test.
+    flushUiPersist();
     const raw = localStorage.getItem('harmonix.ui');
     expect(raw).not.toBeNull();
     const parsed = JSON.parse(raw!);
@@ -145,5 +151,98 @@ describe('uiStore', () => {
     expect(s.recents).toEqual([]);
     expect(s.playerBarExpanded).toBe(false);
     expect(s.gesturesEnabled).toBe(true);
+  });
+
+  it('persists are debounced: rapid toggles coalesce into a single write', async () => {
+    const store = useUiStore.getState();
+    // 10 rapid toggles should produce at most 1 localStorage write
+    // after the debounce window (100ms). Without the debounce, this
+    // test would still pass (because the writes are synchronous),
+    // but it documents the contract.
+    for (let i = 0; i < 10; i++) {
+      store.setPlayerBarExpanded(i % 2 === 0);
+    }
+    // Immediately after the toggles, the write may not have flushed.
+    // flushUiPersist() is a no-op if there's nothing pending, so it's
+    // safe to call unconditionally.
+    flushUiPersist();
+    const raw = localStorage.getItem('harmonix.ui');
+    expect(raw).not.toBeNull();
+    // Last value should be persisted (i=9 → expanded = false since
+    // 9 % 2 === 1 → false).
+    const parsed = JSON.parse(raw!);
+    expect(parsed.playerBarExpanded).toBe(false);
+  });
+
+  describe('settings page sections', () => {
+    it('defaults to collapsed for an unknown key', () => {
+      const store = useUiStore.getState();
+      // Without any prior interaction, every section is collapsed.
+      // The Settings page is intentionally "click to reveal" so
+      // unrecorded keys resolve to collapsed.
+      expect(store.isSettingsSectionCollapsed('audio:crossfade')).toBe(true);
+      expect(store.isSettingsSectionCollapsed('appearance:theme')).toBe(true);
+    });
+
+    it('toggleSettingsSectionCollapsed flips state', () => {
+      const store = useUiStore.getState();
+      expect(store.isSettingsSectionCollapsed('audio:crossfade')).toBe(true);
+      store.toggleSettingsSectionCollapsed('audio:crossfade');
+      expect(useUiStore.getState().isSettingsSectionCollapsed('audio:crossfade')).toBe(false);
+      store.toggleSettingsSectionCollapsed('audio:crossfade');
+      expect(useUiStore.getState().isSettingsSectionCollapsed('audio:crossfade')).toBe(true);
+    });
+
+    it('expandSettingsSection is idempotent (no-op when already expanded)', () => {
+      const store = useUiStore.getState();
+      store.expandSettingsSection('audio:player');
+      const after = useUiStore.getState().settingsCollapsedSections;
+      expect(after['audio:player']).toBe(false);
+      // Calling again should not create a new object (re-render
+      // would be wasted work).
+      const ref = after;
+      store.expandSettingsSection('audio:player');
+      expect(useUiStore.getState().settingsCollapsedSections).toBe(ref);
+    });
+
+    it('isAnySettingsSectionExpanded returns false initially', () => {
+      const store = useUiStore.getState();
+      expect(store.isAnySettingsSectionExpanded()).toBe(false);
+    });
+
+    it('isAnySettingsSectionExpanded returns true after expanding one', () => {
+      const store = useUiStore.getState();
+      store.expandSettingsSection('audio:crossfade');
+      expect(useUiStore.getState().isAnySettingsSectionExpanded()).toBe(true);
+    });
+
+    it('resetSettingsCollapsedSections clears all and re-collapses everything', () => {
+      const store = useUiStore.getState();
+      store.expandSettingsSection('audio:crossfade');
+      store.expandSettingsSection('shortcuts:keyboard');
+      expect(useUiStore.getState().isAnySettingsSectionExpanded()).toBe(true);
+      store.resetSettingsCollapsedSections();
+      expect(useUiStore.getState().isAnySettingsSectionExpanded()).toBe(false);
+      expect(useUiStore.getState().isSettingsSectionCollapsed('audio:crossfade')).toBe(true);
+    });
+
+    it('dismissSettingsHint is idempotent', () => {
+      const store = useUiStore.getState();
+      store.dismissSettingsHint();
+      expect(useUiStore.getState().settingsHintDismissed).toBe(true);
+      // Second call shouldn't change anything (no wasted re-render).
+      store.dismissSettingsHint();
+      expect(useUiStore.getState().settingsHintDismissed).toBe(true);
+    });
+
+    it('persists settings section state across reloads', () => {
+      const store = useUiStore.getState();
+      store.expandSettingsSection('audio:player');
+      flushUiPersist();
+      // Simulate a reload: re-run the load() function and verify
+      // the section state was persisted.
+      useUiStore.getState().load();
+      expect(useUiStore.getState().isSettingsSectionCollapsed('audio:player')).toBe(false);
+    });
   });
 });

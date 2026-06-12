@@ -50,12 +50,17 @@ export function useGestures(options: UseGesturesOptions = {}): void {
   const startRef = useRef<{ x: number; y: number; t: number; touches: Touch[] } | null>(null);
   const lastTapRef = useRef<number>(0);
   const gestureStartDistRef = useRef<number | null>(null);
-  const targetRef = useRef<EventTarget | null>(null);
+  // Holds the actual DOM element (or window) we attached our event
+  // listeners to at mount-time. The cleanup MUST remove listeners
+  // from this exact target — using `options.targetRef?.current`
+  // at cleanup time would race with the consumer re-rendering the
+  // target element out from under us.
+  const attachedTargetRef = useRef<EventTarget | null>(null);
   useEffect(() => {
     if (!effective) return undefined;
     if (typeof window === 'undefined') return undefined;
-    const target = options.targetRef?.current ?? window;
-    targetRef.current = target;
+    const target: EventTarget = options.targetRef?.current ?? window;
+    attachedTargetRef.current = target;
 
     const onTouchStart = (e: TouchEvent): void => {
       if (isInteractiveTarget(e.target)) return;
@@ -139,10 +144,17 @@ export function useGestures(options: UseGesturesOptions = {}): void {
     target.addEventListener('wheel', onWheel as EventListener, { passive: true });
 
     return () => {
-      targetRef.current?.removeEventListener('touchstart', onTouchStart as EventListener);
-      targetRef.current?.removeEventListener('touchmove', onTouchMove as EventListener);
-      targetRef.current?.removeEventListener('touchend', onTouchEnd as EventListener);
-      targetRef.current?.removeEventListener('wheel', onWheel as EventListener);
+      // Detach from the exact target we attached to. Using
+      // `attachedTargetRef.current` (captured at mount) instead
+      // of `options.targetRef?.current` (which may have changed
+      // by unmount) prevents a listener leak when the consumer
+      // swaps out the ref target between mount and unmount.
+      const t = attachedTargetRef.current ?? target;
+      t.removeEventListener('touchstart', onTouchStart as EventListener);
+      t.removeEventListener('touchmove', onTouchMove as EventListener);
+      t.removeEventListener('touchend', onTouchEnd as EventListener);
+      t.removeEventListener('wheel', onWheel as EventListener);
+      attachedTargetRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [effective, swipeThreshold, doubleTapMs, pinchThreshold]);

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { audioEngine } from '@/lib/audio/engine';
 import { useUiStore } from '@/stores/uiStore';
 import { useEffectiveVisualizerQuality } from '@/hooks/useVisualizerQuality';
@@ -24,11 +24,15 @@ function prefersReducedMotion(): boolean {
 }
 
 export function useAudioAnalyser(active: boolean, fftSize: number = 128): AudioAnalyserHandle {
-  const analyserRef = useRef<AnalyserNode | null>(null);
-  const dataRef = useRef<Uint8Array<ArrayBuffer> | null>(null);
+  const [analyser, setAnalyser] = useState<AnalyserNode | null>(null);
+  const [data, setData] = useState<Uint8Array<ArrayBuffer> | null>(null);
 
   useEffect(() => {
-    if (!active) return undefined;
+    if (!active) {
+      setAnalyser(null);
+      setData(null);
+      return undefined;
+    }
     if (typeof window === 'undefined') return undefined;
     if (prefersReducedMotion()) return undefined;
 
@@ -36,32 +40,34 @@ export function useAudioAnalyser(active: boolean, fftSize: number = 128): AudioA
     if (!gain || !('createAnalyser' in (gain.context as AudioContext))) return undefined;
 
     const ctx = gain.context as AudioContext;
+    let created: AnalyserNode | null = null;
     try {
-      const analyser = ctx.createAnalyser();
-      analyser.fftSize = fftSize;
-      analyser.smoothingTimeConstant = 0.82;
-      gain.connect(analyser);
-      analyserRef.current = analyser;
-      dataRef.current = new Uint8Array(analyser.frequencyBinCount);
+      const node = ctx.createAnalyser();
+      node.fftSize = fftSize;
+      node.smoothingTimeConstant = 0.82;
+      gain.connect(node);
+      created = node;
+      setAnalyser(node);
+      setData(new Uint8Array(node.frequencyBinCount));
     } catch (err) {
       console.warn('[AudioAnalyser] init failed:', err);
       return undefined;
     }
 
     return () => {
-      if (analyserRef.current) {
+      if (created) {
         try {
-          analyserRef.current.disconnect();
+          created.disconnect();
         } catch {
           // ignore
         }
-        analyserRef.current = null;
       }
-      dataRef.current = null;
+      setAnalyser(null);
+      setData(null);
     };
   }, [active, fftSize]);
 
-  return { analyser: analyserRef.current, data: dataRef.current };
+  return { analyser, data };
 }
 
 export interface FrequencyBarsProps {
@@ -387,7 +393,6 @@ export function ParticleField({
       canvas.width = w * dpr;
       canvas.height = h * dpr;
       const ctx = canvas.getContext('2d');
-      if (ctx) ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       if (ctx) ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       if (particlesRef.current.length === 0) {
         particlesRef.current = Array.from({ length: particleCount }, () => ({

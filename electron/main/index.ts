@@ -2,6 +2,7 @@ import './env';
 import { app, BrowserWindow, ipcMain, safeStorage } from 'electron';
 import { initDatabase, closeDatabase } from './db';
 import { setElectronApp } from './auth/tokenStore';
+import { migrateTokenFiles } from './auth/tokenStore';
 import { setElectronAppForYtDlp } from './sources/ytmusic/ytdlp';
 import { initializeAllSources, shutdownAllSources, registerSource } from './sources/registry';
 import { LocalSource } from './sources/local';
@@ -59,6 +60,10 @@ process.on('uncaughtException', (err) => {
 });
 
 setElectronApp(app, safeStorage);
+// Migrate any legacy `.bin` token files to the new `.bin.enc` /
+// `.bin.plain` naming. Safe to call on every startup — it's a
+// no-op when there's nothing to migrate.
+migrateTokenFiles();
 setElectronAppForYtDlp(app);
 
 function registerBaseIpc(): void {

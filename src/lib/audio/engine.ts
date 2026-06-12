@@ -27,6 +27,20 @@ export class AudioEngine {
   };
   private state: PlaybackState = 'idle';
 
+  // Bound listener references so we can detach cleanly. Without
+  // these, every track switch left anonymous arrow function listeners
+  // attached to a soon-to-be-GC'd <audio> element. The closures
+  // themselves are not a memory leak (the engine is a singleton
+  // and the audio is GC'd along with the listeners), but the
+  // pattern was fragile and confusing in DevTools.
+  // Each entry is a pair: [boundFunction, this] — we keep `this`
+  // here to make the binding stable across the class.
+  private boundLoadedMetadata: (() => void) | null = null;
+  private boundTimeUpdate: (() => void) | null = null;
+  private boundPlay: (() => void) | null = null;
+  private boundPause: (() => void) | null = null;
+  private boundEnded: (() => void) | null = null;
+
   private ensureContext(): AudioContext | null {
     if (!this.ctx) {
       try {
@@ -129,7 +143,15 @@ export class AudioEngine {
     this.cancelPreload();
     const audio = new Audio();
     audio.preload = 'auto';
-    if (url.startsWith('file://')) {
+    // `crossOrigin='anonymous'` is required when the audio is wired
+    // into a Web Audio source node via `createMediaElementSource`,
+    // otherwise the source is CORS-tainted and the audio is silent.
+    // EXCEPTION: `file://` is intrinsically same-origin; requesting
+    // CORS headers from `file://` makes Chromium treat the request
+    // as CORS-tainted, which breaks the Web Audio wiring. Omit the
+    // attribute for `file://` to preserve the implicit-same-origin
+    // behavior.
+    if (!url.startsWith('file://')) {
       audio.crossOrigin = 'anonymous';
     }
     audio.src = url;
@@ -203,6 +225,8 @@ export class AudioEngine {
       const reused = this.preloadedAudio;
       this.preloadedAudio = null;
       this.preloadedUrl = null;
+      // Detach listeners on the old audio before reusing it.
+      this.detachAudioListeners(reused);
       this.cleanupCurrentAudio();
       this.currentAudio = reused;
 
@@ -232,11 +256,17 @@ export class AudioEngine {
     this.cancelPreload();
     this.cleanupCurrentAudio();
     const audio = new Audio();
-    // crossOrigin='anonymous' is required when the audio element is
-    // wired into a Web Audio source node, otherwise the source is
-    // CORS-tainted and the audio is silent. For local file:// URLs
-    // the attribute is irrelevant.
-    audio.crossOrigin = 'anonymous';
+    // `crossOrigin='anonymous'` is required when the audio element is
+    // wired into a Web Audio source node via `createMediaElementSource`,
+    // otherwise the source is CORS-tainted and the audio is silent.
+    // EXCEPTION: local `file://` URLs are intrinsically same-origin;
+    // requesting CORS headers from `file://` makes Chromium treat the
+    // request as CORS-tainted, which breaks Web Audio wiring on some
+    // platforms. Omit the attribute for `file://` to preserve the
+    // implicit-same-origin behavior.
+    if (!url.startsWith('file://')) {
+      audio.crossOrigin = 'anonymous';
+    }
     audio.preload = 'auto';
     audio.src = url;
     this.currentAudio = audio;
@@ -288,9 +318,11 @@ export class AudioEngine {
 
   private cleanupCurrentAudio(): void {
     if (this.currentAudio) {
+      this.detachAudioListeners(this.currentAudio);
       this.currentAudio.pause();
-      this.currentAudio.removeEventListener('error', this.handleAudioError);
       this.currentAudio.removeAttribute('src');
+      // Reset src to an empty string so Chromium drops the network
+      // connection immediately rather than waiting for GC.
       this.currentAudio.src = '';
       if (this.sourceNode) {
         try {
@@ -301,6 +333,25 @@ export class AudioEngine {
         this.sourceNode = null;
       }
     }
+  }
+
+  /**
+   * Removes every listener attached via `attachAllListeners`. We
+   * hold the bound function references on the instance so we can
+   * detach cleanly; previously the listeners were anonymous arrow
+   * functions and could not be removed, leaving dead handlers
+   * attached to a soon-to-be-GC'd <audio> element. Even though
+   * the element is unreachable, the closures over `this` made
+   * future debugging confusing and the pattern was fragile.
+   */
+  private detachAudioListeners(audio: HTMLAudioElement): void {
+    if (this.boundLoadedMetadata)
+      audio.removeEventListener('loadedmetadata', this.boundLoadedMetadata);
+    if (this.boundTimeUpdate) audio.removeEventListener('timeupdate', this.boundTimeUpdate);
+    if (this.boundPlay) audio.removeEventListener('play', this.boundPlay);
+    if (this.boundPause) audio.removeEventListener('pause', this.boundPause);
+    if (this.boundEnded) audio.removeEventListener('ended', this.boundEnded);
+    audio.removeEventListener('error', this.handleAudioError);
   }
 
   /**
@@ -320,20 +371,44 @@ export class AudioEngine {
   };
 
   private attachAllListeners(audio: HTMLAudioElement): void {
-    audio.addEventListener('loadedmetadata', () => {
-      this.emit('time', 0, Math.round(audio.duration * 1000));
-    });
-    audio.addEventListener('timeupdate', () => {
-      this.emit('time', Math.round(audio.currentTime * 1000), Math.round(audio.duration * 1000));
-    });
-    audio.addEventListener('play', () => this.setState('playing'));
-    audio.addEventListener('pause', () => {
-      if (this.state !== 'loading') this.setState('paused');
-    });
-    audio.addEventListener('ended', () => {
-      this.setState('idle');
-      this.emit('ended');
-    });
+    // Lazily create the bound listeners once and reuse. The
+    // handlers look up the current audio via `this.currentAudio`
+    // instead of capturing it in a closure, so the same bound
+    // function can be attached to / detached from successive
+    // <audio> elements without leaking references to the old one.
+    if (!this.boundLoadedMetadata) {
+      this.boundLoadedMetadata = (): void => {
+        const a = this.currentAudio;
+        if (!a) return;
+        this.emit('time', 0, Math.round(a.duration * 1000));
+      };
+    }
+    if (!this.boundTimeUpdate) {
+      this.boundTimeUpdate = (): void => {
+        const a = this.currentAudio;
+        if (!a) return;
+        this.emit('time', Math.round(a.currentTime * 1000), Math.round(a.duration * 1000));
+      };
+    }
+    if (!this.boundPlay) {
+      this.boundPlay = (): void => this.setState('playing');
+    }
+    if (!this.boundPause) {
+      this.boundPause = (): void => {
+        if (this.state !== 'loading') this.setState('paused');
+      };
+    }
+    if (!this.boundEnded) {
+      this.boundEnded = (): void => {
+        this.setState('idle');
+        this.emit('ended');
+      };
+    }
+    audio.addEventListener('loadedmetadata', this.boundLoadedMetadata);
+    audio.addEventListener('timeupdate', this.boundTimeUpdate);
+    audio.addEventListener('play', this.boundPlay);
+    audio.addEventListener('pause', this.boundPause);
+    audio.addEventListener('ended', this.boundEnded);
     audio.addEventListener('error', this.handleAudioError);
   }
 
