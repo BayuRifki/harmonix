@@ -1,63 +1,63 @@
-import { SourcePicker } from '@/features/settings/SourcePicker';
-import { SpotifyLoginButton } from '@/features/settings/SpotifyLoginButton';
-import { YtMusicStatus } from '@/features/settings/YtMusicStatus';
-import { ThemePicker } from '@/features/settings/ThemePicker';
-import { ThemePanel } from '@/features/settings/ThemePanel';
-import { MemoryPanel } from '@/features/settings/MemoryPanel';
-import { KeyboardShortcutsPanel } from '@/features/settings/KeyboardShortcutsPanel';
-import { CrossfadePanel } from '@/features/settings/CrossfadePanel';
-import { PerformancePanel } from '@/features/settings/PerformancePanel';
-import { NavigationPanel } from '@/features/settings/NavigationPanel';
-import { PlayerPanel } from '@/features/settings/PlayerPanel';
+import { SettingsLayout } from './SettingsLayout';
 
+/**
+ * Backward-compatible entry point for the Settings page.
+ *
+ * The old `SettingsView` was a single flat list of 12+ panels
+ * stacked vertically, which overflowed the viewport on most
+ * displays and left a large blank "below the fold" area. The new
+ * layout splits those panels into 5 tabs (Appearance / Audio /
+ * Shortcuts / Performance / Sources) and lets the user collapse
+ * each section individually.
+ *
+ * Routing: `/settings/*` → `SettingsView` → `SettingsLayout` →
+ * `SettingsTabs`. The default tab is `appearance`; deep links to
+ * `/settings/audio`, `/settings/sources`, etc. are handled by
+ * `SettingsTabs`'s internal redirect-on-unknown-path logic.
+ *
+ * The "About" section that used to be a top-level panel is now
+ * a small footer below the tabs (it was just two external links
+ * and didn't deserve its own tab). See `AboutFooter` below.
+ */
 export function SettingsView(): JSX.Element {
   return (
-    <div className="h-full p-8">
-      <h1 className="text-2xl font-bold text-app mb-2">Settings</h1>
-      <p className="text-app-muted mb-6">Configure Harmonix to your liking.</p>
+    <>
+      <SettingsLayout />
+      <AboutFooter />
+    </>
+  );
+}
 
-      <div className="space-y-4 max-w-6xl">
-        <section className="bg-surface border border-app rounded-lg p-4">
-          <h2 className="text-sm font-semibold text-app mb-3">Appearance</h2>
-          <ThemePicker />
-        </section>
-
-        <ThemePanel />
-        <CrossfadePanel />
-        <KeyboardShortcutsPanel />
-        <MemoryPanel />
-        <PerformancePanel />
-        <NavigationPanel />
-        <PlayerPanel />
-
-        <SpotifyLoginButton />
-        <YtMusicStatus />
-        <SourcePicker />
-
-        <section className="bg-surface border border-app rounded-lg p-4">
-          <h2 className="text-sm font-semibold text-app mb-3">About</h2>
-          <p className="text-sm text-app-muted">
-            See{' '}
-            <a
-              href="https://github.com/BayuRifki/harmonix/blob/main/docs/LEGAL.md"
-              className="text-accent hover:underline"
-            >
-              docs/LEGAL.md
-            </a>{' '}
-            for disclaimers regarding unofficial integrations.
-          </p>
-          <p className="text-sm text-app-muted mt-2">
-            See{' '}
-            <a
-              href="https://github.com/BayuRifki/harmonix/blob/main/docs/SOURCES.md"
-              className="text-accent hover:underline"
-            >
-              docs/SOURCES.md
-            </a>{' '}
-            to learn how to add a new music source.
-          </p>
-        </section>
-      </div>
-    </div>
+function AboutFooter(): JSX.Element {
+  return (
+    <footer
+      data-testid="settings-about-footer"
+      className="mt-8 pt-4 border-t border-app text-[11px] text-app-muted"
+    >
+      <p>
+        See{' '}
+        <a
+          href="https://github.com/BayuRifki/harmonix/blob/main/docs/LEGAL.md"
+          className="text-accent hover:underline"
+          target="_blank"
+          rel="noreferrer"
+        >
+          docs/LEGAL.md
+        </a>{' '}
+        for disclaimers regarding unofficial integrations.
+      </p>
+      <p className="mt-1">
+        See{' '}
+        <a
+          href="https://github.com/BayuRifki/harmonix/blob/main/docs/SOURCES.md"
+          className="text-accent hover:underline"
+          target="_blank"
+          rel="noreferrer"
+        >
+          docs/SOURCES.md
+        </a>{' '}
+        to learn how to add a new music source.
+      </p>
+    </footer>
   );
 }

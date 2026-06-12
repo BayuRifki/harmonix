@@ -206,7 +206,7 @@ function MainApp(): JSX.Element {
                     }
                   />
                   <Route
-                    path="/settings"
+                    path="/settings/*"
                     element={
                       <PageTransition>
                         <SettingsView />
