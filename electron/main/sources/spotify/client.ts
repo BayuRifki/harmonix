@@ -300,7 +300,19 @@ export class SpotifyClient {
         body: body.toString(),
       });
       if (!response.ok) {
-        console.warn(`[spotify] Token refresh failed: ${response.status}`);
+        // Read the body so the user (and the renderer console) can
+        // disambiguate `invalid_grant` (refresh token revoked or
+        // expired → user needs to re-auth) from `invalid_request`
+        // (malformed body → bug) from `invalid_client` (client_id
+        // mismatch). Just logging the status code — what the previous
+        // implementation did — gives no actionable signal.
+        let body = '';
+        try {
+          body = (await response.text()).slice(0, 500);
+        } catch {
+          // ignore — best-effort
+        }
+        console.warn(`[spotify] Token refresh failed: ${response.status} — ${body}`);
         return null;
       }
       const data = (await response.json()) as TokenResponse;
