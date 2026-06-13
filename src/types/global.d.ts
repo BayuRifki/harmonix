@@ -135,8 +135,8 @@ export interface HarmonixApi {
     getFolders(): Promise<ScanFolder[]>;
     getTracks(opts?: { limit?: number; offset?: number; query?: string }): Promise<Track[]>;
     getTrack(id: number | string): Promise<Track | null>;
-    getAlbums(): Promise<AlbumSummary[]>;
-    getArtists(): Promise<ArtistSummary[]>;
+    getAlbums(opts?: { limit?: number }): Promise<AlbumSummary[]>;
+    getArtists(opts?: { limit?: number }): Promise<ArtistSummary[]>;
     getStats(): Promise<LibraryStats>;
     playTrack(trackId: string): Promise<StreamInfo>;
     onScanComplete(handler: (event: ScanCompleteEvent) => void): () => void;

@@ -27,6 +27,19 @@ export class AudioEngine {
   };
   private state: PlaybackState = 'idle';
 
+  // Shared frequency-data pool, keyed by fftSize. Multiple visualizers
+  // and animated backgrounds want the same audio spectrum data, but
+  // creating a dedicated AnalyserNode per consumer is wasteful — each
+  // AnalyserNode runs its own independent FFT pass on every draw tick.
+  // Instead, we hand out the same AnalyserNode + Uint8Array buffer to
+  // every subscriber of a given fftSize. A ref-count tracks live
+  // subscribers so we can disconnect the analyser when nothing's
+  // listening (and free the FFT CPU work).
+  private sharedAnalysers: Map<
+    number,
+    { node: AnalyserNode; data: Uint8Array<ArrayBuffer>; refCount: number }
+  > = new Map();
+
   // Bound listener references so we can detach cleanly. Without
   // these, every track switch left anonymous arrow function listeners
   // attached to a soon-to-be-GC'd <audio> element. The closures
@@ -104,6 +117,67 @@ export class AudioEngine {
       // eslint-disable-next-line no-console
       console.warn('[audioEngine] pre-EQ analyser init failed:', (err as Error).message);
       return null;
+    }
+  }
+
+  /**
+   * Returns a shared post-gain `AnalyserNode` + scratch buffer for the
+   * given `fftSize`. Multiple consumers (visualizers, animated
+   * backgrounds, particle fields) all read from the same analyser;
+   * no consumer pays for an independent FFT pass. The caller MUST
+   * pair every `acquire` with a `release` to drop its refcount —
+   * when the refcount hits 0 the analyser is disconnected and the
+   * FFT CPU work stops. Returns `null` if the audio context has not
+   * been created yet (no audio has been loaded).
+   *
+   * Consumers should keep a local reference to `data` across draws:
+   * the buffer is reused (zero allocations per frame) and gets
+   * overwritten by `analyser.getByteFrequencyData(data)`.
+   */
+  acquireSharedAnalyser(
+    fftSize: number,
+  ): { node: AnalyserNode; data: Uint8Array<ArrayBuffer> } | null {
+    const ctx = this.ensureContext();
+    if (!ctx) return null;
+    const existing = this.sharedAnalysers.get(fftSize);
+    if (existing) {
+      existing.refCount += 1;
+      return { node: existing.node, data: existing.data };
+    }
+    if (!this.gainNode) return null;
+    try {
+      const node = ctx.createAnalyser();
+      node.fftSize = fftSize;
+      node.smoothingTimeConstant = 0.82;
+      this.gainNode.connect(node);
+      const data = new Uint8Array(node.frequencyBinCount) as Uint8Array<ArrayBuffer>;
+      this.sharedAnalysers.set(fftSize, { node, data, refCount: 1 });
+      return { node, data };
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.warn('[audioEngine] shared analyser init failed:', (err as Error).message);
+      return null;
+    }
+  }
+
+  /**
+   * Releases a shared analyser previously acquired via
+   * `acquireSharedAnalyser`. When the last subscriber releases, the
+   * analyser is disconnected from the gain node and removed from the
+   * pool, freeing the FFT work. Idempotent: calling release without
+   * a matching acquire is a no-op.
+   */
+  releaseSharedAnalyser(fftSize: number): void {
+    const entry = this.sharedAnalysers.get(fftSize);
+    if (!entry) return;
+    entry.refCount = Math.max(0, entry.refCount - 1);
+    if (entry.refCount === 0) {
+      try {
+        entry.node.disconnect();
+      } catch {
+        // ignore
+      }
+      this.sharedAnalysers.delete(fftSize);
     }
   }
 
@@ -462,6 +536,14 @@ export class AudioEngine {
       }
       this.preEqAnalyser = null;
     }
+    for (const { node } of this.sharedAnalysers.values()) {
+      try {
+        node.disconnect();
+      } catch {
+        // ignore
+      }
+    }
+    this.sharedAnalysers.clear();
     try {
       equalizer.disconnect();
     } catch {

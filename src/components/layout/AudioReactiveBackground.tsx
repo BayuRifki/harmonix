@@ -47,35 +47,21 @@ export function AudioReactiveBackground(): JSX.Element | null {
       return undefined;
     }
 
-    const gain = audioEngine.getGainNode();
-    if (!gain || !('createAnalyser' in (gain.context as AudioContext))) {
+    // Use the engine's shared post-gain analyser so we don't pay for
+    // an independent FFT pass on every particle field. The refcount
+    // is released when the effect tears down (or the background
+    // unmounts), so an idle background costs nothing.
+    const acquired = audioEngine.acquireSharedAnalyser(FFT_SIZE);
+    if (!acquired) {
       setSupported(false);
       return undefined;
     }
-
-    const ctx = gain.context as AudioContext;
-    try {
-      const analyser = ctx.createAnalyser();
-      analyser.fftSize = FFT_SIZE;
-      analyser.smoothingTimeConstant = 0.82;
-      gain.connect(analyser);
-      analyserRef.current = analyser;
-      dataRef.current = new Uint8Array(analyser.frequencyBinCount);
-    } catch (err) {
-      console.warn('[AudioReactiveBackground] Failed to create analyser:', err);
-      setSupported(false);
-      return undefined;
-    }
+    analyserRef.current = acquired.node;
+    dataRef.current = acquired.data;
 
     return () => {
-      if (analyserRef.current) {
-        try {
-          analyserRef.current.disconnect();
-        } catch {
-          // ignore
-        }
-        analyserRef.current = null;
-      }
+      audioEngine.releaseSharedAnalyser(FFT_SIZE);
+      analyserRef.current = null;
       dataRef.current = null;
     };
   }, [deferred]);

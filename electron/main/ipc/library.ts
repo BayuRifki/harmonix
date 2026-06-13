@@ -3,9 +3,9 @@ import {
   getAllTracks,
   searchTracks,
   getTrackById,
-  getTrackCount,
   getAlbums,
   getArtists,
+  getLibraryStats,
   addScanFolder,
   removeScanFolder,
   getScanFolders,
@@ -76,20 +76,18 @@ export function registerLibraryHandlers(getMainWindow: () => BrowserWindow | nul
     return row ? rowToTrack(row) : null;
   });
 
-  ipcMain.handle('library:get-albums', async () => {
-    return getAlbums();
+  ipcMain.handle('library:get-albums', async (_evt, opts: { limit?: number } = {}) => {
+    return getAlbums(opts.limit ?? 500);
   });
 
-  ipcMain.handle('library:get-artists', async () => {
-    return getArtists();
+  ipcMain.handle('library:get-artists', async (_evt, opts: { limit?: number } = {}) => {
+    return getArtists(opts.limit ?? 500);
   });
 
   ipcMain.handle('library:get-stats', async () => {
-    return {
-      trackCount: getTrackCount(),
-      albumCount: getAlbums().length,
-      artistCount: getArtists().length,
-    };
+    // Single SQL round-trip; no more materialising two distinct
+    // lists in JS just to read their .length.
+    return getLibraryStats();
   });
 
   ipcMain.handle('library:play-track', async (_evt, trackId: string) => {

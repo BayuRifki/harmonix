@@ -35,11 +35,28 @@ import { registerAudioProxyProtocol } from './audioProxy';
 import { createTray, destroyTray } from './tray';
 import { getSetting, setSetting } from './db/settingsRepository';
 
-const MAX_HEAP_MB = process.env.HARMONIX_MAX_HEAP_MB ?? '6144';
-const MAX_SEMI_MB = process.env.HARMONIX_MAX_SEMI_MB ?? '256';
+// V8 heap caps for the main process.
+//
+// The previous defaults (6144 MB old-space, 256 MB new-space) were
+// tuned for a server workload — a music player doesn't need 6 GB of
+// addressable heap, and an over-generous cap actively hurts RAM use
+// because:
+//   1. V8 reserves the cap from the OS at startup, even if it
+//      never uses it (so the process RSS sits at 100-300 MB just
+//      from the V8 cage, not from real allocations).
+//   2. A bigger heap means longer GC pauses and a much larger
+//      "to-space" for copying collections.
+//
+// 2048 MB old / 64 MB new is enough to comfortably hold the source
+// registry, all source adapters' in-memory caches, the SQLite
+// prepared-statement pool, the yt-dlp child process stdin buffer,
+// and the audio proxy's stream registry, with headroom. If a
+// deployment ever needs more, raise HARMONIX_MAX_HEAP_MB at launch.
+const MAX_HEAP_MB = process.env.HARMONIX_MAX_HEAP_MB ?? '2048';
+const MAX_SEMI_MB = process.env.HARMONIX_MAX_SEMI_MB ?? '64';
 app.commandLine.appendSwitch(
   'js-flags',
-  `--max-old-space-size=${MAX_HEAP_MB} --max-semi-space-size=${MAX_SEMI_MB} --no-incremental-marking`,
+  `--max-old-space-size=${MAX_HEAP_MB} --max-semi-space-size=${MAX_SEMI_MB}`,
 );
 
 let mainMemLogInterval: NodeJS.Timeout | null = null;

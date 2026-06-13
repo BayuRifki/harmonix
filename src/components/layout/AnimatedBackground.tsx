@@ -56,33 +56,19 @@ export function AnimatedBackground(): JSX.Element {
       setBassPulse(0);
       return undefined;
     }
+    const acquired = audioEngine.acquireSharedAnalyser(64);
+    if (!acquired) return undefined;
+    const { node: analyser, data } = acquired;
     let raf: number | null = null;
     let lastBass = 0;
-    let analyser: AnalyserNode | null = null;
-    let data: Uint8Array | null = null;
-    const gain = audioEngine.getGainNode();
-    if (gain && 'createAnalyser' in (gain.context as AudioContext)) {
+    const sample = (): void => {
       try {
-        const ctx = gain.context as AudioContext;
-        analyser = ctx.createAnalyser();
-        analyser.fftSize = 64;
-        gain.connect(analyser);
-        data = new Uint8Array(analyser.frequencyBinCount);
+        analyser.getByteFrequencyData(data);
+        let sum = 0;
+        for (let i = 0; i < 4; i++) sum += data[i] ?? 0;
+        lastBass = sum / 4 / 255;
       } catch {
         // ignore
-      }
-    }
-    const sample = (): void => {
-      if (analyser && data) {
-        try {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          analyser.getByteFrequencyData(data as any);
-          let sum = 0;
-          for (let i = 0; i < 4; i++) sum += data[i] ?? 0;
-          lastBass = sum / 4 / 255;
-        } catch {
-          // ignore
-        }
       }
       setBassPulse(lastBass);
       raf = requestAnimationFrame(sample);
@@ -90,13 +76,7 @@ export function AnimatedBackground(): JSX.Element {
     raf = requestAnimationFrame(sample);
     return (): void => {
       if (raf !== null) cancelAnimationFrame(raf);
-      if (analyser) {
-        try {
-          analyser.disconnect();
-        } catch {
-          // ignore
-        }
-      }
+      audioEngine.releaseSharedAnalyser(64);
     };
   }, [isPlaying, reduced, userReducedMotion]);
 

@@ -71,12 +71,23 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
   setActiveTab: (activeTab) => set({ activeTab }),
 
   refresh: async () => {
+    // Skip when we've already populated the store. HomeView mounts
+    // on every navigation back to `/` and previously re-issued the
+    // full refresh (tracks/albums/artists/folders/stats = 5 IPC
+    // round trips + ~5 MB of JSON to clone back into the V8 heap
+    // each time). Refresh only happens on explicit user actions
+    // (scan, remove, manual reload).
+    if (get().tracks.length > 0 || get().loading) return;
     set({ loading: true });
     try {
+      // 500 tracks is enough to fill any reasonable LibraryView
+      // viewport; the list already virtualises beyond that, and
+      // pulling 1000 was just doubling the JSON.parse + structured-
+      // clone cost on every refresh for no visible benefit.
       const [tracks, albums, artists, folders, stats] = await Promise.all([
-        window.api.library.getTracks({ limit: 1000 }),
-        window.api.library.getAlbums(),
-        window.api.library.getArtists(),
+        window.api.library.getTracks({ limit: 500 }),
+        window.api.library.getAlbums({ limit: 500 }),
+        window.api.library.getArtists({ limit: 500 }),
         window.api.library.getFolders(),
         window.api.library.getStats(),
       ]);

@@ -1,4 +1,11 @@
-export { initDatabase, getDb, persist, closeDatabase, getDbPath } from './database';
+export {
+  initDatabase,
+  getDb,
+  persist,
+  closeDatabase,
+  getDbPath,
+  __withBatchedPersist,
+} from './database';
 export {
   upsertTrack,
   getAllTracks,
@@ -8,6 +15,7 @@ export {
   getAlbums,
   getArtists,
   getTrackCount,
+  getLibraryStats,
   deleteTrack,
   deleteTracksNotIn,
   markPlayed,

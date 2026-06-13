@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useShallow } from 'zustand/react/shallow';
 import { usePlayerStore } from '@/stores/playerStore';
 import { useSourcesStore } from '@/stores/sourcesStore';
 import { useUiStore } from '@/stores/uiStore';
@@ -129,8 +130,32 @@ export function PlayerBar({ isHomePage = false }: PlayerBarProps): JSX.Element {
   const navigate = useNavigate();
   const currentTrack = usePlayerStore((s) => s.currentTrack);
   const volume = usePlayerStore((s) => s.volume);
-  const queue = usePlayerStore((s) => s.queue);
+  // The "up next" preview only ever shows 3 tracks starting at
+  // queueIndex+1. Subscribing to the full `s.queue` array means
+  // any re-order/replace/remap fires a re-render even when none
+  // of the up-next IDs changed. Subscribe instead to the small
+  // derived slice — useShallow compares the array by element
+  // identity, so a queue append at the tail (or a remove of an
+  // earlier item) doesn't trigger this re-render unless it
+  // actually moves the visible window.
+  const nextThree = usePlayerStore(
+    useShallow((s) => {
+      const start = s.queueIndex + 1;
+      const a = s.queue[start];
+      const b = s.queue[start + 1];
+      const c = s.queue[start + 2];
+      const out: typeof s.queue = [];
+      if (a) out.push(a);
+      if (b) out.push(b);
+      if (c) out.push(c);
+      return out;
+    }),
+  );
+  // We need queue.length + queueIndex for the "track N of M"
+  // progress bar. These are scalar subscribes — no array
+  // re-render churn, no useShallow needed.
   const queueIndex = usePlayerStore((s) => s.queueIndex);
+  const queueLength = usePlayerStore((s) => s.queue.length);
   const error = usePlayerStore((s) => s.error);
   const registrations = useSourcesStore((s) => s.registrations);
   const sourceName =
@@ -167,8 +192,6 @@ export function PlayerBar({ isHomePage = false }: PlayerBarProps): JSX.Element {
     return () => window.removeEventListener('keydown', onKey);
   }, [isExpanded, playerBarPinned]);
 
-  const nextThree = queue.slice(queueIndex + 1, queueIndex + 4);
-
   return (
     <div
       onMouseEnter={() => !playerBarPinned && setHoverExpanded(true)}
@@ -196,7 +219,7 @@ export function PlayerBar({ isHomePage = false }: PlayerBarProps): JSX.Element {
                   <div
                     className="h-full bg-brand-500 rounded-full transition-all duration-300"
                     style={{
-                      width: `${Math.min(100, (queueIndex / Math.max(1, queue.length)) * 100)}%`,
+                      width: `${Math.min(100, (queueIndex / Math.max(1, queueLength)) * 100)}%`,
                     }}
                   />
                 </div>
@@ -300,9 +323,9 @@ export function PlayerBar({ isHomePage = false }: PlayerBarProps): JSX.Element {
             title="Show queue"
           >
             <ListMusic size={18} />
-            {queue.length > 0 && (
+            {queueLength > 0 && (
               <span className="absolute -top-0.5 -right-0.5 bg-brand-500 text-white text-[9px] font-bold rounded-full w-4 h-4 flex items-center justify-center shadow">
-                {queue.length}
+                {queueLength}
               </span>
             )}
           </button>

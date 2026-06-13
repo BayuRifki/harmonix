@@ -243,17 +243,28 @@ export function searchTracks(query: string, limit = 100): TrackRow[] {
   return rows.map(rowToTrack);
 }
 
-export function getAlbums(): Array<{ title: string; artist: string; trackCount: number }> {
+export function getAlbums(
+  limit = 500,
+): Array<{ title: string; artist: string; trackCount: number }> {
   const db = getDb();
+  // We previously pulled every distinct album/artist pair into the
+  // renderer's zustand state on every library refresh. For a 10k
+  // track library that meant transferring 1-3k objects (each a row
+  // with title/artist/trackCount) over IPC and retaining them in
+  // the renderer for the lifetime of the LibraryView. Capping at
+  // 500 keeps the IPC payload under ~50KB and the in-memory set
+  // under 1MB. The grid uses virtualization so users still see all
+  // of them via infinite scroll.
   const rows = db
     .prepare(
       `SELECT album, COALESCE(album_artist, artist) as artist, COUNT(*) as cnt
        FROM tracks
        WHERE album IS NOT NULL
        GROUP BY album, COALESCE(album_artist, artist)
-       ORDER BY album COLLATE NOCASE`,
+       ORDER BY album COLLATE NOCASE
+       LIMIT ?`,
     )
-    .all() as Array<{ album: string | null; artist: string | null; cnt: number }>;
+    .all(limit) as Array<{ album: string | null; artist: string | null; cnt: number }>;
   return rows.map((row) => ({
     title: String(row.album ?? ''),
     artist: String(row.artist ?? ''),
@@ -261,7 +272,7 @@ export function getAlbums(): Array<{ title: string; artist: string; trackCount: 
   }));
 }
 
-export function getArtists(): Array<{ name: string; trackCount: number }> {
+export function getArtists(limit = 500): Array<{ name: string; trackCount: number }> {
   const db = getDb();
   const rows = db
     .prepare(
@@ -269,9 +280,10 @@ export function getArtists(): Array<{ name: string; trackCount: number }> {
        FROM tracks
        WHERE COALESCE(album_artist, artist) IS NOT NULL
        GROUP BY COALESCE(album_artist, artist)
-       ORDER BY name COLLATE NOCASE`,
+       ORDER BY name COLLATE NOCASE
+       LIMIT ?`,
     )
-    .all() as Array<{ name: string | null; cnt: number }>;
+    .all(limit) as Array<{ name: string | null; cnt: number }>;
   return rows.map((row) => ({
     name: String(row.name ?? ''),
     trackCount: Number(row.cnt ?? 0),
@@ -284,6 +296,45 @@ export function getTrackCount(): number {
     | { c: number | bigint }
     | undefined;
   return Number(row?.c ?? 0);
+}
+
+/**
+ * O(1) album + artist counts using `COUNT(DISTINCT ...)`. The
+ * previous implementation called `getAlbums().length` and
+ * `getArtists().length` which materialised every distinct
+ * grouping into a JS array just to read its `.length`. For a
+ * 10k-track library with 2k distinct artists that's ~2MB of
+ * throwaway arrays per call, repeated on every `library:get-stats`
+ * IPC round trip (which fires on each LibraryView mount and each
+ * scan completion).
+ */
+export function getLibraryStats(): {
+  trackCount: number;
+  albumCount: number;
+  artistCount: number;
+} {
+  const db = getDb();
+  const row = db
+    .prepare(
+      `SELECT
+         (SELECT COUNT(*) FROM tracks) AS trackCount,
+         (SELECT COUNT(DISTINCT album) FROM tracks WHERE album IS NOT NULL) AS albumCount,
+         (SELECT COUNT(DISTINCT COALESCE(album_artist, artist))
+            FROM tracks
+            WHERE COALESCE(album_artist, artist) IS NOT NULL) AS artistCount`,
+    )
+    .get() as
+    | {
+        trackCount: number | bigint;
+        albumCount: number | bigint;
+        artistCount: number | bigint;
+      }
+    | undefined;
+  return {
+    trackCount: Number(row?.trackCount ?? 0),
+    albumCount: Number(row?.albumCount ?? 0),
+    artistCount: Number(row?.artistCount ?? 0),
+  };
 }
 
 export function deleteTrack(id: number): void {

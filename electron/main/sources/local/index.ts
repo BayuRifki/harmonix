@@ -14,7 +14,8 @@ import {
   getTrackCount,
   deleteTracksNotIn,
   markPlayed,
-  persist,
+  __withBatchedPersist,
+  type TrackInsert,
 } from '../../db';
 import { rowToTrack, fileUrl } from '../rowToTrack';
 
@@ -71,23 +72,33 @@ export class LocalSource extends SourceAdapter {
       options.onProgress?.(count, currentPath);
     };
     const files = await scanFolder(folder, { ...options, onProgress });
+    // Phase 1: extract metadata asynchronously (CPU+IO bound).
+    // Stash the parsed rows in a local array so the DB write
+    // phase is purely synchronous and can run inside a single
+    // batched-persist window (one fsync at the end instead of
+    // one per batch of 50).
+    const parsed: TrackInsert[] = [];
     let inserted = 0;
-    const batchSize = 50;
-    for (let i = 0; i < files.length; i += batchSize) {
-      const batch = files.slice(i, i + batchSize);
-      for (const file of batch) {
-        try {
-          const { track } = await extractMetadata(file.path);
-          upsertTrack(track, true);
-          inserted += 1;
-        } catch (err) {
-          console.warn(`[local] Failed to ingest ${file.path}:`, (err as Error).message);
-        }
+    for (const file of files) {
+      try {
+        const { track } = await extractMetadata(file.path);
+        parsed.push(track);
+      } catch (err) {
+        console.warn(`[local] Failed to ingest ${file.path}:`, (err as Error).message);
       }
-      persist();
     }
+    // Phase 2: synchronous DB writes inside one batched-persist
+    // window. The window is `try/finally`-wrapped by the helper,
+    // so the WAL is checkpointed exactly once on the way out
+    // (even if some unexpected error path skips the rest).
     const paths = files.map((f: ScannedFile) => f.path);
-    deleteTracksNotIn(paths);
+    __withBatchedPersist(() => {
+      for (const track of parsed) {
+        upsertTrack(track, true);
+        inserted += 1;
+      }
+      deleteTracksNotIn(paths);
+    });
     this.lastProgress = {
       filesFound: files.length,
       currentPath: null,

@@ -36,31 +36,19 @@ export function useAudioAnalyser(active: boolean, fftSize: number = 128): AudioA
     if (typeof window === 'undefined') return undefined;
     if (prefersReducedMotion()) return undefined;
 
-    const gain = audioEngine.getGainNode();
-    if (!gain || !('createAnalyser' in (gain.context as AudioContext))) return undefined;
-
-    const ctx = gain.context as AudioContext;
-    let created: AnalyserNode | null = null;
-    try {
-      const node = ctx.createAnalyser();
-      node.fftSize = fftSize;
-      node.smoothingTimeConstant = 0.82;
-      gain.connect(node);
-      created = node;
-      setAnalyser(node);
-      setData(new Uint8Array(node.frequencyBinCount));
-    } catch (err) {
-      console.warn('[AudioAnalyser] init failed:', err);
-      return undefined;
-    }
-
+    // Tries to wire the analyser in; falls through to `undefined`
+    // when the AudioContext is not yet initialised (no audio loaded)
+    // or when the user has reduced-motion enabled. The cleanup
+    // always releases — even on the no-op path — to keep the
+    // shared pool's refcount balanced.
+    if (typeof audioEngine.acquireSharedAnalyser !== 'function') return undefined;
+    const acquired = audioEngine.acquireSharedAnalyser(fftSize);
+    if (!acquired) return undefined;
+    setAnalyser(acquired.node);
+    setData(acquired.data);
     return () => {
-      if (created) {
-        try {
-          created.disconnect();
-        } catch {
-          // ignore
-        }
+      if (typeof audioEngine.releaseSharedAnalyser === 'function') {
+        audioEngine.releaseSharedAnalyser(fftSize);
       }
       setAnalyser(null);
       setData(null);

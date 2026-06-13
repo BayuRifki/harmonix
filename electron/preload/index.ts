@@ -132,8 +132,8 @@ export interface HarmonixApi {
     getFolders(): Promise<ScanFolder[]>;
     getTracks(opts?: { limit?: number; offset?: number; query?: string }): Promise<Track[]>;
     getTrack(id: number | string): Promise<Track | null>;
-    getAlbums(): Promise<AlbumSummary[]>;
-    getArtists(): Promise<ArtistSummary[]>;
+    getAlbums(opts?: { limit?: number }): Promise<AlbumSummary[]>;
+    getArtists(opts?: { limit?: number }): Promise<ArtistSummary[]>;
     getStats(): Promise<LibraryStats>;
     playTrack(trackId: string): Promise<StreamInfo>;
     onScanComplete(handler: (event: ScanCompleteEvent) => void): () => void;
@@ -317,8 +317,10 @@ const api: HarmonixApi = {
     getFolders: (): Promise<ScanFolder[]> => ipcRenderer.invoke('library:get-folders'),
     getTracks: (opts): Promise<Track[]> => ipcRenderer.invoke('library:get-tracks', opts ?? {}),
     getTrack: (id): Promise<Track | null> => ipcRenderer.invoke('library:get-track', id),
-    getAlbums: (): Promise<AlbumSummary[]> => ipcRenderer.invoke('library:get-albums'),
-    getArtists: (): Promise<ArtistSummary[]> => ipcRenderer.invoke('library:get-artists'),
+    getAlbums: (opts?: { limit?: number }): Promise<AlbumSummary[]> =>
+      ipcRenderer.invoke('library:get-albums', opts ?? {}),
+    getArtists: (opts?: { limit?: number }): Promise<ArtistSummary[]> =>
+      ipcRenderer.invoke('library:get-artists', opts ?? {}),
     getStats: (): Promise<LibraryStats> => ipcRenderer.invoke('library:get-stats'),
     playTrack: (trackId: string): Promise<StreamInfo> =>
       ipcRenderer.invoke('library:play-track', trackId),

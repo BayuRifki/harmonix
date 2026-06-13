@@ -66,6 +66,14 @@ export function useMediaSession(): void {
   useEffect(() => {
     if (!supportsMediaSession()) return;
     const ms = navigator.mediaSession;
+    // The zustand vanilla store exposes only the single-arg
+    // `subscribe(listener)` form; the 2-arg `(selector, listener)`
+    // form requires the `subscribeWithSelector` middleware. The
+    // listener itself short-circuits on `trackId` and `isPlaying`
+    // equality, so we only call the DOM MediaSession setters when
+    // something actually changed (the positionMs updates 4x/sec
+    // from the time handler are filtered out by the equality
+    // checks below).
     const unsub = usePlayerStore.subscribe((state) => {
       const track = state.currentTrack;
       const trackId = track?.id ?? null;
@@ -87,9 +95,6 @@ export function useMediaSession(): void {
           ms.metadata = null;
         }
       }
-      // Only update playbackState when the value actually changes.
-      // Without this guard, `state` updates 4x/sec from positionMs
-      // would cause the OS media UI to flash on every tick.
       if (state.isPlaying !== lastIsPlayingRef.current) {
         lastIsPlayingRef.current = state.isPlaying;
         ms.playbackState = state.isPlaying ? 'playing' : 'paused';
