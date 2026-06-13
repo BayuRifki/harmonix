@@ -22,7 +22,7 @@ code{background:#27272a;padding:2px 6px;border-radius:4px;font-size:12px}
 let server: Server | null = null;
 let activeRedirectUri: string | null = null;
 
-function parseRedirectUri(uri: string): { hostname: string; port: number; path: string } {
+export function parseRedirectUri(uri: string): { hostname: string; port: number; path: string } {
   const url = new URL(uri);
   return {
     hostname: url.hostname,

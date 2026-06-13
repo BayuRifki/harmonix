@@ -5,7 +5,15 @@ import { startCallbackServer, stopCallbackServer, openExternalUrl } from '../aut
 import type { AuthStatus } from '../sources/types';
 
 const SPOTIFY_CLIENT_ID = process.env.SPOTIFY_CLIENT_ID ?? '';
-const SPOTIFY_REDIRECT_URI = process.env.SPOTIFY_REDIRECT_URI ?? 'http://127.0.0.1:8888/callback';
+// Use the path-less form (no `/callback` suffix). Spotify does
+// exact-string matching on the redirect_uri, and the previous
+// default of /callback produced "Missing code or state" errors
+// in production when the user registered the URI in the
+// Developer Dashboard as just host:port (or with a trailing-slash
+// variant). With no path component, both sides register the same
+// host:port and the callback server listens on `/` — closing
+// that class of mismatch.
+const SPOTIFY_REDIRECT_URI = process.env.SPOTIFY_REDIRECT_URI ?? 'http://127.0.0.1:8888';
 
 export interface SpotifyLoginResult {
   ok: boolean;
