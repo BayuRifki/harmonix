@@ -104,7 +104,7 @@ export class WebPlaybackController {
   }
 
   async connect(tokenProvider: () => Promise<string | null>): Promise<string | null> {
-    if (this.player) return this.deviceId;
+    if (this.player && this.deviceId) return this.deviceId;
     const SDK = await loadSpotifySDK();
     this.player = new SDK.Player({
       name: 'Harmonix',
@@ -135,19 +135,52 @@ export class WebPlaybackController {
     this.player.addListener('player_state_changed', (payload) => {
       this.callbacks.stateChange?.((payload as SpotifyPlaybackState | null) ?? null);
     });
-    this.player.addListener('ready', (payload) => {
-      const deviceId = (payload as { device_id: string }).device_id;
-      this.deviceId = deviceId;
-      this.callbacks.ready?.(deviceId);
-    });
     this.player.addListener('not_ready', (payload) => {
       const deviceId = (payload as { device_id: string }).device_id;
+      this.deviceId = null;
       this.callbacks.notReady?.(deviceId);
+    });
+
+    // The SDK's `player.connect()` only confirms the initial
+    // websocket handshake; the actual device registration (and the
+    // `device_id` we need to pass as `?device_id=…` to
+    // `/me/player/play`) arrives asynchronously via the `ready`
+    // event. If we returned right after `player.connect()` resolved,
+    // callers would race ahead and hit "Web Playback SDK not
+    // connected" inside `play()` because `this.deviceId` is still
+    // null. So we await the `ready` event (with a 15 s safety net
+    // for slow networks / hung SDKs) and surface the SDK's own
+    // error events as a rejection so the caller can show a real
+    // diagnostic instead of a timeout.
+    const readyPromise = new Promise<string>((resolve, reject) => {
+      this.player!.addListener('ready', (payload) => {
+        const deviceId = (payload as { device_id: string }).device_id;
+        this.deviceId = deviceId;
+        this.callbacks.ready?.(deviceId);
+        resolve(deviceId);
+      });
+      this.player!.addListener('initialization_error', (payload) => {
+        const message = (payload as { message?: string })?.message ?? 'unknown';
+        reject(new Error(`Web Playback init: ${message}`));
+      });
+      this.player!.addListener('authentication_error', (payload) => {
+        const message = (payload as { message?: string })?.message ?? 'unknown';
+        reject(new Error(`Web Playback auth: ${message}`));
+      });
+      this.player!.addListener('account_error', (payload) => {
+        const message = (payload as { message?: string })?.message ?? 'unknown';
+        reject(new Error(`Web Playback account: ${message}`));
+      });
     });
 
     const ok = await this.player.connect();
     if (!ok) throw new Error('Failed to connect Web Playback SDK');
-    return this.deviceId;
+    return Promise.race([
+      readyPromise,
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Web Playback SDK ready timeout (15s)')), 15000),
+      ),
+    ]);
   }
 
   async play(track: Track, accessToken: string): Promise<void> {
