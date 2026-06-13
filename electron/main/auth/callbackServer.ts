@@ -52,6 +52,12 @@ export async function startCallbackServer(
   return new Promise((resolve, reject) => {
     const srv = createServer((req: IncomingMessage, res: ServerResponse) => {
       const url = new URL(req.url ?? '/', `http://${req.headers.host ?? 'localhost'}`);
+      // Diagnostic: log every hit to the callback server so we can
+      // correlate "the safety cap fired" with "did the browser
+      // actually navigate to /callback, and did it carry the code/
+      // state params Spotify is supposed to append on success".
+      // eslint-disable-next-line no-console
+      console.info(`[spotify] callback hit: ${req.method} ${url.pathname}${url.search}`);
       if (url.pathname !== callbackPath) {
         res.statusCode = 404;
         res.end('Not found');
@@ -69,6 +75,24 @@ export async function startCallbackServer(
         return;
       }
       if (!code || !state) {
+        // Spotify's OAuth redirect is supposed to append ?code=…&state=…
+        // A bare /callback hit (no params) usually means the URI
+        // registered in the Spotify Developer Dashboard doesn't
+        // EXACTLY match what the app sent (127.0.0.1 vs localhost,
+        // trailing slash mismatch, http vs https, etc.). Spotify
+        // falls back to redirecting without the code grant. The
+        // user sees "Missing code or state" in their browser. Log
+        // the full URL here so the user can compare against the
+        // SPOTIFY_REDIRECT_URI in their .env and the entry in the
+        // Dashboard.
+        // eslint-disable-next-line no-console
+        console.warn(
+          `[spotify] callback arrived without code/state. ` +
+            `Expected from Spotify: ${redirectUri}?code=…&state=…. ` +
+            `Got: ${url.pathname}${url.search}. ` +
+            `Check that SPOTIFY_REDIRECT_URI in .env and the Redirect URI ` +
+            `registered in the Spotify Developer Dashboard are character-for-character identical.`,
+        );
         res.statusCode = 400;
         res.setHeader('Content-Type', 'text/html; charset=utf-8');
         res.end(CALLBACK_HTML_ERROR('Missing code or state'));

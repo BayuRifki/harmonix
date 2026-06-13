@@ -201,6 +201,13 @@ export class SpotifyClient {
         }
       }, 90 * 1000);
       pendingFlow = { pkce, resolve, reject, timeout };
+      // Diagnostic: log the exact URL we asked the browser to open
+      // so we can compare it against the redirect URI registered
+      // in the Spotify Dashboard. Mismatches here manifest as a
+      // callback that arrives without ?code=… (the user's
+      // screenshot of "Missing code or state" is the symptom).
+      // eslint-disable-next-line no-console
+      console.info(`[spotify] loginViaBrowser → openExternal(${authUrl})`);
       void openExternal(authUrl).catch((err) => {
         if (pendingFlow) {
           clearTimeout(pendingFlow.timeout);
