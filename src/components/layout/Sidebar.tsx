@@ -35,12 +35,13 @@ import {
 import { LogoMark } from '@/components/branding/LogoMark';
 import { PlaylistCardSidebar } from '@/components/sidebar/PlaylistCardSidebar';
 import { SortableNavItem } from '@/components/sidebar/SortableNavItem';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { useLibraryStore } from '@/stores/libraryStore';
 import { useSourcesStore } from '@/stores/sourcesStore';
 import { usePlaylistsStore } from '@/stores/playlistsStore';
 import { usePlayerStore } from '@/stores/playerStore';
 import { useUiStore } from '@/stores/uiStore';
-import { useSourceHealth, HEALTH_DOT_COLORS, HEALTH_DOT_LABELS } from '@/hooks/useSourceHealth';
+import { useSourceHealth, HEALTH_DOT_COLORS } from '@/hooks/useSourceHealth';
 
 interface StaticNavItem {
   to: string;
@@ -98,6 +99,8 @@ export function Sidebar(): JSX.Element {
   const refreshPlaylists = usePlaylistsStore((s) => s.refresh);
   const createPlaylist = usePlaylistsStore((s) => s.create);
   const currentTrack = usePlayerStore((s) => s.currentTrack);
+  const positionMs = usePlayerStore((s) => s.positionMs);
+  const durationMs = usePlayerStore((s) => s.durationMs);
   const navigate = useNavigate();
   const location = useLocation();
   const navRef = useRef<HTMLElement>(null);
@@ -232,44 +235,56 @@ export function Sidebar(): JSX.Element {
       </div>
 
       {currentTrack && (
-        <button
-          key={`now-playing-${currentTrack.id}`}
-          type="button"
-          onClick={() => navigate('/now-playing')}
-          className="group flex items-center gap-2.5 mx-2 mt-2 px-2 py-2 rounded-lg bg-zinc-900/60 hover:bg-zinc-800/80 border border-zinc-800/60 hover:border-zinc-700 transition-colors text-left focus-ring"
-          aria-label="Open now playing"
-          data-testid="sidebar-now-playing-card"
-        >
-          {artworkUrl ? (
-            <img
-              key={artworkUrl}
-              src={artworkUrl}
-              alt=""
-              className="w-9 h-9 rounded object-cover shrink-0"
-              draggable={false}
-            />
-          ) : (
-            <div className="w-9 h-9 rounded bg-zinc-800 flex items-center justify-center text-zinc-600 shrink-0">
-              <Music size={14} />
+        <div className="relative mx-2 mt-2 group">
+          <button
+            type="button"
+            onClick={() => navigate('/now-playing')}
+            className="w-full flex items-center gap-2.5 px-2 pt-2 pb-2.5 rounded-lg bg-zinc-900/60 hover:bg-zinc-800/80 border border-zinc-800/60 hover:border-zinc-700 transition-colors text-left focus-ring"
+            aria-label="Open now playing"
+            data-testid="sidebar-now-playing-card"
+          >
+            {artworkUrl ? (
+              <img
+                key={artworkUrl}
+                src={artworkUrl}
+                alt=""
+                className="w-9 h-9 rounded object-cover shrink-0"
+                draggable={false}
+              />
+            ) : (
+              <div className="w-9 h-9 rounded bg-zinc-800 flex items-center justify-center text-zinc-600 shrink-0">
+                <Music size={14} />
+              </div>
+            )}
+            <div className="min-w-0 flex-1">
+              <p
+                key={`title-${currentTrack.id}`}
+                className="text-xs text-zinc-100 truncate font-medium"
+              >
+                {currentTrack.title}
+              </p>
+              <p key={`artist-${currentTrack.id}`} className="text-[10px] text-zinc-500 truncate">
+                {artistLine}
+              </p>
             </div>
-          )}
-          <div className="min-w-0 flex-1">
-            <p
-              key={`title-${currentTrack.id}`}
-              className="text-xs text-zinc-100 truncate font-medium"
-            >
-              {currentTrack.title}
-            </p>
-            <p key={`artist-${currentTrack.id}`} className="text-[10px] text-zinc-500 truncate">
-              {artistLine}
-            </p>
-          </div>
-          <Play
-            size={11}
-            className="text-brand-300 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+            <Play
+              size={11}
+              className="text-brand-300 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+              aria-hidden
+            />
+          </button>
+          <div
+            className="absolute left-2 right-2 bottom-1 h-0.5 rounded-full bg-zinc-800/80 overflow-hidden pointer-events-none"
             aria-hidden
-          />
-        </button>
+          >
+            <div
+              className="h-full bg-brand-500 transition-[width] duration-200 ease-linear"
+              style={{
+                width: `${Math.min(100, durationMs > 0 ? (positionMs / durationMs) * 100 : 0)}%`,
+              }}
+            />
+          </div>
+        </div>
       )}
 
       <nav ref={navRef} className="flex-1 p-2 overflow-y-auto">
@@ -394,9 +409,12 @@ export function Sidebar(): JSX.Element {
           {!playlistsCollapsed && (
             <div id="sidebar-playlists-section">
               {visiblePlaylists.length === 0 ? (
-                <p className="px-3 py-2 text-xs text-zinc-600">
-                  No playlists yet. Click + to create one.
-                </p>
+                <EmptyState
+                  variant="compact"
+                  icon={<Music size={16} />}
+                  title="No playlists yet"
+                  description="Click + to create one."
+                />
               ) : (
                 <div className="space-y-0.5">
                   {visiblePlaylists.map((p) => (
@@ -422,52 +440,47 @@ export function Sidebar(): JSX.Element {
       </nav>
 
       {stats.trackCount > 0 && (
-        <div className="p-3 border-t border-zinc-800 text-xs text-zinc-500">
-          <p className="font-medium text-zinc-400">{stats.trackCount.toLocaleString()} tracks</p>
-          <p className="mt-0.5">
-            {stats.albumCount.toLocaleString()} albums &middot; {stats.artistCount.toLocaleString()}{' '}
-            artists
-          </p>
+        <div className="px-3 py-2 border-t border-zinc-800 text-[11px] text-zinc-500 tabular-nums">
+          <span className="text-zinc-400 font-medium">{stats.trackCount.toLocaleString()}</span>{' '}
+          tracks · {stats.albumCount.toLocaleString()} albums · {stats.artistCount.toLocaleString()}{' '}
+          artists
         </div>
       )}
 
-      <div className="p-3 border-t border-zinc-800 text-xs text-zinc-600">
-        <p>v0.1.0 — Phase 14</p>
-        <p className="mt-1">{enabledCount} sources enabled</p>
-        {enabledCount > 0 && (
+      <div className="px-3 py-2 border-t border-zinc-800 text-[11px] text-zinc-600">
+        {enabledCount > 0 ? (
           <div data-testid="source-health-dots">
             <button
               type="button"
               onClick={() => setHealthExpanded((v) => !v)}
-              className="w-full mt-2 flex flex-wrap items-center gap-1.5 text-left focus-ring rounded"
+              className="w-full flex items-center gap-1.5 text-left focus-ring rounded hover:text-zinc-400 transition-colors"
               aria-expanded={healthExpanded}
               aria-controls="source-health-details"
             >
-              {registrations
-                .filter((r) => r.enabled)
-                .map((r) => {
-                  const status = health[r.id]?.status ?? 'unknown';
-                  return (
-                    <span
-                      key={r.id}
-                      className="inline-flex items-center gap-1 text-[10px] text-zinc-500"
-                      title={`${r.name}: ${HEALTH_DOT_LABELS[status]}`}
-                    >
+              <span className="flex items-center gap-0.5 shrink-0" aria-hidden>
+                {registrations
+                  .filter((r) => r.enabled)
+                  .slice(0, 6)
+                  .map((r) => {
+                    const status = health[r.id]?.status ?? 'unknown';
+                    return (
                       <span
+                        key={r.id}
                         className={`w-1.5 h-1.5 rounded-full ${HEALTH_DOT_COLORS[status]} ${
                           status === 'healthy' ? 'animate-pulse-soft' : ''
                         }`}
-                        aria-hidden
                       />
-                      <span className="truncate max-w-[60px]">{r.name}</span>
-                    </span>
-                  );
-                })}
+                    );
+                  })}
+              </span>
+              <span className="text-zinc-400 tabular-nums">{`${enabledCount} sources`}</span>
+              <span className="text-zinc-700">·</span>
+              <span className="font-mono">v0.1.0</span>
             </button>
             {healthExpanded && (
               <div
                 id="source-health-details"
-                className="mt-1.5 p-1.5 bg-zinc-900/60 border border-zinc-800/60 rounded text-[10px] text-zinc-400 space-y-0.5"
+                className="mt-2 p-2 bg-zinc-900/60 border border-zinc-800/60 rounded-md text-[10px] text-zinc-400 space-y-0.5"
                 data-testid="source-health-details-panel"
               >
                 {registrations
@@ -482,13 +495,17 @@ export function Sidebar(): JSX.Element {
                           aria-hidden
                         />
                         <span className="truncate flex-1">{r.name}</span>
-                        <span className="text-zinc-600">{h ? timeAgo(h.lastCheckedAt) : '—'}</span>
+                        <span className="text-zinc-600 tabular-nums">
+                          {h ? timeAgo(h.lastCheckedAt) : '—'}
+                        </span>
                       </div>
                     );
                   })}
               </div>
             )}
           </div>
+        ) : (
+          <span className="font-mono">v0.1.0</span>
         )}
       </div>
     </aside>

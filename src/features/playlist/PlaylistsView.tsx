@@ -1,9 +1,11 @@
 import { useEffect, useState, useCallback } from 'react';
+import { ListMusic } from 'lucide-react';
 import { usePlaylistsStore } from '@/stores/playlistsStore';
 import { useToastStore } from '@/components/ui/toastStore';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { Skeleton } from '@/components/ui/Skeleton';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { PlaylistDetailView } from './PlaylistDetailView';
 import type { PlaylistSummary } from '@/types/global';
 
@@ -183,8 +185,12 @@ export function PlaylistsView({ selectedId, onSelect }: PlaylistsViewProps): JSX
           ))}
         </div>
       ) : playlists.length === 0 ? (
-        <div className="text-zinc-400 text-sm py-12 text-center border border-dashed border-zinc-700 rounded-xl animate-fade-in">
-          No playlists yet. Create one to get started.
+        <div className="rounded-xl border border-dashed border-zinc-800 animate-fade-in">
+          <EmptyState
+            icon={<ListMusic size={20} />}
+            title="No playlists yet"
+            description="Create one to get started."
+          />
         </div>
       ) : (
         <div className="space-y-2">

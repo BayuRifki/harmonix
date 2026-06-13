@@ -54,27 +54,16 @@ describe('HeroPlayer', () => {
     expect(screen.getByText('Echoverse')).toBeInTheDocument();
   });
 
-  it('renders Hi-Fi badge by default', () => {
+  it('does not show a Hi-Fi badge', () => {
     usePlayerStore.setState({ currentTrack: makeTrack() });
     renderWithRouter();
-    expect(screen.getByText('Hi-Fi')).toBeInTheDocument();
-  });
-
-  it('renders "Playing from" pill with playlist name', () => {
-    usePlayerStore.setState({ currentTrack: makeTrack() });
-    renderWithRouter();
-    expect(screen.getByText(/Playing from/i)).toBeInTheDocument();
-    expect(screen.getByText('Chill Vibes')).toBeInTheDocument();
-  });
-
-  it('hides Hi-Fi badge when showHiFiBadge is false', () => {
-    usePlayerStore.setState({ currentTrack: makeTrack() });
-    render(
-      <MemoryRouter>
-        <HeroPlayer playlistName={null} showHiFiBadge={false} />
-      </MemoryRouter>,
-    );
     expect(screen.queryByText('Hi-Fi')).not.toBeInTheDocument();
+  });
+
+  it('renders playlist name in the meta row', () => {
+    usePlayerStore.setState({ currentTrack: makeTrack() });
+    renderWithRouter();
+    expect(screen.getByText('Chill Vibes')).toBeInTheDocument();
   });
 
   it('renders transport controls (play/pause, prev, next)', () => {

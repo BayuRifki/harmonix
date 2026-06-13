@@ -1,17 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  motion,
-  useMotionValue,
-  useSpring,
-  AnimatePresence,
-  useReducedMotion,
-} from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   X,
   Music,
-  ChevronDown,
-  ChevronUp,
   Sparkles,
   BarChart3,
   Circle,
@@ -19,6 +11,14 @@ import {
   Wind,
   Activity,
   Shuffle,
+  SkipBack,
+  Play,
+  Pause,
+  SkipForward,
+  Repeat,
+  VolumeX,
+  Volume1,
+  Volume2,
 } from 'lucide-react';
 import { usePlayerStore } from '@/stores/playerStore';
 import { useSourcesStore } from '@/stores/sourcesStore';
@@ -53,6 +53,8 @@ function loadVisualizerMode(): VisualizerMode {
 const THEME_STORAGE_KEY = 'harmonix.np.theme';
 type ThemeMode = 'match-artwork' | 'brand-pink';
 
+type NpTab = 'lyrics' | 'similar' | 'credits' | 'visualizer';
+
 function loadThemeMode(): ThemeMode {
   if (typeof localStorage === 'undefined') return 'match-artwork';
   const v = localStorage.getItem(THEME_STORAGE_KEY);
@@ -81,41 +83,6 @@ function formatTime(ms: number): string {
 function sourceLabel(source: string): string {
   if (source.startsWith('local:')) return 'local';
   return source;
-}
-
-function useMouseParallax(
-  strength: number = 10,
-  reduced: boolean = false,
-): {
-  onMouseMove: (e: React.MouseEvent<HTMLDivElement>) => void;
-  onMouseLeave: () => void;
-  style: { x: ReturnType<typeof useSpring>; y: ReturnType<typeof useSpring> };
-} {
-  // Keep MotionValues in refs so they survive across re-renders
-  // and are not reallocated on every parent state change. This
-  // also prevents framer-motion from tearing down and re-creating
-  // the spring animation on each render of the parent.
-  const x = useRef(useMotionValue(0)).current;
-  const y = useRef(useMotionValue(0)).current;
-  const sx = useSpring(x, { stiffness: 80, damping: 18 });
-  const sy = useSpring(y, { stiffness: 80, damping: 18 });
-  const zeroX = useRef(useMotionValue(0)).current;
-  const zeroY = useRef(useMotionValue(0)).current;
-  return {
-    onMouseMove: (e: React.MouseEvent<HTMLDivElement>): void => {
-      if (reduced) return;
-      const rect = e.currentTarget.getBoundingClientRect();
-      const px = (e.clientX - rect.left) / rect.width - 0.5;
-      const py = (e.clientY - rect.top) / rect.height - 0.5;
-      x.set(px * strength);
-      y.set(py * strength);
-    },
-    onMouseLeave: (): void => {
-      x.set(0);
-      y.set(0);
-    },
-    style: reduced ? { x: zeroX, y: zeroY } : { x: sx, y: sy },
-  };
 }
 
 function pickSimilarTracks(current: Track, history: Track[], library: Track[]): Track[] {
@@ -158,14 +125,9 @@ export function NowPlayingView(): JSX.Element {
   const next = usePlayerStore((s) => s.next);
   const previous = usePlayerStore((s) => s.previous);
   const seek = usePlayerStore((s) => s.seek);
-  const reducedMotion = useUiStore((s) => s.reducedMotion);
-  const prefersReduced = useReducedMotion() ?? false;
-  const reduced = reducedMotion || prefersReduced;
-
-  const parallax = useMouseParallax(12, reduced);
-  const [creditsOpen, setCreditsOpen] = useState(false);
   const [visualizer, setVisualizer] = useState<VisualizerMode>(() => loadVisualizerMode());
   const [theme, setTheme] = useState<ThemeMode>(() => loadThemeMode());
+  const [activeTab, setActiveTab] = useState<NpTab>('lyrics');
   const enabledVisualizers = useUiStore((s) => s.enabledVisualizers);
   const lastSimilarTrackId = useRef<string | null>(null);
   const [similar, setSimilar] = useState<Track[]>([]);
@@ -268,7 +230,7 @@ export function NowPlayingView(): JSX.Element {
         className="absolute inset-0 -z-[5] pointer-events-none"
         style={{
           background:
-            'radial-gradient(ellipse 80% 60% at 50% 30%, rgba(139, 92, 246, 0.18), transparent 60%)',
+            'radial-gradient(ellipse 80% 60% at 50% 30%, rgba(236, 72, 153, 0.18), transparent 60%)',
         }}
       />
 
@@ -290,463 +252,378 @@ export function NowPlayingView(): JSX.Element {
           </Button>
         </div>
 
-        <div className="flex-1 flex flex-col items-center justify-center px-8 pb-32 text-center">
-          {artworkUrl ? (
-            <div className="relative mb-8">
-              <AnimatePresence>
-                {visualizer !== 'none' && enabledVisualizers.nowPlaying && (
-                  <motion.div
-                    key="visualizer-overlay"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 0.6 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.3 }}
-                    className="absolute inset-0 z-0 flex items-center justify-center pointer-events-none"
-                    aria-hidden
-                    data-testid="now-playing-visualizer-canvas"
-                  >
-                    {visualizer === 'bars' ? (
-                      <FrequencyBars bars={24} height={260} />
-                    ) : visualizer === 'ring' ? (
-                      <WaveformRing size={300} />
-                    ) : visualizer === 'particles' ? (
-                      <ParticleField count={48} className="w-72 h-72" />
-                    ) : (
-                      <StereoOscilloscope height={200} className="w-72" />
-                    )}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-              <motion.img
-                layoutId="current-artwork"
-                key={artworkUrl}
-                src={artworkUrl}
-                alt={currentTrack?.title ?? ''}
-                initial={{ scale: 0.92, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ type: 'spring', stiffness: 220, damping: 28 }}
-                style={parallax.style}
-                className="relative z-10 w-72 h-72 rounded-2xl object-cover shadow-glow-lg ring-1 ring-white/10 will-change-transform"
-              />
-            </div>
-          ) : (
-            <motion.div
-              style={parallax.style}
-              className="w-72 h-72 rounded-2xl bg-zinc-800/60 backdrop-blur-md ring-1 ring-white/10 flex items-center justify-center text-zinc-500 mb-8 will-change-transform"
-              aria-label="No artwork"
-            >
-              <Music size={96} />
-            </motion.div>
-          )}
-
-          <div
-            aria-hidden
-            className="absolute inset-0 -z-[4] pointer-events-none"
-            onMouseMove={parallax.onMouseMove}
-            onMouseLeave={parallax.onMouseLeave}
-          />
-
-          <h1 className="text-4xl font-bold text-white tracking-tight">
-            {currentTrack?.title ?? 'No track playing'}
-          </h1>
-          <p className="text-lg text-zinc-300 mt-2">
-            {currentTrack
-              ? currentTrack.artists.map((a) => a.name).join(', ') || 'Unknown artist'
-              : 'Select a track to begin'}
-          </p>
-          {currentTrack?.album && (
-            <p className="text-sm text-zinc-400 mt-1">{currentTrack.album.title}</p>
-          )}
-          {currentTrack && (
-            <span
-              className={`text-[10px] uppercase tracking-wide px-2 py-0.5 rounded-md border font-medium mt-3 shadow-sm ${
-                SOURCE_BADGE_COLORS[sourceLabel(currentTrack.source)] ??
-                'bg-zinc-700/40 text-zinc-300 border-zinc-600/50'
-              }`}
-              title={`Source: ${sourceName}`}
-            >
-              {sourceLabel(currentTrack.source)}
-            </span>
-          )}
-
-          {error && (
-            <p className="text-sm text-red-400 bg-red-500/10 px-3 py-1 rounded-md mt-4 animate-scale-in">
-              {error}
-            </p>
-          )}
-
-          {currentTrack && (
-            <div className="mt-3 flex items-center justify-center gap-3 text-xs">
-              <button
-                type="button"
-                onClick={() => setCreditsOpen((v) => !v)}
-                className="inline-flex items-center gap-1 text-zinc-500 hover:text-zinc-300 transition-colors"
-                aria-expanded={creditsOpen}
-                aria-controls="now-playing-credits"
-              >
-                <Sparkles size={11} aria-hidden />
-                Credits
-                {creditsOpen ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
-              </button>
-              <span className="text-zinc-700">·</span>
-              <div
-                role="radiogroup"
-                aria-label="Background visualizer"
-                className="inline-flex items-center gap-0.5 p-0.5 bg-zinc-900/60 border border-zinc-800/60 rounded-full"
-                data-testid="now-playing-visualizer-toggle"
-              >
-                {(
-                  [
-                    { mode: 'none', icon: Eye, label: 'None' },
-                    { mode: 'bars', icon: BarChart3, label: 'Frequency bars' },
-                    { mode: 'ring', icon: Circle, label: 'Waveform ring' },
-                    { mode: 'particles', icon: Wind, label: 'Particle field' },
-                    { mode: 'scope', icon: Activity, label: 'Stereo oscilloscope' },
-                  ] as { mode: VisualizerMode; icon: typeof Eye; label: string }[]
-                ).map(({ mode, icon: Icon, label }) => (
-                  <button
-                    key={mode}
-                    type="button"
-                    role="radio"
-                    aria-checked={visualizer === mode}
-                    aria-label={label}
-                    onClick={() => setVisualizer(mode)}
-                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] uppercase tracking-wider transition-colors ${
-                      visualizer === mode
-                        ? 'bg-brand-500/20 text-brand-300'
-                        : 'text-zinc-500 hover:text-zinc-300'
-                    }`}
-                    title={label}
-                    data-testid={`np-visualizer-${mode}`}
-                  >
-                    <Icon size={10} aria-hidden />
-                    <span className="sr-only">{label}</span>
-                  </button>
-                ))}
+        <div className="flex-1 flex flex-col xl:flex-row gap-6 px-6 pb-24 overflow-y-auto min-h-0">
+          <div className="flex-1 flex flex-col items-center justify-center min-w-0 text-center">
+            {artworkUrl ? (
+              <div className="relative mb-8">
+                <AnimatePresence>
+                  {visualizer !== 'none' && enabledVisualizers.nowPlaying && (
+                    <motion.div
+                      key="visualizer-overlay"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 0.6 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.3 }}
+                      className="absolute inset-0 z-0 flex items-center justify-center pointer-events-none"
+                      aria-hidden
+                      data-testid="now-playing-visualizer-canvas"
+                    >
+                      {visualizer === 'bars' ? (
+                        <FrequencyBars bars={24} height={260} />
+                      ) : visualizer === 'ring' ? (
+                        <WaveformRing size={300} />
+                      ) : visualizer === 'particles' ? (
+                        <ParticleField count={48} className="w-72 h-72" />
+                      ) : (
+                        <StereoOscilloscope height={200} className="w-72" />
+                      )}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+                <motion.img
+                  layoutId="current-artwork"
+                  key={artworkUrl}
+                  src={artworkUrl}
+                  alt={currentTrack?.title ?? ''}
+                  initial={{ scale: 0.92, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ type: 'spring', stiffness: 220, damping: 28 }}
+                  className="relative z-10 w-72 h-72 rounded-2xl object-cover shadow-glow-lg ring-1 ring-white/10"
+                />
               </div>
-              <span className="text-zinc-700">·</span>
-              <button
-                type="button"
-                onClick={() => setTheme(theme === 'match-artwork' ? 'brand-pink' : 'match-artwork')}
-                className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider text-zinc-500 hover:text-zinc-300 transition-colors"
-                title={`Theme: ${theme === 'match-artwork' ? 'Match artwork' : 'Brand pink'}`}
-                data-testid="now-playing-theme-toggle"
-                aria-label={`Theme mode: ${theme === 'match-artwork' ? 'match artwork' : 'brand pink'}. Click to switch.`}
+            ) : (
+              <div
+                className="w-72 h-72 rounded-2xl bg-zinc-800/60 backdrop-blur-md ring-1 ring-white/10 flex items-center justify-center text-zinc-500 mb-8"
+                aria-label="No artwork"
               >
-                {theme === 'match-artwork' ? (
+                <Music size={96} />
+              </div>
+            )}
+
+            <h1 className="text-4xl font-semibold text-white tracking-tight">
+              {currentTrack?.title ?? 'No track playing'}
+            </h1>
+            <p className="text-lg text-zinc-300 mt-2">
+              {currentTrack
+                ? currentTrack.artists.map((a) => a.name).join(', ') || 'Unknown artist'
+                : 'Select a track to begin'}
+            </p>
+            {currentTrack?.album && (
+              <p className="text-sm text-zinc-400 mt-1">{currentTrack.album.title}</p>
+            )}
+            {currentTrack && (
+              <span
+                className={`text-[10px] uppercase tracking-wide px-2 py-0.5 rounded-md border font-medium mt-3 shadow-sm ${
+                  SOURCE_BADGE_COLORS[sourceLabel(currentTrack.source)] ??
+                  'bg-zinc-700/40 text-zinc-300 border-zinc-600/50'
+                }`}
+                title={`Source: ${sourceName}`}
+              >
+                {sourceLabel(currentTrack.source)}
+              </span>
+            )}
+
+            {error && (
+              <p className="text-sm text-red-400 bg-red-500/10 px-3 py-1 rounded-md mt-4 animate-scale-in">
+                {error}
+              </p>
+            )}
+
+            {currentTrack && (
+              <div className="mt-2 flex items-center justify-center gap-3 text-[10px] text-zinc-500">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setTheme(theme === 'match-artwork' ? 'brand-pink' : 'match-artwork')
+                  }
+                  className="inline-flex items-center gap-1.5 uppercase tracking-wider hover:text-zinc-300 transition-colors"
+                  title={`Theme: ${theme === 'match-artwork' ? 'Match artwork' : 'Brand pink'}`}
+                  data-testid="now-playing-theme-toggle"
+                  aria-label={`Theme mode: ${theme === 'match-artwork' ? 'match artwork' : 'brand pink'}. Click to switch.`}
+                >
                   <span
-                    className="w-2 h-2 rounded-full bg-gradient-to-br from-pink-400 to-purple-400"
+                    className={`w-2 h-2 rounded-full ${
+                      theme === 'match-artwork'
+                        ? 'bg-gradient-to-br from-pink-400 to-fuchsia-500'
+                        : 'bg-brand-400'
+                    }`}
                     aria-hidden
                   />
-                ) : (
-                  <span className="w-2 h-2 rounded-full bg-brand-400" aria-hidden />
-                )}
-                {theme === 'match-artwork' ? 'Art' : 'Pink'}
-              </button>
-            </div>
-          )}
-
-          {creditsOpen && currentTrack && (
-            <div
-              id="now-playing-credits"
-              className="mt-2 w-full max-w-md glass rounded-lg p-3 text-left text-xs space-y-1 animate-scale-in"
-            >
-              <p className="flex items-center justify-between gap-3">
-                <span className="text-zinc-500">Title</span>
-                <span className="text-zinc-200 truncate">{currentTrack.title}</span>
-              </p>
-              <p className="flex items-center justify-between gap-3">
-                <span className="text-zinc-500">Artist</span>
-                <span className="text-zinc-200 truncate">
-                  {currentTrack.artists.map((a) => a.name).join(', ') || 'Unknown'}
-                </span>
-              </p>
-              {currentTrack.album && (
-                <p className="flex items-center justify-between gap-3">
-                  <span className="text-zinc-500">Album</span>
-                  <span className="text-zinc-200 truncate">{currentTrack.album.title}</span>
-                </p>
-              )}
-              <p className="flex items-center justify-between gap-3">
-                <span className="text-zinc-500">Duration</span>
-                <span className="text-zinc-200 tabular-nums">{formatTime(durationMs)}</span>
-              </p>
-              <p className="flex items-center justify-between gap-3">
-                <span className="text-zinc-500">Source</span>
-                <span className="text-zinc-200">{sourceName}</span>
-              </p>
-            </div>
-          )}
-
-          <div className="w-full max-w-2xl mt-8">
-            <div className="flex items-center gap-3 text-xs text-zinc-300 tabular-nums">
-              <span className="w-12 text-right">{formatTime(positionMs)}</span>
-              <div className="flex-1 h-1.5 rounded-full bg-white/10 overflow-hidden relative">
-                <div
-                  className="h-full bg-gradient-to-r from-brand-500 to-accent-400 rounded-full transition-[width] duration-100"
-                  style={{ width: `${progress}%` }}
-                />
-                <CrossfadeIndicator durationMs={durationMs} />
+                  {theme === 'match-artwork' ? 'Match artwork' : 'Brand pink'}
+                </button>
               </div>
-              <span className="w-12">{formatTime(durationMs)}</span>
-            </div>
-            <input
-              type="range"
-              min={0}
-              max={durationMs || 0}
-              value={positionMs}
-              onChange={(e) => void seek(Number(e.target.value))}
-              disabled={!hasTrack}
-              className="w-full h-2 opacity-0 cursor-pointer -mt-3.5"
-              aria-label="Seek"
-            />
-          </div>
+            )}
 
-          <div className="flex items-center gap-4 mt-8">
-            <button
-              type="button"
-              onClick={toggleShuffle}
-              className={`p-3 rounded-lg transition-all duration-100 active:scale-95 ${
-                shuffle
-                  ? 'text-brand-300 bg-brand-500/20'
-                  : 'text-zinc-400 hover:text-zinc-100 hover:bg-white/10'
-              }`}
-              aria-label="Toggle shuffle"
-              aria-pressed={shuffle}
-            >
-              <Shuffle size={20} className={shuffle ? 'fill-current' : ''} />
-            </button>
-            <button
-              type="button"
-              onClick={() => void previous()}
-              disabled={!hasTrack}
-              className="p-3 rounded-lg text-zinc-300 hover:text-white hover:bg-white/10 disabled:opacity-40 transition-all active:scale-95"
-              aria-label="Previous track"
-            >
-              <PreviousIcon />
-            </button>
-            <button
-              type="button"
-              onClick={() => (isPlaying ? pause() : void resume())}
-              disabled={!hasTrack || loading}
-              className="w-16 h-16 rounded-full bg-zinc-100 text-zinc-900 flex items-center justify-center transition-all duration-150 hover:scale-105 active:scale-95 disabled:opacity-40 shadow-glow"
-              aria-label={isPlaying ? 'Pause' : 'Play'}
-            >
-              {loading ? (
-                <span className="animate-pulse-soft">
-                  <Music size={28} className="opacity-50" />
-                </span>
-              ) : isPlaying ? (
-                <PauseIcon size={28} />
-              ) : (
-                <PlayIcon size={28} />
-              )}
-            </button>
-            <button
-              type="button"
-              onClick={() => void next()}
-              disabled={!hasTrack}
-              className="p-3 rounded-lg text-zinc-300 hover:text-white hover:bg-white/10 disabled:opacity-40 transition-all active:scale-95"
-              aria-label="Next track"
-            >
-              <NextIcon />
-            </button>
-            <button
-              type="button"
-              onClick={cycleRepeat}
-              className={`p-3 rounded-lg transition-all duration-100 active:scale-95 ${
-                repeat !== 'off'
-                  ? 'text-brand-300 bg-brand-500/20'
-                  : 'text-zinc-400 hover:text-zinc-100 hover:bg-white/10'
-              }`}
-              aria-label={`Repeat: ${repeat}`}
-            >
-              <RepeatIcon active={repeat !== 'off'} />
-            </button>
-          </div>
-
-          {similar.length > 0 && (
-            <section className="w-full max-w-3xl mt-6 px-2" aria-label="More by this artist">
-              <p className="text-xs uppercase tracking-wider text-zinc-500 mb-2 flex items-center gap-1.5 justify-center">
-                <Sparkles size={11} aria-hidden />
-                More by {currentTrack?.artists[0]?.name ?? 'this artist'}
-              </p>
-              <div className="flex gap-2 overflow-x-auto pb-2 -mx-2 px-2 scroll-shadow">
-                {similar.map((t) => {
-                  const tArt = t.artworkUrl ?? t.album?.artworkUrl;
-                  return (
-                    <button
-                      key={t.id}
-                      type="button"
-                      onClick={() => {
-                        const queue = usePlayerStore.getState().queue;
-                        const idx = queue.findIndex((q) => q.id === t.id);
-                        if (idx >= 0) {
-                          usePlayerStore
-                            .getState()
-                            .setQueue(queue, idx, { shuffle: false, smartShuffle: false });
-                        }
-                      }}
-                      className="shrink-0 w-32 text-left rounded-lg p-1.5 hover:bg-zinc-800/60 transition-colors group"
-                    >
-                      {tArt ? (
-                        <img
-                          src={tArt}
-                          alt=""
-                          className="w-full aspect-square rounded object-cover mb-1.5"
-                        />
-                      ) : (
-                        <div className="w-full aspect-square rounded bg-zinc-800 flex items-center justify-center mb-1.5">
-                          <Music size={20} className="text-zinc-600" />
-                        </div>
-                      )}
-                      <p className="text-xs text-zinc-200 truncate">{t.title}</p>
-                      <p className="text-[10px] text-zinc-500 truncate">
-                        {t.artists.map((a) => a.name).join(', ')}
-                      </p>
-                    </button>
-                  );
-                })}
+            <div className="w-full max-w-2xl mt-8">
+              <div className="flex items-center gap-3 text-xs text-zinc-300 tabular-nums">
+                <span className="w-12 text-right">{formatTime(positionMs)}</span>
+                <div className="flex-1 h-1.5 rounded-full bg-white/10 overflow-hidden relative">
+                  <div
+                    className="h-full bg-gradient-to-r from-brand-500 to-accent-400 rounded-full transition-[width] duration-100"
+                    style={{ width: `${progress}%` }}
+                  />
+                  <CrossfadeIndicator durationMs={durationMs} />
+                </div>
+                <span className="w-12">{formatTime(durationMs)}</span>
               </div>
-            </section>
-          )}
-
-          <LyricsPanel className="px-2" />
-
-          <div className="relative flex items-center gap-3 mt-6 w-full max-w-xs">
-            <button
-              type="button"
-              onClick={toggleMute}
-              className="text-zinc-400 hover:text-zinc-100 transition-colors"
-              aria-label="Toggle mute"
-            >
-              <VolumeIcon volume={volume} />
-            </button>
-            <div className="flex-1 h-1.5 rounded-full bg-white/10 overflow-hidden">
-              <div
-                className="h-full bg-zinc-300 rounded-full"
-                style={{ width: `${volume * 100}%` }}
+              <input
+                type="range"
+                min={0}
+                max={durationMs || 0}
+                value={positionMs}
+                onChange={(e) => void seek(Number(e.target.value))}
+                disabled={!hasTrack}
+                className="w-full h-2 opacity-0 cursor-pointer -mt-3.5"
+                aria-label="Seek"
               />
             </div>
-            <input
-              type="range"
-              min={0}
-              max={100}
-              value={volume * 100}
-              onChange={(e) => setVolume(Number(e.target.value) / 100)}
-              className="absolute opacity-0 w-48 h-6 cursor-pointer"
-              aria-label="Volume"
-            />
+
+            <div className="flex items-center gap-4 mt-8">
+              <button
+                type="button"
+                onClick={toggleShuffle}
+                className={`p-3 rounded-lg transition-all duration-100 active:scale-95 ${
+                  shuffle
+                    ? 'text-brand-300 bg-brand-500/20'
+                    : 'text-zinc-400 hover:text-zinc-100 hover:bg-white/10'
+                }`}
+                aria-label="Toggle shuffle"
+                aria-pressed={shuffle}
+              >
+                <Shuffle size={20} className={shuffle ? 'fill-current' : ''} />
+              </button>
+              <button
+                type="button"
+                onClick={() => void previous()}
+                disabled={!hasTrack}
+                className="p-3 rounded-lg text-zinc-300 hover:text-white hover:bg-white/10 disabled:opacity-40 transition-all active:scale-95"
+                aria-label="Previous track"
+              >
+                <SkipBack size={20} fill="currentColor" />
+              </button>
+              <button
+                type="button"
+                onClick={() => (isPlaying ? pause() : void resume())}
+                disabled={!hasTrack || loading}
+                className="w-16 h-16 rounded-full bg-zinc-100 text-zinc-900 flex items-center justify-center transition-all duration-150 hover:scale-105 active:scale-95 disabled:opacity-40 shadow-glow"
+                aria-label={isPlaying ? 'Pause' : 'Play'}
+              >
+                {loading ? (
+                  <span className="animate-pulse-soft">
+                    <Music size={28} className="opacity-50" />
+                  </span>
+                ) : isPlaying ? (
+                  <Pause size={28} fill="currentColor" />
+                ) : (
+                  <Play size={28} fill="currentColor" />
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => void next()}
+                disabled={!hasTrack}
+                className="p-3 rounded-lg text-zinc-300 hover:text-white hover:bg-white/10 disabled:opacity-40 transition-all active:scale-95"
+                aria-label="Next track"
+              >
+                <SkipForward size={20} fill="currentColor" />
+              </button>
+              <button
+                type="button"
+                onClick={cycleRepeat}
+                className={`p-3 rounded-lg transition-all duration-100 active:scale-95 ${
+                  repeat !== 'off'
+                    ? 'text-brand-300 bg-brand-500/20'
+                    : 'text-zinc-400 hover:text-zinc-100 hover:bg-white/10'
+                }`}
+                aria-label={`Repeat: ${repeat}`}
+              >
+                <Repeat size={20} />
+              </button>
+            </div>
+
+            <div className="relative flex items-center gap-3 mt-6 w-full max-w-xs">
+              <button
+                type="button"
+                onClick={toggleMute}
+                className="text-zinc-400 hover:text-zinc-100 transition-colors"
+                aria-label="Toggle mute"
+              >
+                {volume === 0 ? (
+                  <VolumeX size={18} />
+                ) : volume < 0.5 ? (
+                  <Volume1 size={18} />
+                ) : (
+                  <Volume2 size={18} />
+                )}
+              </button>
+              <div className="flex-1 h-1.5 rounded-full bg-white/10 overflow-hidden">
+                <div
+                  className="h-full bg-zinc-300 rounded-full"
+                  style={{ width: `${volume * 100}%` }}
+                />
+              </div>
+              <input
+                type="range"
+                min={0}
+                max={100}
+                value={volume * 100}
+                onChange={(e) => setVolume(Number(e.target.value) / 100)}
+                className="absolute opacity-0 w-48 h-6 cursor-pointer"
+                aria-label="Volume"
+              />
+            </div>
           </div>
+
+          <aside className="w-full xl:w-[420px] xl:max-w-[440px] flex flex-col min-h-0">
+            <div
+              role="tablist"
+              aria-label="Now playing tabs"
+              className="flex items-center gap-1 p-1 rounded-xl bg-zinc-900/60 border border-zinc-800/60 mb-3"
+            >
+              {(
+                [
+                  { key: 'lyrics', label: 'Lyrics' },
+                  { key: 'similar', label: 'Similar' },
+                  { key: 'credits', label: 'Credits' },
+                  { key: 'visualizer', label: 'Visualizer' },
+                ] as { key: NpTab; label: string }[]
+              ).map((t) => (
+                <button
+                  key={t.key}
+                  type="button"
+                  role="tab"
+                  aria-selected={activeTab === t.key}
+                  onClick={() => setActiveTab(t.key)}
+                  className={`flex-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                    activeTab === t.key
+                      ? 'bg-zinc-800 text-zinc-100'
+                      : 'text-zinc-500 hover:text-zinc-300'
+                  }`}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex-1 min-h-0 overflow-y-auto rounded-xl">
+              {activeTab === 'lyrics' && <LyricsPanel />}
+              {activeTab === 'similar' && similar.length > 0 && (
+                <section aria-label="More by this artist" className="px-1">
+                  <p className="text-xs uppercase tracking-wider text-zinc-500 mb-2 flex items-center gap-1.5">
+                    <Sparkles size={11} aria-hidden />
+                    More by {currentTrack?.artists[0]?.name ?? 'this artist'}
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {similar.map((t) => {
+                      const tArt = t.artworkUrl ?? t.album?.artworkUrl;
+                      return (
+                        <button
+                          key={t.id}
+                          type="button"
+                          onClick={() => {
+                            const queue = usePlayerStore.getState().queue;
+                            const idx = queue.findIndex((q) => q.id === t.id);
+                            if (idx >= 0) {
+                              usePlayerStore
+                                .getState()
+                                .setQueue(queue, idx, { shuffle: false, smartShuffle: false });
+                            }
+                          }}
+                          className="text-left rounded-lg p-1.5 hover:bg-zinc-800/60 transition-colors"
+                        >
+                          {tArt ? (
+                            <img
+                              src={tArt}
+                              alt=""
+                              className="w-full aspect-square rounded object-cover mb-1.5"
+                            />
+                          ) : (
+                            <div className="w-full aspect-square rounded bg-zinc-800 flex items-center justify-center mb-1.5">
+                              <Music size={20} className="text-zinc-600" />
+                            </div>
+                          )}
+                          <p className="text-xs text-zinc-200 truncate">{t.title}</p>
+                          <p className="text-[10px] text-zinc-500 truncate">
+                            {t.artists.map((a) => a.name).join(', ')}
+                          </p>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </section>
+              )}
+              {activeTab === 'credits' && currentTrack && (
+                <div className="glass rounded-lg p-3 text-left text-xs space-y-1">
+                  <p className="flex items-center justify-between gap-3">
+                    <span className="text-zinc-500">Title</span>
+                    <span className="text-zinc-200 truncate">{currentTrack.title}</span>
+                  </p>
+                  <p className="flex items-center justify-between gap-3">
+                    <span className="text-zinc-500">Artist</span>
+                    <span className="text-zinc-200 truncate">
+                      {currentTrack.artists.map((a) => a.name).join(', ') || 'Unknown'}
+                    </span>
+                  </p>
+                  {currentTrack.album && (
+                    <p className="flex items-center justify-between gap-3">
+                      <span className="text-zinc-500">Album</span>
+                      <span className="text-zinc-200 truncate">{currentTrack.album.title}</span>
+                    </p>
+                  )}
+                  <p className="flex items-center justify-between gap-3">
+                    <span className="text-zinc-500">Duration</span>
+                    <span className="text-zinc-200 tabular-nums">{formatTime(durationMs)}</span>
+                  </p>
+                  <p className="flex items-center justify-between gap-3">
+                    <span className="text-zinc-500">Source</span>
+                    <span className="text-zinc-200">{sourceName}</span>
+                  </p>
+                </div>
+              )}
+              {activeTab === 'visualizer' && (
+                <div className="space-y-3">
+                  <p className="text-xs text-zinc-500">Pick a background visualizer.</p>
+                  <div
+                    role="radiogroup"
+                    aria-label="Background visualizer"
+                    className="grid grid-cols-1 gap-1.5"
+                    data-testid="now-playing-visualizer-toggle"
+                  >
+                    {(
+                      [
+                        { mode: 'none', icon: Eye, label: 'None' },
+                        { mode: 'bars', icon: BarChart3, label: 'Frequency bars' },
+                        { mode: 'ring', icon: Circle, label: 'Waveform ring' },
+                        { mode: 'particles', icon: Wind, label: 'Particle field' },
+                        { mode: 'scope', icon: Activity, label: 'Stereo oscilloscope' },
+                      ] as { mode: VisualizerMode; icon: typeof Eye; label: string }[]
+                    ).map(({ mode, icon: Icon, label }) => (
+                      <button
+                        key={mode}
+                        type="button"
+                        role="radio"
+                        aria-checked={visualizer === mode}
+                        aria-label={label}
+                        onClick={() => setVisualizer(mode)}
+                        className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
+                          visualizer === mode
+                            ? 'bg-brand-500/15 text-brand-300'
+                            : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60'
+                        }`}
+                        title={label}
+                        data-testid={`np-visualizer-${mode}`}
+                      >
+                        <Icon size={14} aria-hidden />
+                        <span>{label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </aside>
         </div>
       </motion.div>
     </div>
-  );
-}
-
-function PreviousIcon(): JSX.Element {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
-      <path d="M6 6h2v12H6zM9.5 12l8.5 6V6z" />
-    </svg>
-  );
-}
-
-function PlayIcon({ size = 20 }: { size?: number }): JSX.Element {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
-      <path d="M8 5v14l11-7z" />
-    </svg>
-  );
-}
-
-function PauseIcon({ size = 20 }: { size?: number }): JSX.Element {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
-      <path d="M6 5h4v14H6zM14 5h4v14h-4z" />
-    </svg>
-  );
-}
-
-function NextIcon(): JSX.Element {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
-      <path d="M16 6h2v12h-2zM6 6v12l8.5-6z" />
-    </svg>
-  );
-}
-
-function RepeatIcon({ active }: { active: boolean }): JSX.Element {
-  return (
-    <svg
-      width="20"
-      height="20"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="m17 2 4 4-4 4" />
-      <path d="M3 11v-1a4 4 0 0 1 4-4h14" />
-      <path d="m7 22-4-4 4-4" />
-      <path d="M21 13v1a4 4 0 0 1-4 4H3" />
-      {active && <circle cx="12" cy="12" r="1" fill="currentColor" />}
-    </svg>
-  );
-}
-
-function VolumeIcon({ volume }: { volume: number }): JSX.Element {
-  if (volume === 0) {
-    return (
-      <svg
-        width="18"
-        height="18"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-        <line x1="22" y1="9" x2="16" y2="15" />
-        <line x1="16" y1="9" x2="22" y2="15" />
-      </svg>
-    );
-  }
-  if (volume < 0.5) {
-    return (
-      <svg
-        width="18"
-        height="18"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-        <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
-      </svg>
-    );
-  }
-  return (
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-      <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
-      <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
-    </svg>
   );
 }

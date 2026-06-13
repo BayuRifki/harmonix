@@ -10,7 +10,6 @@ import { useToastStore } from '@/components/ui/toastStore';
 
 interface HeroPlayerProps {
   playlistName?: string | null;
-  showHiFiBadge?: boolean;
 }
 
 function ArtworkImage({ url, alt }: { url: string; alt: string }): JSX.Element {
@@ -41,6 +40,13 @@ function ArtworkImage({ url, alt }: { url: string; alt: string }): JSX.Element {
   );
 }
 
+function formatDuration(ms: number): string {
+  if (!ms || ms <= 0) return '—';
+  const s = Math.floor(ms / 1000);
+  const m = Math.floor(s / 60);
+  return `${m}:${(s % 60).toString().padStart(2, '0')}`;
+}
+
 function VinylRecord({ spinning }: { spinning: boolean }): JSX.Element {
   return (
     <div
@@ -65,7 +71,7 @@ function VinylRecord({ spinning }: { spinning: boolean }): JSX.Element {
   );
 }
 
-export function HeroPlayer({ playlistName, showHiFiBadge = true }: HeroPlayerProps): JSX.Element {
+export function HeroPlayer({ playlistName }: HeroPlayerProps): JSX.Element {
   const currentTrack = usePlayerStore((s) => s.currentTrack);
   const registrations = useSourcesStore((s) => s.registrations);
   const isPlaying = usePlayerStore((s) => s.isPlaying);
@@ -127,10 +133,10 @@ export function HeroPlayer({ playlistName, showHiFiBadge = true }: HeroPlayerPro
   return (
     <div className="relative w-full h-full flex flex-col items-center justify-center px-8 py-6 overflow-hidden">
       <div
-        className="absolute inset-0 pointer-events-none opacity-60"
+        className="absolute inset-0 pointer-events-none"
         style={{
           background:
-            'radial-gradient(circle at 50% 40%, rgba(236, 72, 153, 0.25) 0%, rgba(244, 114, 182, 0.1) 30%, transparent 60%)',
+            'radial-gradient(circle at 50% 40%, rgba(236, 72, 153, 0.1) 0%, rgba(244, 114, 182, 0.04) 30%, transparent 60%)',
         }}
         aria-hidden
       />
@@ -150,14 +156,22 @@ export function HeroPlayer({ playlistName, showHiFiBadge = true }: HeroPlayerPro
 
       <div className="relative mt-6 w-full max-w-md text-center z-10">
         <div className="flex items-center justify-center gap-2">
-          <h2 className="text-2xl font-bold text-white truncate">
+          {currentTrack && (
+            <span
+              className="text-[10px] uppercase tracking-wider text-zinc-500 font-mono shrink-0"
+              aria-hidden
+            >
+              {String(1).padStart(2, '0')}
+            </span>
+          )}
+          <h2 className="text-2xl font-semibold text-white truncate">
             {currentTrack?.title ?? 'Nothing playing'}
           </h2>
           {currentTrack && (
             <button
               type="button"
               onClick={addToFavorites}
-              className="p-1.5 rounded-full text-zinc-400 hover:text-brand-400 transition-colors shrink-0"
+              className="p-1.5 rounded-full text-zinc-400 hover:text-brand-400 transition-colors shrink-0 focus-ring"
               aria-label="Add to favorites"
               title="Add to favorites"
             >
@@ -170,22 +184,24 @@ export function HeroPlayer({ playlistName, showHiFiBadge = true }: HeroPlayerPro
         </p>
 
         {currentTrack && (
-          <div className="mt-4 flex items-center justify-center gap-2 flex-wrap">
+          <div className="mt-4 flex items-center justify-center gap-3 text-[11px] text-zinc-500 tabular-nums">
+            {currentTrack.durationMs > 0 && <span>{formatDuration(currentTrack.durationMs)}</span>}
             {playlistName && (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs text-zinc-200 bg-zinc-800/60 border border-zinc-700/60">
-                <Disc3 size={12} />
-                Playing from <span className="font-medium">{playlistName}</span>
-              </span>
-            )}
-            {showHiFiBadge && (
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium text-brand-300 bg-brand-500/10 border border-brand-500/30">
-                Hi-Fi
-              </span>
+              <>
+                <span className="text-zinc-700">·</span>
+                <span className="inline-flex items-center gap-1.5 text-zinc-400 normal-case tracking-normal font-sans">
+                  <Disc3 size={11} />
+                  {playlistName}
+                </span>
+              </>
             )}
             {sourceLabel && (
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-[10px] uppercase tracking-wider text-zinc-400 bg-zinc-800/40 border border-zinc-700/40">
-                {sourceLabel}
-              </span>
+              <>
+                <span className="text-zinc-700">·</span>
+                <span className="text-zinc-400 normal-case tracking-normal font-sans">
+                  {sourceLabel}
+                </span>
+              </>
             )}
           </div>
         )}

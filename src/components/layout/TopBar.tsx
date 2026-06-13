@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
-import { Search, Bell, Settings as SettingsIcon, History, X, Clock, SearchX } from 'lucide-react';
+import { Search, Settings as SettingsIcon, History, X, Clock, SearchX } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Breadcrumb } from '@/components/layout/Breadcrumb';
 import { useUiStore } from '@/stores/uiStore';
@@ -14,7 +14,6 @@ export function TopBar(): JSX.Element {
   const location = useLocation();
   const isOnSearchPage = location.pathname.startsWith('/search');
   const [query, setQuery] = useState(() => searchParams.get('q') ?? '');
-  const [hasNotification, setHasNotification] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const navigate = useNavigate();
   const debounceRef = useRef<number | null>(null);
@@ -203,74 +202,61 @@ export function TopBar(): JSX.Element {
                   )}
                 </div>
                 <div className="max-h-96 overflow-y-auto">
-                {filteredHistory.length > 0 ? (
-                  <ul className="py-1">
-                    {filteredHistory.map((h) => (
-                      <li
-                        key={h}
-                        role="option"
-                        aria-selected={false}
-                        className="group flex items-center gap-2 px-3 py-2 hover:bg-zinc-800/60 cursor-pointer"
-                        onMouseDown={(e) => {
-                          e.preventDefault();
-                          runSearch(h);
-                        }}
-                      >
-                        <Search size={12} className="text-zinc-600 shrink-0" aria-hidden />
-                        <span className="flex-1 text-sm text-zinc-200 truncate">
-                          {query.trim()
-                            ? highlightMatches(
-                                h,
-                                fuzzySearch([h], query, (x) => x, 1)[0]?.matches ?? [],
-                              ).map((seg, i) => (
-                                <span
-                                  key={i}
-                                  className={seg.highlighted ? 'text-brand-300 font-medium' : ''}
-                                >
-                                  {seg.text}
-                                </span>
-                              ))
-                            : h}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            remove(h);
+                  {filteredHistory.length > 0 ? (
+                    <ul className="py-1">
+                      {filteredHistory.map((h) => (
+                        <li
+                          key={h}
+                          role="option"
+                          aria-selected={false}
+                          className="group flex items-center gap-2 px-3 py-2 hover:bg-zinc-800/60 cursor-pointer"
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            runSearch(h);
                           }}
-                          className="opacity-0 group-hover:opacity-100 text-zinc-500 hover:text-zinc-200 focus-ring"
-                          aria-label={`Remove ${h} from search history`}
                         >
-                          <X size={11} />
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <div className="px-3 py-6 text-center text-xs text-zinc-500">
-                    <SearchX size={16} className="text-zinc-700 mx-auto mb-1" aria-hidden />
-                    {query.trim() ? 'No matches in history' : 'No recent searches'}
-                  </div>
-                )}
+                          <Search size={12} className="text-zinc-600 shrink-0" aria-hidden />
+                          <span className="flex-1 text-sm text-zinc-200 truncate">
+                            {query.trim()
+                              ? highlightMatches(
+                                  h,
+                                  fuzzySearch([h], query, (x) => x, 1)[0]?.matches ?? [],
+                                ).map((seg, i) => (
+                                  <span
+                                    key={i}
+                                    className={seg.highlighted ? 'text-brand-300 font-medium' : ''}
+                                  >
+                                    {seg.text}
+                                  </span>
+                                ))
+                              : h}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              remove(h);
+                            }}
+                            className="opacity-0 group-hover:opacity-100 text-zinc-500 hover:text-zinc-200 focus-ring"
+                            aria-label={`Remove ${h} from search history`}
+                          >
+                            <X size={11} />
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <div className="px-3 py-6 text-center text-xs text-zinc-500">
+                      <SearchX size={16} className="text-zinc-700 mx-auto mb-1" aria-hidden />
+                      {query.trim() ? 'No matches in history' : 'No recent searches'}
+                    </div>
+                  )}
                 </div>
               </motion.div>
             )}
           </AnimatePresence>
         </div>
       </form>
-
-      <button
-        type="button"
-        onClick={() => setHasNotification(false)}
-        className="relative p-2 rounded-full text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/60 transition-colors focus-ring"
-        aria-label="Notifications"
-        title="Notifications"
-      >
-        <Bell size={18} />
-        {hasNotification && (
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-brand-500 rounded-full shadow-glow-pink" />
-        )}
-      </button>
 
       <button
         type="button"

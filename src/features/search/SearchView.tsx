@@ -6,6 +6,7 @@ import { usePlayerStore } from '@/stores/playerStore';
 import { useInsightsStore } from '@/stores/insightsStore';
 import { useSearchHistoryStore } from '@/stores/searchHistoryStore';
 import { Skeleton } from '@/components/ui/Skeleton';
+import { EmptyState } from '@/components/ui/EmptyState';
 import type { Track, SourceSearchResult } from '@/types/global';
 
 type GroupedResults = SourceSearchResult & { sourceName: string };
@@ -196,10 +197,11 @@ export function SearchView(): JSX.Element {
             ))}
           </div>
         ) : totalTracks === 0 ? (
-          <div className="text-zinc-500 text-sm py-16 text-center">
-            <SearchCheck size={20} className="mx-auto mb-2 opacity-40" />
-            <p>No results for &quot;{query}&quot;.</p>
-          </div>
+          <EmptyState
+            icon={<SearchCheck size={20} />}
+            title={`No results for "${query}"`}
+            description="Try a different query, or check that you have sources enabled in Settings."
+          />
         ) : (
           <div className="space-y-6">
             {topTrack && topTrackGroup && (

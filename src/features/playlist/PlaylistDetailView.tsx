@@ -8,7 +8,8 @@ import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { useToastStore } from '@/components/ui/toastStore';
 import { Skeleton } from '@/components/ui/Skeleton';
-import { Trash2, ArrowLeft, Play } from 'lucide-react';
+import { Trash2, ArrowLeft, Play, Music } from 'lucide-react';
+import { EmptyState } from '@/components/ui/EmptyState';
 
 function formatDuration(ms: number): string {
   if (!ms || ms <= 0) return '—';
@@ -311,8 +312,12 @@ export function PlaylistDetailView({ playlistId, onBack }: PlaylistDetailViewPro
       )}
 
       {tracks.length === 0 ? (
-        <div className="text-zinc-500 text-sm py-12 text-center border border-dashed border-zinc-800 rounded">
-          This playlist is empty. Add tracks from the Library, Search, or other playlists.
+        <div className="rounded-xl border border-dashed border-zinc-800">
+          <EmptyState
+            icon={<Music size={20} />}
+            title="This playlist is empty"
+            description="Add tracks from the Library, Search, or other playlists."
+          />
         </div>
       ) : (
         <div className="bg-zinc-950 rounded">

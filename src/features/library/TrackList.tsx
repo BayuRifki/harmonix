@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
+import { Music } from 'lucide-react';
 import { usePlayerStore } from '@/stores/playerStore';
 import { AddToPlaylistMenu } from '@/features/playlist/AddToPlaylistMenu';
 import { useVirtualWindow } from '@/hooks/useVirtualWindow';
 import { useInsightsStore } from '@/stores/insightsStore';
+import { EmptyState } from '@/components/ui/EmptyState';
 import type { Track } from '@/types/global';
 import {
   itemVariants,
@@ -40,8 +42,12 @@ export function TrackList({ tracks, onPlay }: TrackListProps): JSX.Element {
 
   if (tracks.length === 0) {
     return (
-      <div className="text-zinc-500 text-sm py-12 text-center border border-dashed border-zinc-800 rounded">
-        No tracks yet. Add a folder and start a scan.
+      <div className="rounded-xl border border-dashed border-zinc-800">
+        <EmptyState
+          icon={<Music size={20} />}
+          title="No tracks yet"
+          description="Add a folder and start a scan."
+        />
       </div>
     );
   }

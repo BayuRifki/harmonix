@@ -134,7 +134,13 @@ export function SettingsSection({
             }
             style={{ overflow: 'hidden' }}
           >
-            <div className="px-4 pb-4 pt-1 border-t border-app">{children}</div>
+            <div className="px-4 pb-4 pt-3 border-t border-app/40 relative">
+              <span
+                aria-hidden
+                className="absolute left-4 right-4 top-0 h-px bg-gradient-to-r from-brand-500/0 via-brand-500/40 to-brand-500/0"
+              />
+              {children}
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

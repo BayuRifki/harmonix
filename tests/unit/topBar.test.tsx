@@ -23,9 +23,8 @@ describe('TopBar', () => {
     expect(input).toHaveAttribute('type', 'text');
   });
 
-  it('renders notification and settings buttons', () => {
+  it('renders settings button', () => {
     renderWithRouter();
-    expect(screen.getByLabelText('Notifications')).toBeInTheDocument();
     expect(screen.getByLabelText('Settings')).toBeInTheDocument();
   });
 

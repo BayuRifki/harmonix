@@ -291,17 +291,17 @@ export function PlayerBar({ isHomePage = false }: PlayerBarProps): JSX.Element {
         )}
 
         {/* Right: Volume + Queue */}
-        <div className={`flex items-center gap-3 ${isHomePage ? 'w-2/3' : 'w-1/3'} justify-end`}>
+        <div className={`flex items-center gap-2 ${isHomePage ? 'w-2/3' : 'w-1/3'} justify-end`}>
           <button
             type="button"
             onClick={() => setQueueOpen(true)}
-            className="relative px-2 py-1.5 rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/60 transition-all duration-100 active:scale-95 focus-ring"
+            className="relative inline-flex items-center justify-center min-w-[40px] min-h-[40px] px-2 rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/60 transition-all duration-100 active:scale-95 focus-ring"
             aria-label="Show queue"
             title="Show queue"
           >
-            <ListMusic size={16} />
+            <ListMusic size={18} />
             {queue.length > 0 && (
-              <span className="absolute -top-1 -right-1 bg-brand-500 text-white text-[9px] font-bold rounded-full w-4 h-4 flex items-center justify-center shadow">
+              <span className="absolute -top-0.5 -right-0.5 bg-brand-500 text-white text-[9px] font-bold rounded-full w-4 h-4 flex items-center justify-center shadow">
                 {queue.length}
               </span>
             )}
@@ -310,7 +310,7 @@ export function PlayerBar({ isHomePage = false }: PlayerBarProps): JSX.Element {
             <button
               type="button"
               onClick={() => setPlayerBarPinned(!playerBarPinned)}
-              className={`p-1.5 rounded-lg transition-all duration-100 active:scale-95 focus-ring ${
+              className={`inline-flex items-center justify-center min-w-[40px] min-h-[40px] p-2 rounded-lg transition-all duration-100 active:scale-95 focus-ring ${
                 playerBarPinned
                   ? 'text-brand-300 bg-brand-500/15'
                   : 'text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/60'
@@ -320,7 +320,7 @@ export function PlayerBar({ isHomePage = false }: PlayerBarProps): JSX.Element {
               title={playerBarPinned ? 'Unpin (Esc to collapse)' : 'Pin expanded'}
               data-testid="player-bar-pin-toggle"
             >
-              {playerBarPinned ? <PinOff size={14} /> : <Pin size={14} />}
+              {playerBarPinned ? <PinOff size={16} /> : <Pin size={16} />}
             </button>
           )}
           <button
@@ -328,28 +328,28 @@ export function PlayerBar({ isHomePage = false }: PlayerBarProps): JSX.Element {
             onClick={() => {
               void window.api.miniPlayer.show();
             }}
-            className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/60 transition-all duration-100 active:scale-95 focus-ring"
+            className="inline-flex items-center justify-center min-w-[40px] min-h-[40px] p-2 rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/60 transition-all duration-100 active:scale-95 focus-ring"
             aria-label="Open mini-player"
             title="Open mini-player (Ctrl+Shift+M)"
           >
-            <LayoutGrid size={16} />
+            <LayoutGrid size={18} />
           </button>
           <button
             type="button"
             onClick={() => navigate('/now-playing')}
             disabled={!hasTrack}
-            className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/60 transition-all duration-100 active:scale-95 disabled:opacity-40 focus-ring"
+            className="inline-flex items-center justify-center min-w-[40px] min-h-[40px] p-2 rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/60 transition-all duration-100 active:scale-95 disabled:opacity-40 focus-ring"
             aria-label="Open now playing"
             title="Now playing"
           >
-            <Maximize2 size={16} />
+            <Maximize2 size={18} />
           </button>
           <div className="flex items-center gap-2 group/vol">
             <button
               type="button"
               onClick={toggleMute}
               disabled={!hasTrack}
-              className="text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/60 disabled:opacity-40 transition-all duration-100 active:scale-95 focus-ring"
+              className="inline-flex items-center justify-center min-w-[40px] min-h-[40px] p-2 rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/60 disabled:opacity-40 transition-all duration-100 active:scale-95 focus-ring"
               aria-label="Toggle mute"
             >
               <VolumeIcon volume={volume} />

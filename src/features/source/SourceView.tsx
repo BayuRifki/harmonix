@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, NavLink } from 'react-router-dom';
+import { Music } from 'lucide-react';
 import { useSourcesStore } from '@/stores/sourcesStore';
 import { usePlayerStore } from '@/stores/playerStore';
 import { Skeleton } from '@/components/ui/Skeleton';
+import { EmptyState } from '@/components/ui/EmptyState';
 import type { Playlist, Track, SourceRegistration } from '@/types/global';
 
 interface SourceMeta {
@@ -287,11 +289,13 @@ export function SourceView(): JSX.Element {
               ))}
             </ul>
           ) : (
-            <p className="text-xs text-zinc-500">
-              {source.id === 'local'
-                ? 'No playlists available.'
-                : 'No playlists available for this account.'}
-            </p>
+            <EmptyState
+              variant="compact"
+              icon={<Music size={16} />}
+              title={
+                source.id === 'local' ? 'No playlists available' : 'No playlists for this account'
+              }
+            />
           )}
         </section>
       )}
@@ -430,7 +434,7 @@ function PlaylistRow({
               )}
             </ul>
           ) : (
-            <p className="text-xs text-zinc-500 py-2">No tracks available.</p>
+            <EmptyState variant="compact" icon={<Music size={16} />} title="No tracks available" />
           )}
         </div>
       )}

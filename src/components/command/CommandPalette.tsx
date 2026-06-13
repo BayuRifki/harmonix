@@ -455,8 +455,13 @@ export function CommandPalette(): JSX.Element | null {
             ) : (
               (Object.keys(groups) as Array<keyof typeof groups>).map((groupName) => (
                 <li key={groupName} role="presentation">
-                  <div className="px-4 py-1.5 text-[10px] uppercase tracking-wider text-zinc-600 font-semibold">
-                    {groupName}
+                  <div className="px-4 pt-3 pb-1.5 flex items-baseline gap-2">
+                    <span className="text-[10px] uppercase tracking-wider text-zinc-500 font-medium font-mono">
+                      {groupName}
+                    </span>
+                    <span className="text-[10px] tabular-nums text-zinc-700 font-mono">
+                      {groups[groupName]!.length}
+                    </span>
                   </div>
                   <ul role="group">
                     {groups[groupName]!.map(({ match, index }) => {
@@ -472,12 +477,18 @@ export function CommandPalette(): JSX.Element | null {
                           data-cmd-index={index}
                           onMouseEnter={() => setActiveIndex(index)}
                           onClick={() => onSelect(item)}
-                          className={`flex items-center gap-3 px-4 py-2 cursor-pointer text-sm transition-colors ${
+                          className={`relative flex items-center gap-3 px-4 py-2.5 cursor-pointer text-sm transition-colors ${
                             isActive
-                              ? 'bg-brand-500/15 text-white'
-                              : 'text-zinc-300 hover:bg-zinc-800/60'
+                              ? 'bg-brand-500/10 text-white'
+                              : 'text-zinc-300 hover:bg-zinc-800/40'
                           }`}
                         >
+                          {isActive && (
+                            <span
+                              aria-hidden
+                              className="absolute left-0 top-1.5 bottom-1.5 w-0.5 rounded-r bg-brand-400"
+                            />
+                          )}
                           <Icon
                             size={16}
                             className={isActive ? 'text-brand-300' : 'text-zinc-500'}
@@ -561,19 +572,19 @@ export function CommandPalette(): JSX.Element | null {
             )}
           </ul>
 
-          <div className="flex items-center justify-between gap-3 px-4 py-2 border-t border-zinc-800 text-[10px] text-zinc-600">
+          <div className="flex items-center justify-between gap-3 px-4 py-2 border-t border-zinc-800 text-[10px] text-zinc-500 font-mono">
             <div className="flex items-center gap-3">
               <span className="flex items-center gap-1">
-                <kbd className="bg-zinc-800 px-1 rounded">↑</kbd>
-                <kbd className="bg-zinc-800 px-1 rounded">↓</kbd>
+                <kbd className="bg-zinc-800 px-1.5 rounded">↑</kbd>
+                <kbd className="bg-zinc-800 px-1.5 rounded">↓</kbd>
                 navigate
               </span>
               <span className="flex items-center gap-1">
-                <kbd className="bg-zinc-800 px-1 rounded">↵</kbd>
+                <kbd className="bg-zinc-800 px-1.5 rounded">↵</kbd>
                 select
               </span>
             </div>
-            <span>{matches.length} results</span>
+            <span className="tabular-nums">{matches.length} results</span>
           </div>
           <CommandPreview item={matches[activeIndex]?.item ?? null} />
         </div>

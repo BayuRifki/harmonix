@@ -53,14 +53,27 @@
     background: var(--bg-primary);
     color: var(--text-primary);
     font-family:
-      'Inter',
+      'Manrope',
       system-ui,
       -apple-system,
       sans-serif;
     @apply font-sans antialiased;
+    font-feature-settings:
+      'ss01' on,
+      'ss03' on,
+      'cv11' on;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
     transition:
       background-color 0.2s ease,
       color 0.2s ease;
+  }
+
+  :root.light body {
+    font-feature-settings:
+      'ss01' on,
+      'cv11' on;
   }
 
   *::-webkit-scrollbar {

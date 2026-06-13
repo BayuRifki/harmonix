@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Music, X, Play, Trash2 } from 'lucide-react';
+import { Music, X, Play, Trash2, ListMusic } from 'lucide-react';
 import { usePlayerStore } from '@/stores/playerStore';
 import { useListeningHistoryStore } from '@/stores/listeningHistoryStore';
 import { ForYouSection, STARTER_RECOMMENDATIONS } from '@/components/recommendations/ForYouSection';
 import type { HistoryEntry } from '@/stores/listeningHistoryStore';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
+import { EmptyState } from '@/components/ui/EmptyState';
 
 interface RightRailProps {
   onPlayHistoryEntry?: (entry: HistoryEntry) => void;
@@ -92,11 +93,14 @@ export function RightRail({ onPlayHistoryEntry }: RightRailProps): JSX.Element {
           )}
         </header>
         {upNext.length === 0 ? (
-          <p className="text-xs text-zinc-500 py-2">
-            No upcoming tracks. Play something to fill the queue.
-          </p>
+          <EmptyState
+            variant="compact"
+            icon={<ListMusic size={16} />}
+            title="No upcoming tracks"
+            description="Play something to fill the queue."
+          />
         ) : (
-          <ul className="space-y-1">
+          <ul className="space-y-0.5">
             {upNext.map((track, i) => {
               const realIndex = queueIndex + 1 + i;
               const artworkUrl = track.artworkUrl ?? track.album?.artworkUrl ?? null;
@@ -111,16 +115,21 @@ export function RightRail({ onPlayHistoryEntry }: RightRailProps): JSX.Element {
                     }
                   }}
                   tabIndex={0}
-                  className="group flex items-center gap-3 px-2 py-1.5 rounded-md hover:bg-zinc-900/60 cursor-pointer transition-colors"
+                  className="group flex items-center gap-2.5 px-2 py-1.5 rounded-md hover:bg-zinc-900/70 cursor-pointer transition-colors"
                 >
-                  <ArtworkThumb url={artworkUrl} alt={track.title} size={40} />
+                  <div className="relative shrink-0">
+                    <ArtworkThumb url={artworkUrl} alt={track.title} size={44} />
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded">
+                      <Play size={14} className="text-white fill-white" />
+                    </div>
+                  </div>
                   <div className="min-w-0 flex-1">
                     <p className="text-sm text-zinc-200 truncate">{track.title}</p>
                     <p className="text-xs text-zinc-500 truncate">
                       {track.artists.map((a) => a.name).join(', ') || 'Unknown artist'}
                     </p>
                   </div>
-                  <span className="text-xs text-zinc-600 shrink-0">
+                  <span className="text-[11px] text-zinc-600 tabular-nums shrink-0">
                     {formatDuration(track.durationMs)}
                   </span>
                   <button
@@ -147,7 +156,13 @@ export function RightRail({ onPlayHistoryEntry }: RightRailProps): JSX.Element {
       </section>
 
       <section className="p-4 flex-1 overflow-y-auto">
-        <header className="flex items-center justify-between mb-3">
+        <header className="mb-3 flex items-end justify-between gap-2">
+          <div>
+            <p className="text-[10px] uppercase tracking-wider text-zinc-500 font-medium">
+              Last 7 days
+            </p>
+            <h2 className="text-sm font-semibold text-zinc-100 mt-0.5">For You</h2>
+          </div>
           {recent.length > 0 && (
             <button
               type="button"

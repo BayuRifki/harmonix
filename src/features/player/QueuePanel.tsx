@@ -1,5 +1,7 @@
 import { useState } from 'react';
+import { ListMusic } from 'lucide-react';
 import { usePlayerStore } from '@/stores/playerStore';
+import { EmptyState } from '@/components/ui/EmptyState';
 
 function formatDuration(ms: number): string {
   if (!ms || ms <= 0) return '—';
@@ -161,9 +163,12 @@ export function QueuePanel({ open, onClose }: QueuePanelProps): JSX.Element | nu
           )}
 
           {queue.length === 0 && (
-            <div className="p-8 text-center text-zinc-500 text-sm">
-              Queue is empty. Play a track to start.
-            </div>
+            <EmptyState
+              variant="compact"
+              icon={<ListMusic size={16} />}
+              title="Queue is empty"
+              description="Play a track to start."
+            />
           )}
         </div>
 

@@ -83,9 +83,10 @@ export function SettingsTabs({ activeTab }: SettingsTabsProps = {}): JSX.Element
         aria-label="Settings categories"
         className="flex items-center gap-1 border-b border-app overflow-x-auto"
       >
-        {TABS.map((tab) => {
+        {TABS.map((tab, index) => {
           const isActive = resolvedTab === tab.id;
           const Icon = tab.icon;
+          const number = String(index + 1).padStart(2, '0');
           return (
             <NavLink
               key={tab.id}
@@ -102,6 +103,14 @@ export function SettingsTabs({ activeTab }: SettingsTabsProps = {}): JSX.Element
                 ].join(' ')
               }
             >
+              <span
+                className={`text-[10px] font-mono tabular-nums ${
+                  isActive ? 'text-brand-400' : 'text-zinc-600'
+                }`}
+                aria-hidden
+              >
+                {number}
+              </span>
               <Icon size={14} aria-hidden />
               <span>{tab.label}</span>
               {(isActive || undefined) && (

@@ -11,6 +11,7 @@ interface ForYouSectionProps {
   onPlayHistoryEntry?: (entry: HistoryEntry) => void;
   emptyAction?: ReactNode;
   showHeader?: boolean;
+  eyebrow?: string;
 }
 
 const STARTER_RECOMMENDATIONS: HistoryEntry[] = [
@@ -62,6 +63,7 @@ export function ForYouSection({
   onPlayHistoryEntry,
   emptyAction,
   showHeader = true,
+  eyebrow,
 }: ForYouSectionProps): JSX.Element {
   const recent = useListeningHistoryStore((s) => s.entries);
   const play = usePlayerStore((s) => s.play);
@@ -87,10 +89,11 @@ export function ForYouSection({
   return (
     <section data-testid="for-you-section" data-layout={layout} data-has-history={hasHistory}>
       {showHeader && (
-        <header className="flex items-center justify-between mb-3">
-          <h2 className="text-[11px] font-semibold text-zinc-300 tracking-wider uppercase">
-            For You
-          </h2>
+        <header className="mb-3">
+          <p className="text-[10px] uppercase tracking-wider text-zinc-500 font-medium">
+            {eyebrow ?? 'Recommendations'}
+          </p>
+          <h2 className="text-sm font-semibold text-zinc-200 mt-0.5">For You</h2>
         </header>
       )}
       {layout === 'grid' && !hasHistory ? (
