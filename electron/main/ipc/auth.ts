@@ -57,7 +57,8 @@ export function registerAuthHandlers(_getMainWindow: () => BrowserWindow | null)
             'then retry:\n' +
             '  1. Spotify Developer Dashboard → your app → ' +
             'App settings → Redirect URIs contains exactly ' +
-            'http://127.0.0.1:8888/callback (one entry per line).\n' +
+            'http://127.0.0.1:8888 (one entry per line, no path, ' +
+            'no trailing slash).\n' +
             '  2. User Management → your Spotify account email is ' +
             'listed (Development Mode apps are limited to 25 users).\n' +
             '  3. Port 8888 on 127.0.0.1 is reachable (no firewall/ ' +

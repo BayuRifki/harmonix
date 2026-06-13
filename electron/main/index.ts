@@ -137,7 +137,12 @@ if (!gotLock) {
       registerSource(new DemoSource());
       const spotifyConfig = {
         clientId: process.env.SPOTIFY_CLIENT_ID ?? '',
-        redirectUri: process.env.SPOTIFY_REDIRECT_URI ?? 'http://127.0.0.1:8888/callback',
+        // Use the path-less form for the same reason as
+        // `auth.ts`: Spotify's exact-string redirect_uri matching
+        // is the most common source of "Missing code or state"
+        // errors in production. Must EXACTLY match the Spotify
+        // Developer Dashboard entry.
+        redirectUri: process.env.SPOTIFY_REDIRECT_URI ?? 'http://127.0.0.1:8888',
       };
       registerSource(new SpotifySource(spotifyConfig));
       const ytSource = new YouTubeMusicSource();
