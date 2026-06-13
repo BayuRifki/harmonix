@@ -84,3 +84,107 @@ describe('playTrack — spotify-sdk protocol wiring', () => {
     expect(playMock).not.toHaveBeenCalled();
   });
 });
+
+describe('playTrack — spotify-sdk → preview fallback (Free / expired trial)', () => {
+  let warnSpy: ReturnType<typeof vi.spyOn>;
+
+  const trackWithPreview: Track = {
+    id: 'spotify:abc',
+    source: 'spotify',
+    sourceId: 'abc',
+    title: 'Test',
+    artists: [],
+    durationMs: 180000,
+    isPlayable: true,
+    meta: {
+      uri: 'spotify:track:abc',
+      previewUrl: 'https://p.scdn.co/mp3-preview/mock-preview',
+    },
+  };
+
+  const trackWithoutPreview: Track = {
+    id: 'spotify:xyz',
+    source: 'spotify',
+    sourceId: 'xyz',
+    title: 'NoPreview',
+    artists: [],
+    durationMs: 180000,
+    isPlayable: true,
+    meta: { uri: 'spotify:track:xyz' },
+  };
+
+  beforeEach(() => {
+    warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+  });
+
+  afterEach(() => {
+    warnSpy.mockRestore();
+  });
+
+  it('falls back to the 30s preview URL when the SDK rejects with account_error (Free user)', async () => {
+    // Real-world: profile.product was 'premium' at auth-time (cached),
+    // but the live account is now Free / trial expired. The SDK
+    // fires `account_error`, my connect() throws "Web Playback
+    // account: ...", and the user would otherwise be left with
+    // nothing playing. The fallback uses the track's previewUrl.
+    const playMock = vi.fn().mockRejectedValue(new Error('Web Playback account: Premium required'));
+    const player: SpotifySdkPlayer = { play: playMock };
+
+    // Should NOT throw — the fallback should play the preview.
+    await expect(
+      playTrack(trackWithPreview, sdkStream, {
+        spotifyPlayer: player,
+        accessToken: 'mock-token',
+      }),
+    ).resolves.toBeUndefined();
+
+    expect(playMock).toHaveBeenCalledTimes(1);
+    // The audio engine should have been driven with the preview URL.
+    const { audioEngine } = await import('../../src/lib/audio/engine');
+    expect(vi.mocked(audioEngine.load)).toHaveBeenCalledWith(
+      'https://p.scdn.co/mp3-preview/mock-preview',
+    );
+  });
+
+  it('falls back to the 30s preview URL when the SDK rejects with authentication_error', async () => {
+    // Symmetric to the account_error case — the OAuth token has
+    // been revoked or doesn't carry the `streaming` scope anymore.
+    const playMock = vi.fn().mockRejectedValue(new Error('Web Playback auth: token revoked'));
+    const player: SpotifySdkPlayer = { play: playMock };
+
+    await expect(
+      playTrack(trackWithPreview, sdkStream, {
+        spotifyPlayer: player,
+        accessToken: 'mock-token',
+      }),
+    ).resolves.toBeUndefined();
+  });
+
+  it('throws a clear "no preview" error when SDK rejects and the track has no previewUrl', async () => {
+    const playMock = vi.fn().mockRejectedValue(new Error('Web Playback account: Premium required'));
+    const player: SpotifySdkPlayer = { play: playMock };
+
+    await expect(
+      playTrack(trackWithoutPreview, sdkStream, {
+        spotifyPlayer: player,
+        accessToken: 'mock-token',
+      }),
+    ).rejects.toThrow(/no preview.*30.{0,3}s(?:econd)? preview|upgrade to premium/i);
+  });
+
+  it('propagates non-account SDK errors (does NOT swallow them as preview fallbacks)', async () => {
+    // A network error or init_error isn't a Free-account signal —
+    // masking it with a 30s preview would hide the real problem.
+    const playMock = vi
+      .fn()
+      .mockRejectedValue(new Error('Web Playback init: SDK script failed to load'));
+    const player: SpotifySdkPlayer = { play: playMock };
+
+    await expect(
+      playTrack(trackWithPreview, sdkStream, {
+        spotifyPlayer: player,
+        accessToken: 'mock-token',
+      }),
+    ).rejects.toThrow(/Web Playback init/);
+  });
+});
