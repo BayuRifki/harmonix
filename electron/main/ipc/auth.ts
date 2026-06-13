@@ -15,6 +15,42 @@ const SPOTIFY_CLIENT_ID = process.env.SPOTIFY_CLIENT_ID ?? '';
 // that class of mismatch.
 const SPOTIFY_REDIRECT_URI = process.env.SPOTIFY_REDIRECT_URI ?? 'http://127.0.0.1:8888';
 
+// Per-error actionable hints for the OAuth error codes Spotify
+// returns on the `?error=` query param of the redirect. Without
+// these, the user just sees an opaque string and has no idea
+// what to do. Source:
+// https://developer.spotify.com/documentation/web-api/concepts/authorization
+const SPOTIFY_OAUTH_ERROR_HINTS: Record<string, string> = {
+  access_denied: 'You clicked "Cancel" or denied the consent screen — retry and click "Agree".',
+  invalid_client:
+    'SPOTIFY_CLIENT_ID is wrong or the app was deleted from your Spotify Dashboard. Re-check the Client ID in .env and the app in https://developer.spotify.com/dashboard/.',
+  invalid_grant: 'Authorization code expired or was already used. Retry the login from the start.',
+  invalid_request:
+    'The OAuth request was malformed. Check that SPOTIFY_CLIENT_ID and SPOTIFY_REDIRECT_URI in .env are set and character-for-character identical to the Spotify Developer Dashboard.',
+  invalid_scope:
+    'A scope in the request is unknown to Spotify. This is a code bug, not a configuration bug.',
+  invalid_state:
+    'State mismatch — possible CSRF attempt, or the Spotify redirect hit the wrong port. Verify port 8888 is free and that 127.0.0.1:8888 (not localhost) is the registered redirect URI.',
+  redirect_uri_mismatch:
+    'The redirect_uri sent in the OAuth request does not EXACTLY match the one in your Spotify Developer Dashboard. Copy the value from console (`[spotify] loginViaBrowser → openExternal(...)`) and paste it into Dashboard → App settings → Redirect URIs.',
+  server_error:
+    'Spotify auth server is having a transient issue. Wait 30-60 seconds and retry. If it persists, check https://status.spotify.com.',
+  temporarily_unavailable: 'Spotify auth server is temporarily down. Wait a few minutes and retry.',
+  unsupported_response_type:
+    'response_type=code is not accepted. This is a code bug, not a configuration bug.',
+};
+
+/**
+ * Annotate a raw Spotify OAuth `?error=…` code with a per-error
+ * hint so the user has something actionable to do — a bare
+ * `server_error` or `redirect_uri_mismatch` string is opaque.
+ * Exported for unit testing.
+ */
+export function annotateSpotifyOAuthError(rawError: string): string {
+  const hint = SPOTIFY_OAUTH_ERROR_HINTS[rawError];
+  return hint ? `Spotify OAuth error: ${rawError} (${hint})` : `Spotify OAuth error: ${rawError}`;
+}
+
 export interface SpotifyLoginResult {
   ok: boolean;
   error?: string;
@@ -98,7 +134,13 @@ export function registerAuthHandlers(_getMainWindow: () => BrowserWindow | null)
             // 90s pendingFlow timeout is the only thing that would
             // unblock the reply — and if the renderer closed in the
             // meantime, the reply is lost entirely.
-            client.cancelPendingFlow(`Spotify OAuth error: ${errorMessage}`);
+            //
+            // The errorMessage here is a raw Spotify OAuth error
+            // string. Annotate with a per-error hint so the user
+            // has something actionable to do — bare 'server_error'
+            // gives no clue whether to wait and retry or to dig
+            // into Dashboard config.
+            client.cancelPendingFlow(annotateSpotifyOAuthError(errorMessage));
           },
         );
 
