@@ -105,11 +105,21 @@ export function ExploreView(): JSX.Element {
             <h2 className="text-sm font-semibold text-zinc-200 uppercase tracking-wider">
               For You
             </h2>
-            <span className="text-xs text-zinc-500">
-              {enabledCount > 0
-                ? `${enabledCount} source${enabledCount === 1 ? '' : 's'} ready`
-                : 'No sources enabled yet'}
-            </span>
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-zinc-500">
+                {enabledCount > 0
+                  ? `${enabledCount} source${enabledCount === 1 ? '' : 's'} ready`
+                  : 'No sources enabled yet'}
+              </span>
+              <Link
+                to="/discover"
+                data-testid="explore-discover-cta"
+                className="text-xs text-brand-400 hover:text-brand-300 inline-flex items-center gap-1"
+              >
+                <Sparkles size={11} aria-hidden />
+                Hybrid picks →
+              </Link>
+            </div>
           </div>
           <ForYouSection limit={8} layout="grid" />
         </section>

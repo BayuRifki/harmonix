@@ -51,6 +51,9 @@ const YtMusicDisclaimer = lazy(() =>
 const EqualizerView = lazy(() =>
   import('@/features/equalizer/EqualizerView').then((m) => ({ default: m.EqualizerView })),
 );
+const DiscoverView = lazy(() =>
+  import('@/features/discover/DiscoverView').then((m) => ({ default: m.DiscoverView })),
+);
 const SourceView = lazy(() =>
   import('@/features/source/SourceView').then((m) => ({ default: m.SourceView })),
 );
@@ -226,6 +229,14 @@ function MainApp(): JSX.Element {
                     element={
                       <PageTransition>
                         <ExploreView />
+                      </PageTransition>
+                    }
+                  />
+                  <Route
+                    path="/discover"
+                    element={
+                      <PageTransition>
+                        <DiscoverView />
                       </PageTransition>
                     }
                   />

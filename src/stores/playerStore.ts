@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import type { Track, StreamInfo } from '@/types/global';
 import { audioEngine } from '@/lib/audio/engine';
 import { playTrack } from '@/lib/audio/sourceResolver';
+import { useSessionStore } from '@/stores/sessionStore';
 
 type PlayerGet = () => {
   queue: Track[];
@@ -254,6 +255,12 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
       set((s) => ({ repeat: s.repeat === 'off' ? 'all' : s.repeat === 'all' ? 'one' : 'off' })),
 
     play: async (track) => {
+      // Track this track in the in-memory session store. The
+      // session powers the hybrid recommender's "session-based"
+      // signal (35% weight). Doing this *before* awaiting the
+      // stream ensures the session is up-to-date even if the
+      // user immediately opens Discover after pressing Play.
+      useSessionStore.getState().add(track);
       set({ currentTrack: track, error: null, loading: true, preloadTriggeredTrackId: null });
       try {
         const stream = await window.api.sources.playTrack({ track });

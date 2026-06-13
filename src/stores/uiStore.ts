@@ -117,6 +117,7 @@ interface UiState extends PersistedUi {
 const DEFAULT_NAV_ORDER = [
   '/',
   '/explore',
+  '/discover',
   '/library',
   '/favorites',
   '/playlists',

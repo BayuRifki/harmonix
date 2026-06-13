@@ -30,6 +30,7 @@ import {
   Play,
   X,
   RotateCcw,
+  Sparkles,
 } from 'lucide-react';
 import { LogoMark } from '@/components/branding/LogoMark';
 import { PlaylistCardSidebar } from '@/components/sidebar/PlaylistCardSidebar';
@@ -57,6 +58,7 @@ interface StaticNavItem {
 const STATIC_NAV: StaticNavItem[] = [
   { to: '/', label: 'Home', icon: Home },
   { to: '/explore', label: 'Explore', icon: Compass },
+  { to: '/discover', label: 'Discover', icon: Sparkles },
   { to: '/library', label: 'Library', icon: Library },
   { to: '/favorites', label: 'Favorites', icon: Heart },
   { to: '/playlists', label: 'Playlists', icon: Music },
@@ -69,6 +71,7 @@ const SIDEBAR_PLAYLIST_LIMIT = 4;
 const RECENT_LABEL: Record<string, string> = {
   '/': 'Home',
   '/explore': 'Explore',
+  '/discover': 'Discover',
   '/library': 'Library',
   '/favorites': 'Favorites',
   '/playlists': 'Playlists',
