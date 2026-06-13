@@ -84,7 +84,7 @@ describe('SpotifySource', () => {
     expect(stream.expiresAt).toBeDefined();
   });
 
-  it('throws when Free user has no preview URL', async () => {
+  it('throws an actionable error explaining the 30s preview limit when Free user has no preview URL', async () => {
     const src = new SpotifySource(validConfig);
     const premiumSrc = src as unknown as { client: { isPremium: () => boolean } };
     premiumSrc.client.isPremium = () => false;
@@ -98,7 +98,13 @@ describe('SpotifySource', () => {
       isPlayable: true,
       meta: { uri: 'spotify:track:abc' },
     };
-    await expect(src.getStreamUrl(track)).rejects.toThrow(/No preview available/);
+    // The error must tell the user *why* the track can't play and
+    // *what* their options are. A bare "no preview" string leaves
+    // users hunting through docs to figure out the 30s cap; the
+    // actionable message surfaces that immediately.
+    await expect(src.getStreamUrl(track)).rejects.toThrow(
+      /no preview.*30.{0,3}s(?:econd)? preview/i,
+    );
   });
 
   it('initializes without throwing', async () => {

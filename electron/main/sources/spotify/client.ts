@@ -344,10 +344,25 @@ export class SpotifyClient {
       playlists?: { items?: SpotifyApi.PlaylistObject[] };
     };
     return {
-      tracks: (data.tracks?.items ?? []).map(trackToTrack),
-      albums: (data.albums?.items ?? []).map(albumToAlbum),
-      artists: (data.artists?.items ?? []).map(artistToArtist),
-      playlists: (data.playlists?.items ?? []).map(playlistToPlaylist),
+      // Spotify can return `null` entries inside `items` for tracks
+      // that are region-locked, removed, or otherwise unavailable
+      // (we've seen this in production logs as
+      // "Cannot read properties of null (reading 'id')"). The `.filter`
+      // drops the nulls before the converter functions try to read
+      // `.id` on them; the type assertion is needed because the SDK
+      // type allows null in the array position.
+      tracks: (data.tracks?.items ?? [])
+        .filter((t): t is SpotifyApi.TrackObject => t != null)
+        .map(trackToTrack),
+      albums: (data.albums?.items ?? [])
+        .filter((a): a is SpotifyApi.AlbumObject => a != null)
+        .map(albumToAlbum),
+      artists: (data.artists?.items ?? [])
+        .filter((a): a is SpotifyApi.ArtistObject => a != null)
+        .map(artistToArtist),
+      playlists: (data.playlists?.items ?? [])
+        .filter((p): p is SpotifyApi.PlaylistObject => p != null)
+        .map(playlistToPlaylist),
     };
   }
 

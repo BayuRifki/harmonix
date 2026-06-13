@@ -166,6 +166,7 @@ export interface HarmonixApi {
     spotifyStatus(): Promise<AuthStatus>;
     spotifyLogin(): Promise<SpotifyLoginResult>;
     spotifyLogout(): Promise<{ ok: boolean }>;
+    spotifyToken(): Promise<string | null>;
     list(): Promise<AuthStatus[]>;
   };
   ytmusic: {
@@ -351,6 +352,7 @@ const api: HarmonixApi = {
     spotifyStatus: (): Promise<AuthStatus> => ipcRenderer.invoke('auth:spotify:status'),
     spotifyLogin: (): Promise<SpotifyLoginResult> => ipcRenderer.invoke('auth:spotify:login'),
     spotifyLogout: (): Promise<{ ok: boolean }> => ipcRenderer.invoke('auth:spotify:logout'),
+    spotifyToken: (): Promise<string | null> => ipcRenderer.invoke('auth:spotify:token'),
     list: (): Promise<AuthStatus[]> => ipcRenderer.invoke('auth:list'),
   },
   ytmusic: {

@@ -87,9 +87,32 @@ export function registerAuthHandlers(_getMainWindow: () => BrowserWindow | null)
     return { ok: true };
   });
 
+  ipcMain.handle('auth:spotify:token', async (): Promise<string | null> => {
+    return getSpotifyAccessToken();
+  });
+
   ipcMain.handle('auth:list', async (): Promise<AuthStatus[]> => {
     return getAllAuthStatuses();
   });
+}
+
+/**
+ * Returns a valid Spotify access token, refreshing it transparently
+ * if it has expired. Returns null when:
+ *   - the Spotify source isn't registered (e.g. the user disabled it)
+ *   - no token has been stored yet (user hasn't completed OAuth)
+ *   - the token is expired and no refresh token is available
+ *
+ * The renderer needs this to authorize the Web Playback SDK calls
+ * (`/me/player/play?device_id=…`) and the SDK's `getOAuthToken`
+ * callback during the OAuth handshake. Keeping the refresh logic
+ * in the main process means the renderer never has to deal with
+ * the bearer token's lifecycle.
+ */
+export async function getSpotifyAccessToken(): Promise<string | null> {
+  const src = getSource('spotify');
+  if (!(src instanceof SpotifySource)) return null;
+  return src.getClient().getValidToken();
 }
 
 export function getSpotifyClientId(): string {

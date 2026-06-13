@@ -2,7 +2,9 @@ import { create } from 'zustand';
 import type { Track, StreamInfo } from '@/types/global';
 import { audioEngine } from '@/lib/audio/engine';
 import { playTrack } from '@/lib/audio/sourceResolver';
+import { ensureSpotifySdkPlayer } from '@/lib/audio/ensureSpotifySdkPlayer';
 import { useSessionStore } from '@/stores/sessionStore';
+import { useSpotifyPlayerStore } from '@/stores/spotifyPlayerStore';
 
 type PlayerGet = () => {
   queue: Track[];
@@ -274,7 +276,26 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
         );
         set({ stream });
         try {
-          await playTrack(track, stream);
+          // Spotify Premium (sdk protocol) needs the connected Web
+          // Playback controller and a fresh access token; the http
+          // path (previews / local files / other sources) just
+          // hands the URL to the audio engine.
+          let sdkAccessToken: string | undefined;
+          let spotifyPlayer = useSpotifyPlayerStore.getState().player ?? undefined;
+          if (stream.protocol === 'spotify-sdk') {
+            try {
+              // Lazily wire the SDK on first play so the script
+              // load + device registration only happens when a
+              // Premium track is actually requested.
+              if (!spotifyPlayer) {
+                spotifyPlayer = (await ensureSpotifySdkPlayer()) ?? undefined;
+              }
+              sdkAccessToken = (await window.api.auth.spotifyToken()) ?? undefined;
+            } catch (tokenErr) {
+              console.warn('[player] spotify init/token failed:', (tokenErr as Error).message);
+            }
+          }
+          await playTrack(track, stream, { spotifyPlayer, accessToken: sdkAccessToken });
         } catch (loadErr) {
           // If the proxied URL fails, retry once with the direct URL
           // (no EQ but at least the audio plays). The IPC handler

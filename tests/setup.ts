@@ -158,6 +158,7 @@ export function installMockWindowApi(opts: MockWindowApiOptions = {}): {
       spotifyStatus: async () => ({ source: 'spotify', authenticated: false }),
       spotifyLogin: async () => ({ ok: false }),
       spotifyLogout: async () => ({ ok: true }),
+      spotifyToken: async () => null,
       list: async () => [],
     },
     ytmusic: {

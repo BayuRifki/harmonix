@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   DndContext,
@@ -356,7 +357,18 @@ export function QueueDrawer({ open, onClose }: QueueDrawerProps): JSX.Element | 
     }),
   );
 
-  return (
+  // Portalled to document.body so the `fixed inset-0` overlay
+  // escapes the PlayerBar's containing block. The PlayerBar's
+  // footer uses `.glass` which sets `backdrop-filter`, and that
+  // property establishes a new containing block per the CSS spec
+  // — so a `position: fixed` descendant of PlayerBar is resolved
+  // against the PlayerBar wrapper (~80-176px tall), not the
+  // viewport. Without the portal the queue list collapses to 0px
+  // because `h-full` on the aside is 100% of the PlayerBar's
+  // height, not 100vh.
+  if (typeof document === 'undefined') return null;
+
+  const drawer = (
     <AnimatePresence>
       {open && (
         <motion.div
@@ -364,7 +376,7 @@ export function QueueDrawer({ open, onClose }: QueueDrawerProps): JSX.Element | 
           animate={{ opacity: 1 }}
           exit={reducedMotion ? { opacity: 1 } : { opacity: 0 }}
           transition={{ duration: 0.15 }}
-          className="fixed inset-0 z-30 flex justify-end bg-black/40"
+          className="fixed inset-0 z-[60] flex justify-end bg-black/40"
           onClick={onClose}
           data-testid="queue-drawer"
         >
@@ -651,4 +663,6 @@ export function QueueDrawer({ open, onClose }: QueueDrawerProps): JSX.Element | 
       )}
     </AnimatePresence>
   );
+
+  return createPortal(drawer, document.body);
 }

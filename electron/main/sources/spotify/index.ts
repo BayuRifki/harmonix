@@ -98,7 +98,9 @@ export class SpotifySource extends SourceAdapter {
     const previewUrl = (track.meta as { previewUrl?: string | null } | undefined)?.previewUrl;
     if (!previewUrl) {
       throw new Error(
-        'No preview available for this track. Spotify Premium required for full playback.',
+        'No preview available for this track. ' +
+          'Spotify Free only allows 30s previews and this track has none; ' +
+          'upgrade to Spotify Premium for full playback.',
       );
     }
     return {
