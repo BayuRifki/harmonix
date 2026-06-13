@@ -189,17 +189,48 @@ export class WebPlaybackController {
     const trackUri = meta?.uri?.startsWith('spotify:track:')
       ? meta.uri
       : `spotify:track:${track.sourceId}`;
-    const response = await fetch(
-      `https://api.spotify.com/v1/me/player/play?device_id=${this.deviceId}`,
-      {
-        method: 'PUT',
-        body: JSON.stringify({ uris: [trackUri] }),
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${accessToken}`,
+
+    // The Spotify Web Playback SDK has no `player.play(trackUri)`
+    // method — its job is to be a Connect device. To actually
+    // start playback of a specific track, we transfer playback
+    // to this device via PUT /v1/me/player/play?device_id=<id>
+    // with body { uris: [...] }. This PUT can hang in production
+    // (slow network, the device_id is actually offline, or the
+    // SDK's iframe is stuck waiting for the WebSocket). A bare
+    // `await fetch(...)` with no AbortController leaves the
+    // playerStore's `loading: true` set forever and the UI
+    // shows a perpetual spinner — the original "musik loading
+    // terus" bug. Bound it with a 10s timeout so a real
+    // diagnostic surfaces and the user can retry / see an error.
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10_000);
+    let response: Response;
+    try {
+      response = await fetch(
+        `https://api.spotify.com/v1/me/player/play?device_id=${this.deviceId}`,
+        {
+          method: 'PUT',
+          body: JSON.stringify({ uris: [trackUri] }),
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${accessToken}`,
+          },
+          signal: controller.signal,
         },
-      },
-    );
+      );
+    } catch (err) {
+      // AbortError bubbles up as "play request timed out (10s)".
+      if ((err as Error).name === 'AbortError') {
+        throw new Error(
+          'Spotify /me/player/play timed out (10s). ' +
+            'Check the Web Playback SDK device is still online ' +
+            '(Spotify Connect should list "Harmonix" as an active device).',
+        );
+      }
+      throw err;
+    } finally {
+      clearTimeout(timeout);
+    }
     if (!response.ok && response.status !== 204) {
       const text = await response.text();
       throw new Error(`Spotify play request failed: ${response.status} ${text}`);

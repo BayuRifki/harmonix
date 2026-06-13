@@ -312,6 +312,14 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
           }
         }
         audioEngine.setVolume(get().volume);
+        // Playback has actually started (or fallen back to preview),
+        // so drop the loading flag regardless of which branch
+        // resolved. Without this, the success path leaves
+        // `loading: true` forever — the UI keeps showing the
+        // spinner even though the track is audibly playing.
+        // (The catch below also sets `loading: false`; this line
+        // covers the success path.)
+        set({ loading: false });
         // Pre-buffer the next track for gapless transition (Phase B).
         // Fires immediately on play so by the time the current track
         // ends the buffer is already warm. The 80% trigger in the time
