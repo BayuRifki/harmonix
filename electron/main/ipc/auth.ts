@@ -44,10 +44,19 @@ export function registerAuthHandlers(_getMainWindow: () => BrowserWindow | null)
         resolve({
           ok: false,
           error:
-            'Spotify login safety cap hit (90s). ' +
-            'The OAuth flow did not complete in time. ' +
-            'Check that http://127.0.0.1:8888/callback is registered ' +
-            'in your Spotify app dashboard and is reachable, then retry.',
+            'Spotify login safety cap hit (90s). The OAuth flow ' +
+            'did not complete in time. Verify all of the following, ' +
+            'then retry:\n' +
+            '  1. Spotify Developer Dashboard → your app → ' +
+            'App settings → Redirect URIs contains exactly ' +
+            'http://127.0.0.1:8888/callback (one entry per line).\n' +
+            '  2. User Management → your Spotify account email is ' +
+            'listed (Development Mode apps are limited to 25 users).\n' +
+            '  3. Port 8888 on 127.0.0.1 is reachable (no firewall/ ' +
+            'antivirus blocking inbound to the loopback).\n' +
+            '  4. The browser actually opened the consent screen ' +
+            'and you clicked "Agree" within 90s. If you closed ' +
+            'the browser tab, the flow cannot complete.',
         });
       }, SAFETY_TIMEOUT_MS);
     });
