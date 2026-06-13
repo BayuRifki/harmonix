@@ -17,6 +17,7 @@ import { useSpotifyPlayerStore } from '../../src/stores/spotifyPlayerStore';
 const mockConnect = vi.fn();
 const mockController = { connect: mockConnect, play: vi.fn() };
 const setPlayerMock = vi.fn();
+const setStatusMock = vi.fn();
 let currentPlayer: unknown = null;
 
 describe('ensureSpotifySdkPlayer', () => {
@@ -30,6 +31,7 @@ describe('ensureSpotifySdkPlayer', () => {
         currentPlayer = p;
         setPlayerMock(p);
       },
+      setStatus: setStatusMock,
     }));
   });
 
@@ -59,16 +61,24 @@ describe('ensureSpotifySdkPlayer', () => {
     expect(mockConnect).toHaveBeenCalledTimes(1);
   });
 
-  it('clears the cached player and returns null when connect() rejects', async () => {
+  it('returns null and sets status=error when connect() rejects (player is never cached)', async () => {
+    // The new wiring only stores the adapter AFTER the SDK device
+    // registration succeeds. If connect() rejects, we never set a
+    // half-initialized player; the next call retries from scratch
+    // (and setStatus('error') surfaces the diagnostic in the UI).
     mockConnect.mockRejectedValue(new Error('device offline'));
 
     const player = await ensureSpotifySdkPlayer();
 
     expect(player).toBeNull();
-    // setPlayer was called once (initial store), then again with null
-    // (cleared on failure) — the latter lets the next call retry.
-    expect(setPlayerMock).toHaveBeenCalledTimes(2);
-    expect(setPlayerMock.mock.calls[1]?.[0]).toBeNull();
+    // Adapter was never created/cached because connect() failed
+    // first. (The OLD implementation optimistically set the player
+    // before connect, then cleared it on failure — but that briefly
+    // exposed a half-wired adapter to concurrent callers.)
+    expect(setPlayerMock).not.toHaveBeenCalled();
+    const lastStatusCall = setStatusMock.mock.calls.at(-1);
+    expect(lastStatusCall?.[0]).toBe('error');
+    expect(lastStatusCall?.[1]).toBe('device offline');
   });
 
   it('passes a token provider that delegates to window.api.auth.spotifyToken()', async () => {
@@ -88,5 +98,31 @@ describe('ensureSpotifySdkPlayer', () => {
     await ensureSpotifySdkPlayer();
 
     expect(spotifyTokenSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('transitions status connecting → connected on success (drives the player UI badge)', async () => {
+    // The renderer shows a "Spotify: connecting/connected/error"
+    // badge sourced from this state. Without the transitions, the
+    // badge would be stuck on the initial 'disconnected' and the
+    // user has no feedback that anything is happening.
+    mockConnect.mockResolvedValue('device-id-1');
+
+    await ensureSpotifySdkPlayer();
+
+    expect(setStatusMock).toHaveBeenCalled();
+    const calls = setStatusMock.mock.calls.map((c) => c[0]);
+    expect(calls[0]).toBe('connecting');
+    expect(calls[calls.length - 1]).toBe('connected');
+  });
+
+  it('transitions status connecting → error (with the SDK message) on failure', async () => {
+    mockConnect.mockRejectedValue(new Error('Web Playback account: Premium required'));
+
+    await ensureSpotifySdkPlayer();
+
+    const calls = setStatusMock.mock.calls;
+    const last = calls[calls.length - 1];
+    expect(last?.[0]).toBe('error');
+    expect(last?.[1]).toMatch(/Premium required/);
   });
 });

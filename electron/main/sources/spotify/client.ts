@@ -100,6 +100,15 @@ export function buildSpotifySearchPath(query: string, options: SearchOptions = {
 export class SpotifyClient {
   private config: SpotifyConfig;
   private profile: SpotifyUserProfile | null = null;
+  private profileFetchedAt = 0;
+  /**
+   * How long the cached profile stays "fresh" before `getValidProfile`
+   * re-hits `/me`. 60s is short enough that a trial expiry between
+   * auth and play is reflected on the very next track click, and
+   * long enough that scrolling through a queue doesn't trigger a
+   * Spotify round-trip per track.
+   */
+  private static readonly PROFILE_TTL_MS = 60_000;
 
   constructor(config: SpotifyConfig) {
     this.config = config;
@@ -115,6 +124,25 @@ export class SpotifyClient {
   }
 
   getCachedProfile(): SpotifyUserProfile | null {
+    return this.profile;
+  }
+
+  /**
+   * Returns the Spotify user profile, refreshing the internal cache
+   * if it's older than 60s. The cached value can be stale (e.g. a
+   * Premium trial expired since auth) and would misroute `getStreamUrl`
+   * to the Web Playback SDK path when the live account is actually
+   * Free. Callers should prefer this over `getCachedProfile()` so
+   * the path is decided on fresh data.
+   */
+  async getValidProfile(): Promise<SpotifyUserProfile | null> {
+    if (this.profile && Date.now() - this.profileFetchedAt < SpotifyClient.PROFILE_TTL_MS) {
+      return this.profile;
+    }
+    const fresh = await this.fetchProfile();
+    if (fresh) {
+      this.profileFetchedAt = Date.now();
+    }
     return this.profile;
   }
 

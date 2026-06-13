@@ -20,24 +20,34 @@ import type { SpotifySdkPlayer } from './sourceResolver';
  * `window.api.auth.spotifyToken()` is called lazily through the
  * token provider the SDK hands back, so token refreshes that happen
  * mid-session are picked up automatically.
+ *
+ * The connection lifecycle is reflected in `useSpotifyPlayerStore`
+ * so the player UI can show a visible status badge: connecting →
+ * connected / error.
  */
 export async function ensureSpotifySdkPlayer(): Promise<SpotifySdkPlayer | null> {
+  useSpotifyPlayerStore.getState().setStatus('connecting');
+
   const existing = useSpotifyPlayerStore.getState().player;
-  if (existing) return existing;
+  if (existing) {
+    useSpotifyPlayerStore.getState().setStatus('connected');
+    return existing;
+  }
 
   const controller = new WebPlaybackController();
-  const player = createSpotifySdkPlayer(controller);
-  useSpotifyPlayerStore.getState().setPlayer(player);
-
   try {
     await controller.connect(async () => {
       const t = await window.api.auth.spotifyToken();
       return t;
     });
-    return player;
   } catch (err) {
     console.warn('[spotify] Failed to connect Web Playback SDK:', (err as Error).message);
-    useSpotifyPlayerStore.getState().setPlayer(null);
+    useSpotifyPlayerStore.getState().setStatus('error', (err as Error).message);
     return null;
   }
+
+  const player = createSpotifySdkPlayer(controller);
+  useSpotifyPlayerStore.getState().setPlayer(player);
+  useSpotifyPlayerStore.getState().setStatus('connected');
+  return player;
 }

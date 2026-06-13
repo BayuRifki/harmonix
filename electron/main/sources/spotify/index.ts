@@ -89,6 +89,13 @@ export class SpotifySource extends SourceAdapter {
   }
 
   override async getStreamUrl(track: Track): Promise<StreamInfo> {
+    // Refresh the profile (TTL-cached) before deciding the playback
+    // path. The cached value can be stale (e.g. trial expired since
+    // auth) and would route us to the SDK path even though the live
+    // account is Free — leading to a wasted SDK round-trip and a
+    // fallback to the 30s preview URL. `getValidProfile` is cheap
+    // (60s cache TTL) and avoids the round-trip in the common case.
+    await this.client.getValidProfile();
     if (this.client.isPremium()) {
       return {
         url: `spotify-sdk:${track.sourceId}`,
