@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useSafeNavigate } from '@/hooks/useSafeNavigate';
 import {
   Search,
   ArrowRight,
@@ -45,7 +45,7 @@ export function CommandPalette(): JSX.Element | null {
   const open = useUiStore((s) => s.commandPaletteOpen);
   const close = useUiStore((s) => s.closeCommandPalette);
   const toggle = useUiStore((s) => s.toggleCommandPalette);
-  const navigate = useNavigate();
+  const navigate = useSafeNavigate();
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
   const [query, setQuery] = useState('');

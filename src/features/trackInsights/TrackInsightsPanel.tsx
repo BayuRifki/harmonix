@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useSafeNavigate } from '@/hooks/useSafeNavigate';
 import {
   Calendar,
   Clock,
@@ -59,7 +59,7 @@ function sourceLabel(source: string): string {
 }
 
 export function TrackInsightsPanel({ track, onClose }: TrackInsightsPanelProps): JSX.Element {
-  const navigate = useNavigate();
+  const navigate = useSafeNavigate();
   const insights = useTrackInsights(track);
   const play = usePlayerStore((s) => s.play);
   const setQueue = usePlayerStore((s) => s.setQueue);
@@ -350,4 +350,3 @@ function MetaItem({ icon, label, value }: MetaItemProps): JSX.Element {
     </div>
   );
 }
-

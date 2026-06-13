@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { Sparkles, Music2, TrendingUp, Disc3, Search } from 'lucide-react';
 import { ForYouSection } from '@/components/recommendations/ForYouSection';
 import { useSourcesStore } from '@/stores/sourcesStore';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
+import { useSafeNavigate } from '@/hooks/useSafeNavigate';
 
 interface QuickLink {
   id: string;
@@ -35,7 +36,7 @@ const DISCOVERY_TIPS: QuickLink[] = [
 export function ExploreView(): JSX.Element {
   const registrations = useSourcesStore((s) => s.registrations);
   const refresh = useSourcesStore((s) => s.refresh);
-  const navigate = useNavigate();
+  const navigate = useSafeNavigate();
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {

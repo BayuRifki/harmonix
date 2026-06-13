@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { NavLink, useNavigate, useLocation } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
+import { useSafeNavigate } from '@/hooks/useSafeNavigate';
 import {
   DndContext,
   PointerSensor,
@@ -101,7 +102,7 @@ export function Sidebar(): JSX.Element {
   const currentTrack = usePlayerStore((s) => s.currentTrack);
   const positionMs = usePlayerStore((s) => s.positionMs);
   const durationMs = usePlayerStore((s) => s.durationMs);
-  const navigate = useNavigate();
+  const navigate = useSafeNavigate();
   const location = useLocation();
   const navRef = useRef<HTMLElement>(null);
   const [creating, setCreating] = useState(false);

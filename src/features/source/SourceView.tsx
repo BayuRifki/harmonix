@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate, NavLink } from 'react-router-dom';
+import { useParams, NavLink } from 'react-router-dom';
+import { useSafeNavigate } from '@/hooks/useSafeNavigate';
 import { Music } from 'lucide-react';
 import { useSourcesStore } from '@/stores/sourcesStore';
 import { usePlayerStore } from '@/stores/playerStore';
@@ -78,7 +79,7 @@ function formatDuration(ms: number): string {
 
 export function SourceView(): JSX.Element {
   const { id = '' } = useParams<{ id: string }>();
-  const navigate = useNavigate();
+  const navigate = useSafeNavigate();
   const registrations = useSourcesStore((s) => s.registrations);
   const refresh = useSourcesStore((s) => s.refresh);
   const loadUserPlaylists = useSourcesStore((s) => s.loadUserPlaylists);

@@ -1,5 +1,6 @@
 import { useState, useEffect, Suspense, lazy, type ReactNode } from 'react';
-import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
+import { Routes, Route, useLocation } from 'react-router-dom';
+import { useSafeNavigate } from '@/hooks/useSafeNavigate';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { PlayerBar } from '@/components/layout/PlayerBar';
@@ -93,7 +94,7 @@ export default function App(): JSX.Element {
 }
 
 function MainApp(): JSX.Element {
-  const navigate = useNavigate();
+  const navigate = useSafeNavigate();
   const location = useLocation();
   const [selectedPlaylistId, setSelectedPlaylistId] = useState<number | null>(null);
   const eqLoad = useEqualizerStore((s) => s.load);

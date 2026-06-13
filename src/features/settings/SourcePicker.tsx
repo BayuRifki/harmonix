@@ -212,7 +212,10 @@ function SourceRow({ source, onToggle, onConfigure }: SourceRowProps): JSX.Eleme
             ⚙
           </button>
         )}
-        <label className="flex items-center cursor-pointer">
+        <label
+          className="relative inline-block w-9 h-5 cursor-pointer rounded-full focus-within:ring-2 focus-within:ring-brand-500/60 focus-within:ring-offset-2 focus-within:ring-offset-zinc-900 transition-shadow"
+          title={source.enabled ? 'Disable source' : 'Enable source'}
+        >
           <input
             type="checkbox"
             checked={source.enabled}
@@ -220,9 +223,22 @@ function SourceRow({ source, onToggle, onConfigure }: SourceRowProps): JSX.Eleme
             className="sr-only peer"
             aria-label={`Enable ${source.name}`}
           />
-          <div className="w-9 h-5 bg-zinc-700 rounded-full peer peer-checked:bg-brand-500 transition relative">
-            <div className="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full peer-checked:translate-x-4 transition" />
-          </div>
+          {/*
+            Background track and knob MUST be siblings of the input —
+            Tailwind's `peer-checked:` compiles to a general-sibling
+            selector (`~ .peer-checked\:…`), so it doesn't cascade to
+            descendants. The previous implementation nested the knob
+            inside a wrapper div, which silently broke the translate
+            while the background colour change still worked.
+          */}
+          <span
+            aria-hidden
+            className="absolute inset-0 rounded-full bg-zinc-600 transition-colors duration-200 peer-checked:bg-brand-500"
+          />
+          <span
+            aria-hidden
+            className="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow ring-0 transition-transform duration-200 ease-out peer-checked:translate-x-4 peer-focus-visible:ring-2 peer-focus-visible:ring-white/40"
+          />
         </label>
       </div>
     </div>

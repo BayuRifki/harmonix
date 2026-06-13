@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useSafeNavigate } from '@/hooks/useSafeNavigate';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   X,
@@ -103,7 +103,7 @@ function pickSimilarTracks(current: Track, history: Track[], library: Track[]): 
 }
 
 export function NowPlayingView(): JSX.Element {
-  const navigate = useNavigate();
+  const navigate = useSafeNavigate();
   const currentTrack = usePlayerStore((s) => s.currentTrack);
   const isPlaying = usePlayerStore((s) => s.isPlaying);
   const loading = usePlayerStore((s) => s.loading);

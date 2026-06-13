@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
+import { useSearchParams, useLocation } from 'react-router-dom';
+import { useSafeNavigate } from '@/hooks/useSafeNavigate';
 import { Search, Settings as SettingsIcon, History, X, Clock, SearchX } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Breadcrumb } from '@/components/layout/Breadcrumb';
@@ -15,7 +16,7 @@ export function TopBar(): JSX.Element {
   const isOnSearchPage = location.pathname.startsWith('/search');
   const [query, setQuery] = useState(() => searchParams.get('q') ?? '');
   const [historyOpen, setHistoryOpen] = useState(false);
-  const navigate = useNavigate();
+  const navigate = useSafeNavigate();
   const debounceRef = useRef<number | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const historyContainerRef = useRef<HTMLDivElement>(null);

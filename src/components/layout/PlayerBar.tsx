@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useSafeNavigate } from '@/hooks/useSafeNavigate';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useShallow } from 'zustand/react/shallow';
 import { usePlayerStore } from '@/stores/playerStore';
@@ -127,7 +127,7 @@ function VolumeIcon({ volume }: { volume: number }): JSX.Element {
 }
 
 export function PlayerBar({ isHomePage = false }: PlayerBarProps): JSX.Element {
-  const navigate = useNavigate();
+  const navigate = useSafeNavigate();
   const currentTrack = usePlayerStore((s) => s.currentTrack);
   const volume = usePlayerStore((s) => s.volume);
   // The "up next" preview only ever shows 3 tracks starting at

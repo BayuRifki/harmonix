@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
-import { NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
+import { useSafeNavigate } from '@/hooks/useSafeNavigate';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Palette,
@@ -55,7 +56,7 @@ export interface SettingsTabsProps {
 
 export function SettingsTabs({ activeTab }: SettingsTabsProps = {}): JSX.Element {
   const location = useLocation();
-  const navigate = useNavigate();
+  const navigate = useSafeNavigate();
   const lastSegment = location.pathname.split('/').filter(Boolean).pop() ?? '';
   const resolvedTab: SettingsTabId =
     activeTab ?? (VALID_PATHS.has(lastSegment) ? (lastSegment as SettingsTabId) : 'appearance');
