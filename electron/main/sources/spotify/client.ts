@@ -57,8 +57,16 @@ interface PendingFlow {
 let pendingFlow: PendingFlow | null = null;
 
 const SPOTIFY_DEFAULT_TYPES = ['track', 'album', 'artist', 'playlist'] as const;
-const SPOTIFY_DEFAULT_LIMIT = 20;
-const SPOTIFY_MAX_LIMIT = 50;
+// `limit` is documented in the Web API reference for /search
+// (https://developer.spotify.com/documentation/web-api/reference/search)
+// as "Default: 5. Range: 0 - 10." Sending > 10 yields a 400 with
+// {"error": "Invalid limit"}; sending 5 (the default) is the safe
+// minimum. The OLD 20/50 values matched a now-deprecated prior
+// version of the search endpoint — see git history for the
+// regression that produced the long-running "Spotify search
+// failed: 400" log noise.
+const SPOTIFY_DEFAULT_LIMIT = 5;
+const SPOTIFY_MAX_LIMIT = 10;
 
 /**
  * Build the path + querystring for the Spotify /search endpoint,

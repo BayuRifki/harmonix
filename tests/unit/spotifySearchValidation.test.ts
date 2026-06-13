@@ -38,9 +38,11 @@ describe('buildSpotifySearchPath', () => {
     expect(out?.type).toBe('track,album,artist,playlist');
   });
 
-  it('uses the default limit (20) when none specified', () => {
+  it('uses the default limit (5) when none specified', () => {
+    // Spotify's documented default for /search is 5 (per Web API
+    // docs at developer.spotify.com/documentation/web-api/reference/search).
     const out = decode(buildSpotifySearchPath('Beatles'));
-    expect(out?.limit).toBe('20');
+    expect(out?.limit).toBe('5');
   });
 
   it('honors the requested types when provided', () => {
@@ -53,24 +55,55 @@ describe('buildSpotifySearchPath', () => {
     expect(out?.type).toBe('track,album,artist,playlist');
   });
 
-  it('clamps limit to the [1, 50] range that Spotify accepts', () => {
+  it('clamps limit to the [1, 10] range that Spotify actually accepts (per Web API docs)', () => {
+    // The Spotify Web API reference for /search (verified
+    // 2026-06-13 at
+    // https://developer.spotify.com/documentation/web-api/reference/search)
+    // documents `limit` as:
+    //   "integer. The maximum number of results to return in each
+    //    item type. Default: limit=5. Range: 0 - 10."
+    //
+    // Our previous code used { default: 20, max: 50 } which was
+    // correct for the OLD search-v1 endpoint but doesn't match the
+    // current docs — Spotify returns 400 "Invalid limit" if we
+    // send > 10. Cap at 10, default to 5. We keep the existing
+    // `>= 1` floor (treating 0 as "fall back to default") so a
+    // caller can't accidentally request zero results and get an
+    // empty page silently.
     expect(decode(buildSpotifySearchPath('q', { limit: 5 }))?.limit).toBe('5');
-    expect(decode(buildSpotifySearchPath('q', { limit: 50 }))?.limit).toBe('50');
+    expect(decode(buildSpotifySearchPath('q', { limit: 10 }))?.limit).toBe('10');
     expect(decode(buildSpotifySearchPath('q', { limit: 1 }))?.limit).toBe('1');
+    // 11+ clamps down to 10 (don't fall back — caller asked for
+    // "as many as possible" and 10 is the most Spotify will give).
+    expect(decode(buildSpotifySearchPath('q', { limit: 11 }))?.limit).toBe('10');
+    expect(decode(buildSpotifySearchPath('q', { limit: 1000 }))?.limit).toBe('10');
+    // 0, negative, NaN: fall back to the default (5) so the
+    // search still returns *something* instead of zero results
+    // or 400.
+    expect(decode(buildSpotifySearchPath('q', { limit: 0 }))?.limit).toBe('5');
+    expect(decode(buildSpotifySearchPath('q', { limit: -5 }))?.limit).toBe('5');
+    // Fractional values get floored to an integer in-range, or
+    // fall back if the floored value is < 1.
+    expect(decode(buildSpotifySearchPath('q', { limit: 5.9 }))?.limit).toBe('5');
+    expect(decode(buildSpotifySearchPath('q', { limit: 10.999 }))?.limit).toBe('10');
+    expect(decode(buildSpotifySearchPath('q', { limit: undefined }))?.limit).toBe('5');
+    expect(decode(buildSpotifySearchPath('q', { limit: null as unknown as number }))?.limit).toBe(
+      '5',
+    );
   });
 
-  it('caps limit at 50 even when the caller asks for more', () => {
-    expect(decode(buildSpotifySearchPath('q', { limit: 1000 }))?.limit).toBe('50');
+  it('caps limit at 10 (Spotify documented max) when the caller asks for more', () => {
+    expect(decode(buildSpotifySearchPath('q', { limit: 1000 }))?.limit).toBe('10');
   });
 
   it('raises limit of 0 or negative to the default (not 1, not 0)', () => {
-    expect(decode(buildSpotifySearchPath('q', { limit: 0 }))?.limit).toBe('20');
-    expect(decode(buildSpotifySearchPath('q', { limit: -5 }))?.limit).toBe('20');
+    expect(decode(buildSpotifySearchPath('q', { limit: 0 }))?.limit).toBe('5');
+    expect(decode(buildSpotifySearchPath('q', { limit: -5 }))?.limit).toBe('5');
   });
 
   it('floors fractional limits', () => {
     expect(decode(buildSpotifySearchPath('q', { limit: 5.9 }))?.limit).toBe('5');
-    expect(decode(buildSpotifySearchPath('q', { limit: 50.999 }))?.limit).toBe('50');
+    expect(decode(buildSpotifySearchPath('q', { limit: 10.999 }))?.limit).toBe('10');
   });
 
   it('does not produce `type=` (empty type) under any input', () => {
