@@ -45,12 +45,11 @@ afterEach(async () => {
 });
 
 let baseUrl = '';
-let realHandler:
-  | ((req: IncomingMessage, res: ServerResponse, capture: (s: string) => void) => void)
-  | null = null;
-function captureHandler(req: IncomingMessage, res: ServerResponse, capture: (s: string) => void) {
-  // dummy: we won't actually use this directly, the real server is wired below
-}
+const realHandler: (
+  req: IncomingMessage,
+  res: ServerResponse,
+  capture: (s: string) => void,
+) => void = () => undefined;
 
 // Helper: hit a path on the real callback server
 async function hit(path: string): Promise<{ status: number; contentType: string; body: string }> {

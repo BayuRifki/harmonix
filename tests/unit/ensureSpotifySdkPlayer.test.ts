@@ -4,6 +4,26 @@ vi.mock('../../src/lib/audio/spotifyPlayback', () => ({
   WebPlaybackController: vi.fn(),
 }));
 
+// Default: pretend the test environment DOES have Widevine
+// (i.e. it's a real Chrome/Edge, not Electron's bundled
+// Chromium). The actual `isWidevineAvailable()` reads from
+// `navigator.requestMediaKeySystemAccess`, so we attach the
+// mock to the EXISTING navigator (vitest+jsdom provides one
+// but without the EME method). Tests that exercise the
+// Electron-no-Widevine branch can override this in beforeEach.
+{
+  const nav = (globalThis as { navigator?: { requestMediaKeySystemAccess?: unknown } }).navigator;
+  if (nav && typeof nav.requestMediaKeySystemAccess !== 'function') {
+    Object.defineProperty(nav, 'requestMediaKeySystemAccess', {
+      value: vi
+        .fn<() => Promise<unknown[]>>()
+        .mockResolvedValue([{ audioCapabilities: [{ contentType: 'audio/mp4;codecs="flac"' }] }]),
+      writable: true,
+      configurable: true,
+    });
+  }
+}
+
 vi.mock('../../src/stores/spotifyPlayerStore', () => ({
   useSpotifyPlayerStore: {
     getState: vi.fn(),
@@ -32,6 +52,8 @@ describe('ensureSpotifySdkPlayer', () => {
         setPlayerMock(p);
       },
       setStatus: setStatusMock,
+      status: 'disconnected' as never,
+      error: null as never,
     }));
   });
 
