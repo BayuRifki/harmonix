@@ -117,7 +117,19 @@ describe('audioProxy', () => {
         Referer: 'https://music.youtube.com',
       },
     });
-    mockUpstreamResponse();
+    const body = new Uint8Array([0xff, 0xfb, 0x90, 0x00]);
+    const { Readable } = await import('node:stream');
+    const nodeStream = Readable.from(
+      (async function* () {
+        yield body;
+      })(),
+    );
+    mocks.fetch.mockResolvedValue({
+      status: 200,
+      statusText: 'OK',
+      headers: new Headers({ 'content-type': 'audio/mpeg' }),
+      body: nodeStream,
+    } as unknown as Response);
     const handler = await setupHandler(mod);
     const res = await handler({ url: `harmonix-media://stream/${id}` });
     expect(res.status).toBe(200);
@@ -161,17 +173,27 @@ describe('audioProxy', () => {
   it('response includes CORS + content headers', async () => {
     const mod = await loadFreshModule();
     const id = mod.registerStream('https://example.com/cors.mp3');
-    mockUpstreamResponse({
+    const body = new Uint8Array([0xff, 0xfb, 0x90, 0x00, 0x00, 0x00]);
+    const { Readable } = await import('node:stream');
+    const nodeStream = Readable.from(
+      (async function* () {
+        yield body;
+      })(),
+    );
+    mocks.fetch.mockResolvedValue({
+      status: 200,
+      statusText: 'OK',
       headers: new Headers({
         'content-type': 'audio/mpeg',
-        'content-length': '12345',
+        'content-length': '6',
       }),
-    });
+      body: nodeStream,
+    } as unknown as Response);
     const handler = await setupHandler(mod);
     const res = await handler({ url: `harmonix-media://stream/${id}` });
     expect(res.headers.get('Access-Control-Allow-Origin')).toBe('*');
     expect(res.headers.get('Content-Type')).toBe('audio/mpeg');
-    expect(res.headers.get('Content-Length')).toBe('12345');
+    expect(res.headers.get('Content-Length')).toBe('6');
     expect(res.headers.get('Cache-Control')).toBe('no-store');
     expect(res.headers.get('X-Proxy-Source')).toBe('harmonix-media');
   });
@@ -183,6 +205,49 @@ describe('audioProxy', () => {
     const handler = await setupHandler(mod);
     const res = await handler({ url: `harmonix-media://stream/${id}` });
     expect(res.status).toBe(502);
+  });
+
+  it('returns 502 when upstream returns 2xx with a null body (audio element would see "Empty src attribute")', async () => {
+    // Repro: YouTube's googlevideo CDN sometimes returns 200 OK with
+    // no body for certain edge cases (a 302 redirect to a CDN that
+    // itself returns 200 + empty, or a HEAD-style 200 with no audio
+    // bytes). The audio element then fails with
+    // MEDIA_ERR_SRC_NOT_SUPPORTED + "Empty src attribute", which is
+    // impossible to distinguish from a bad MIME. Surfacing 502 to
+    // the audio element gives it a proper HTTP error code, which
+    // shows up in the diagnostic logs and lets the player retry
+    // (or surface a clearer error to the user).
+    const mod = await loadFreshModule();
+    const id = mod.registerStream('https://rr2---sn.googlevideo.com/empty');
+    mocks.fetch.mockResolvedValue({
+      status: 200,
+      statusText: 'OK',
+      headers: new Headers({ 'content-type': 'audio/webm' }),
+      body: null,
+    } as unknown as Response);
+    const handler = await setupHandler(mod);
+    const res = await handler({ url: `harmonix-media://stream/${id}` });
+    expect(res.status).toBe(502);
+  });
+
+  it('passes through 4xx upstream status (e.g., YouTube 403 expired signature) so the audio element sees the real error', async () => {
+    // We don't want to mask a real upstream 4xx as 502. The audio
+    // element already has special handling for 403/404 (it'll log
+    // the status and fail with MEDIA_ERR_SRC_NOT_SUPPORTED).
+    // Coverting 4xx to 502 would lose information ("expired
+    // signature" vs "upstream unreachable" look the same to the
+    // audio element).
+    const mod = await loadFreshModule();
+    const id = mod.registerStream('https://rr2---sn.googlevideo.com/expired');
+    mocks.fetch.mockResolvedValue({
+      status: 403,
+      statusText: 'Forbidden',
+      headers: new Headers({ 'content-type': 'text/html' }),
+      body: null,
+    } as unknown as Response);
+    const handler = await setupHandler(mod);
+    const res = await handler({ url: `harmonix-media://stream/${id}` });
+    expect(res.status).toBe(403);
   });
 
   it('registerAudioProxyProtocol is idempotent (no double-handle within a module instance)', async () => {
@@ -214,7 +279,14 @@ describe('audioProxy', () => {
   it('forwards the Range header from the request to the upstream fetch', async () => {
     const mod = await loadFreshModule();
     const id = mod.registerStream('https://example.com/partial.mp3');
-    mockUpstreamResponse({
+    const body = new Uint8Array([0xff, 0xfb, 0x90, 0x00, 0x00, 0x00]);
+    const { Readable } = await import('node:stream');
+    const nodeStream = Readable.from(
+      (async function* () {
+        yield body;
+      })(),
+    );
+    mocks.fetch.mockResolvedValue({
       status: 206,
       statusText: 'Partial Content',
       headers: new Headers({
@@ -222,7 +294,8 @@ describe('audioProxy', () => {
         'content-range': 'bytes 0-1023/5678',
         'accept-ranges': 'bytes',
       }),
-    });
+      body: nodeStream,
+    } as unknown as Response);
     const handler = await setupHandler(mod);
     // Plain object with a get() method instead of new Headers({...}) —
     // vitest's jsdom Headers polyfill filters 'range' as a forbidden
@@ -247,7 +320,19 @@ describe('audioProxy', () => {
   it('handles missing request.headers gracefully (no Range to forward)', async () => {
     const mod = await loadFreshModule();
     const id = mod.registerStream('https://example.com/full.mp3');
-    mockUpstreamResponse();
+    const body = new Uint8Array([0xff, 0xfb, 0x90, 0x00, 0x00, 0x00]);
+    const { Readable } = await import('node:stream');
+    const nodeStream = Readable.from(
+      (async function* () {
+        yield body;
+      })(),
+    );
+    mocks.fetch.mockResolvedValue({
+      status: 200,
+      statusText: 'OK',
+      headers: new Headers({ 'content-type': 'audio/mpeg' }),
+      body: nodeStream,
+    } as unknown as Response);
     const handler = await setupHandler(mod);
     // Note: no headers in the request
     const res = await handler({ url: `harmonix-media://stream/${id}` });

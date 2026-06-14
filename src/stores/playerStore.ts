@@ -15,6 +15,35 @@ type PlayerGet = () => {
   preloadTriggeredTrackId: string | null;
 };
 
+/**
+ * Pick the URL the renderer should retry playback with after a
+ * proxy failure, or `null` if retrying isn't safe.
+ *
+ * Returns `null` (don't fall back) when:
+ *   - there is no fallback URL, OR
+ *   - the fallback URL is identical to the primary URL (some
+ *     sources return the same URL for both as a "no fallback"
+ *     signal — retrying would just produce the same error), OR
+ *   - the source requires the proxy to be CORS-clean. YouTube's
+ *     googlevideo.com CDN does not ship `Access-Control-Allow-Origin`,
+ *     so a renderer-direct fetch ALWAYS fails. Retrying the
+ *     direct URL produces a second MEDIA_ERR_SRC_NOT_SUPPORTED
+ *     and a louder, clearer CORS error in the console — the
+ *     user sees the same broken UX twice. Better to surface a
+ *     single, actionable error (the proxy failure) and let the
+ *     user retry manually with a fresh yt-dlp-resolved URL.
+ *
+ * Returns the URL string when retrying is safe (typically:
+ * local files / HTTP sources whose direct URL is CORS-clean).
+ * Exported for unit testing; called from `play()` below.
+ */
+export function getFallbackUrl(stream: StreamInfo): string | null {
+  if (!stream.fallbackUrl) return null;
+  if (stream.fallbackUrl === stream.url) return null;
+  if (stream.requiresProxy) return null;
+  return stream.fallbackUrl;
+}
+
 async function preloadNextInQueue(get: PlayerGet): Promise<void> {
   const { queue, queueIndex, shuffle, repeat, currentTrack } = get();
   if (shuffle || queue.length === 0) return;
@@ -316,11 +345,12 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
           // If the proxied URL fails, retry once with the direct URL
           // (no EQ but at least the audio plays). The IPC handler
           // returns both URLs in StreamInfo for this exact case.
-          if (stream.fallbackUrl && stream.fallbackUrl !== stream.url) {
+          const fallbackUrl = getFallbackUrl(stream);
+          if (fallbackUrl) {
             console.warn(
               `[player] proxy load failed (${(loadErr as Error).message}); falling back to direct URL`,
             );
-            const fallback = { ...stream, url: stream.fallbackUrl };
+            const fallback = { ...stream, url: fallbackUrl };
             set({ stream: fallback });
             await playTrack(track, fallback);
           } else {

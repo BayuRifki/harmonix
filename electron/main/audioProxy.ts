@@ -256,6 +256,22 @@ export function registerAudioProxyProtocol(session: Session | null = null): void
           `ar=${upstream.headers.get('accept-ranges') ?? '-'}`,
       );
 
+      // Common upstream failure: 403 from YouTube's googlevideo.com
+      // CDN means the stream URL's signature expired (default
+      // lifetime ~6h). The IPC layer's yt-dlp call caches the
+      // signed URL for STREAM_TTL_MS (30 min), so this is rare
+      // in practice — but when it happens, log it loudly with
+      // the action the user can take. The proxy can't refresh
+      // the signature itself; the player store's next play will.
+      if (upstream.status === 403) {
+        // eslint-disable-next-line no-console
+        console.warn(
+          `[audioProxy] upstream 403 for ${entry.realUrl.slice(0, 100)}… ` +
+            `— YouTube stream signature likely expired. ` +
+            `Next play will re-resolve via yt-dlp.`,
+        );
+      }
+
       const outHeaders = new Headers();
       // Preserve upstream content-type / content-length / content-range
       // / accept-ranges so the audio element knows the codec, total size,
@@ -271,10 +287,28 @@ export function registerAudioProxyProtocol(session: Session | null = null): void
       outHeaders.set('X-Proxy-Source', 'harmonix-media');
 
       if (!upstream.body) {
+        // An empty body on a 2xx response is the most insidious
+        // failure mode: the audio element sees a 200 with no
+        // bytes, surfaces it as MEDIA_ERR_SRC_NOT_SUPPORTED +
+        // "Empty src attribute", and the user has no way to tell
+        // that the *upstream* returned nothing (vs a bad MIME,
+        // vs a network failure). Surface it as 502 Bad Gateway
+        // so the audio element gets a real HTTP error code and
+        // the diagnostic logs show "upstream returned no body"
+        // instead of an opaque Chromium decode failure.
+        //
+        // For 4xx/5xx upstream statuses we still pass through the
+        // original status (e.g. YouTube 403 = expired signature,
+        // which the player store's diagnostic flow relies on).
+        const surfaceStatus =
+          upstream.status >= 200 && upstream.status < 300 ? 502 : upstream.status;
         // eslint-disable-next-line no-console
-        console.log('[audioProxy] no body, returning empty Response');
+        console.log(
+          `[audioProxy] empty upstream body for ${entry.realUrl.slice(0, 100)}… ` +
+            `upstream=${upstream.status} → surfacing ${surfaceStatus}`,
+        );
         return new Response(null, {
-          status: upstream.status,
+          status: surfaceStatus,
           statusText: upstream.statusText,
           headers: outHeaders,
         });

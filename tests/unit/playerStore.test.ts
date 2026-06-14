@@ -4,8 +4,9 @@ import {
   shuffleArray,
   collectSeedArtists,
   findRelatedTracks,
+  getFallbackUrl,
 } from '../../src/stores/playerStore';
-import type { Track, Artist } from '@/types/global';
+import type { Track, Artist, StreamInfo } from '@/types/global';
 
 function artist(name: string): Artist {
   return { id: `a:${name}`, name, source: 'ytmusic' };
@@ -140,5 +141,76 @@ describe('playerStore', () => {
 
   it('tracks preloadTriggeredTrackId and starts null', () => {
     expect(usePlayerStore.getState().preloadTriggeredTrackId).toBeNull();
+  });
+});
+
+/**
+ * The proxy-fallback predicate lives next to the play() flow in
+ * playerStore.ts but is exported as a pure function so the
+ * "do we fall back to the direct URL?" decision is testable in
+ * isolation — and so the bug where YouTube's googlevideo.com
+ * fallback was being attempted (and always CORS-failing) stays
+ * caught by tests instead of regressing silently.
+ */
+describe('getFallbackUrl', () => {
+  function stream(overrides: Partial<StreamInfo> = {}): StreamInfo {
+    return {
+      url: 'harmonix-media://stream/proxy-1',
+      protocol: 'youtube',
+      ...overrides,
+    };
+  }
+
+  it('returns null when there is no fallbackUrl', () => {
+    expect(getFallbackUrl(stream())).toBeNull();
+  });
+
+  it('returns null when the fallbackUrl is identical to the primary url', () => {
+    // Some sources (e.g. local files) set fallbackUrl === url as a
+    // "no fallback" signal. Retrying with the same URL would just
+    // produce the same error.
+    expect(getFallbackUrl(stream({ fallbackUrl: 'harmonix-media://stream/proxy-1' }))).toBeNull();
+  });
+
+  it('returns the fallbackUrl when it differs and the source does NOT require the proxy', () => {
+    // Local files / HTTP sources: the direct URL is CORS-clean,
+    // so a fallback is the intended path (gives up EQ but the
+    // audio still plays).
+    expect(
+      getFallbackUrl(
+        stream({
+          fallbackUrl: 'https://example.com/audio.mp3',
+          requiresProxy: false,
+        }),
+      ),
+    ).toBe('https://example.com/audio.mp3');
+  });
+
+  it('returns null when requiresProxy is true (the direct URL has no CORS headers)', () => {
+    // YouTube / googlevideo.com: the proxy exists precisely
+    // because the direct URL would fail with
+    // "Access to audio at X from origin Y has been blocked by
+    // CORS policy". Retrying with the same direct URL produces a
+    // second MEDIA_ERR_SRC_NOT_SUPPORTED and a louder, clearer
+    // CORS error in the console. Skip the fallback and let the
+    // user see a single, actionable error instead.
+    expect(
+      getFallbackUrl(
+        stream({
+          fallbackUrl: 'https://rr2---sn.googlevideo.com/videoplayback?expire=...&sig=...',
+          requiresProxy: true,
+        }),
+      ),
+    ).toBeNull();
+  });
+
+  it('treats an undefined requiresProxy as "not required" (default permissive)', () => {
+    // Older StreamInfo payloads (and sources that never set the
+    // field) shouldn't accidentally be excluded from the
+    // fallback path. Default-true for the requiresProxy=undefined
+    // case preserves the pre-fix behavior.
+    expect(getFallbackUrl(stream({ fallbackUrl: 'https://example.com/audio.mp3' }))).toBe(
+      'https://example.com/audio.mp3',
+    );
   });
 });
