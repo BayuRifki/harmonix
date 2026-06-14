@@ -204,23 +204,37 @@ export class WebPlaybackController {
     // diagnostic surfaces and the user can retry / see an error.
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 10_000);
+    const playUrl = `https://api.spotify.com/v1/me/player/play?device_id=${this.deviceId}`;
+    // Diagnostic: surface the exact device_id + track_uri the
+    // PUT is targeting, so when the user reports "music won't
+    // play" we can immediately tell whether:
+    //   (a) the PUT went to a stale/never-registered device
+    //   (b) the token was rejected
+    //   (c) Spotify is rate-limiting this user
+    //   (d) the track is unavailable in the user's market
+    // without an extra round-trip of back-and-forth.
+    // eslint-disable-next-line no-console
+    console.info(`[spotify] /me/player/play PUT → device_id=${this.deviceId} ` + `uri=${trackUri}`);
     let response: Response;
     try {
-      response = await fetch(
-        `https://api.spotify.com/v1/me/player/play?device_id=${this.deviceId}`,
-        {
-          method: 'PUT',
-          body: JSON.stringify({ uris: [trackUri] }),
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${accessToken}`,
-          },
-          signal: controller.signal,
+      response = await fetch(playUrl, {
+        method: 'PUT',
+        body: JSON.stringify({ uris: [trackUri] }),
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
         },
-      );
+        signal: controller.signal,
+      });
     } catch (err) {
       // AbortError bubbles up as "play request timed out (10s)".
       if ((err as Error).name === 'AbortError') {
+        // eslint-disable-next-line no-console
+        console.warn(
+          `[spotify] /me/player/play PUT ABORTED after 10s — ` +
+            `device_id=${this.deviceId} is presumably offline. ` +
+            `Check Spotify Connect for a "Harmonix" device.`,
+        );
         throw new Error(
           'Spotify /me/player/play timed out (10s). ' +
             'Check the Web Playback SDK device is still online ' +
@@ -233,6 +247,14 @@ export class WebPlaybackController {
     }
     if (!response.ok && response.status !== 204) {
       const text = await response.text();
+      // Diagnostic: log the full response body so the user
+      // (and us) can see Spotify's exact rejection reason
+      // (rate limit, market restriction, no_active_device,
+      // premium_required, etc.) without a back-and-forth.
+      // eslint-disable-next-line no-console
+      console.warn(
+        `[spotify] /me/player/play PUT FAILED ${response.status} — ${text.slice(0, 500)}`,
+      );
       throw new Error(`Spotify play request failed: ${response.status} ${text}`);
     }
   }
