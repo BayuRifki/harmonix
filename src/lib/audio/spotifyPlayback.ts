@@ -272,4 +272,87 @@ export class WebPlaybackController {
     this.player = null;
     this.deviceId = null;
   }
+
+  /**
+   * Play a Spotify track via the **Web API** (not the Web Playback
+   * SDK). This is the fallback path when the SDK can't run
+   * because Electron's bundled Chromium doesn't ship Widevine DRM.
+   * No DRM involved — just an authenticated PUT to
+   * `https://api.spotify.com/v1/me/player/play` WITHOUT a
+   * `device_id` query param. Spotify interprets that as
+   * "transfer playback to whatever Spotify Connect device the
+   * user currently has active" (their phone, the desktop
+   * Spotify client, a Sonos, etc.). The audio plays THERE, not
+   * inside the Electron app — but it does play.
+   *
+   * Returns normally on 204. Rejects with an actionable message
+   * on the common failure modes (404 "Device not found" when
+   * the user has no active Spotify Connect device; 401 if the
+   * token is invalid; 403 Premium required; etc.).
+   *
+   * Does NOT require this.player / this.deviceId to be set —
+   * it's a pure HTTPS call to the Web API.
+   */
+  async playViaWebApi(track: Track, accessToken: string): Promise<void> {
+    const meta = track.meta as { uri?: string } | undefined;
+    const trackUri = meta?.uri?.startsWith('spotify:track:')
+      ? meta.uri
+      : `spotify:track:${track.sourceId}`;
+    // Note: NO device_id query param. Spotify transfers playback
+    // to the user's currently active Spotify Connect device.
+    // The Spotify app on their phone/PC MUST be open (and the
+    // device set to "active") for this to succeed.
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10_000);
+    let response: Response;
+    try {
+      response = await fetch('https://api.spotify.com/v1/me/player/play', {
+        method: 'PUT',
+        body: JSON.stringify({ uris: [trackUri] }),
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+        },
+        signal: controller.signal,
+      });
+    } catch (err) {
+      if ((err as Error).name === 'AbortError') {
+        throw new Error(
+          'Spotify Web API /me/player/play timed out (10s). ' +
+            'Is your other Spotify device online and reachable?',
+        );
+      }
+      throw err;
+    } finally {
+      clearTimeout(timeout);
+    }
+    if (response.ok || response.status === 204) return;
+    const text = await response.text();
+    if (response.status === 404) {
+      throw new Error(
+        'No active Spotify device. The Spotify Web API ' +
+          'transfers playback to whatever Spotify Connect device ' +
+          'the user currently has open. Open Spotify on your phone, ' +
+          'tablet, or desktop Spotify client (free at spotify.com), ' +
+          'then click play here. Premium playback will then stream ' +
+          'from that device.',
+      );
+    }
+    if (response.status === 401) {
+      throw new Error(
+        'Spotify token rejected (401). Re-connect Spotify in ' +
+          'Settings to refresh the access token.',
+      );
+    }
+    if (response.status === 403) {
+      throw new Error(
+        'Spotify returned 403 (likely Premium required or scope ' +
+          'missing). Verify the OAuth scopes include "streaming", ' +
+          '"user-modify-playback-state", and "user-read-playback-state".',
+      );
+    }
+    throw new Error(
+      `Spotify /me/player/play (Web API fallback) failed: ` + `${response.status} ${text}`,
+    );
+  }
 }
