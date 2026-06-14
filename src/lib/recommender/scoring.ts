@@ -33,6 +33,7 @@ export interface RecommenderConfig {
   historyWeight: number;
   perSourceLimit: number;
   finalLimit: number;
+  maxPerArtist: number;
 }
 
 /**
@@ -52,6 +53,16 @@ export const DEFAULT_CONFIG: RecommenderConfig = {
   historyWeight: 0.25,
   perSourceLimit: 10,
   finalLimit: 20,
+  /**
+   * Max number of tracks from a single artist in the final
+   * recommended list. YouTube Music and Spotify both enforce
+   * this; without it, a session that's 80% Coldplay produces
+   * an all-Coldplay "For You" rail. 1 = "one song per artist,
+   * period" (most conservative); 2 = "two in a row is OK
+   * (album tracks / remixes) but not three" (current default);
+   * 0 disables the cap.
+   */
+  maxPerArtist: 2,
 };
 
 export interface ScoredTrack {
@@ -197,5 +208,93 @@ export function mergeRecommendations(
     return a.track.title.localeCompare(b.track.title);
   });
 
-  return scored.slice(0, cfg.finalLimit);
+  // Apply YouTube-Music-style per-artist cap so a single artist
+  // can't dominate the rail ("the recommender is broken, it
+  // just shows me Coldplay 10 times in a row"). Pure reorder:
+  // every track stays in the list, but the first occurrence of
+  // each artist keeps its rank and subsequent occurrences are
+  // moved to the back in their original relative order.
+  const diversified = applyArtistDiversity(scored, { maxPerArtist: cfg.maxPerArtist });
+
+  return diversified.slice(0, cfg.finalLimit);
+}
+
+/**
+ * Artist-name key for the diversity pass. Tracks with no
+ * artist all collapse to the same bucket so they still get
+ * capped (otherwise a multi-VA release would never demote).
+ */
+function artistKey(track: Track): string {
+  const a = track.artists[0];
+  return a?.name?.trim() || '__no_artist__';
+}
+
+export interface ArtistDiversityOptions {
+  maxPerArtist: number;
+}
+
+/**
+ * YouTube-Music-style per-artist cap on a scored list.
+ *
+ * Greedy slot-by-slot interleaving: walk the score-sorted input
+ * and place each track at the next output position if its artist
+ * hasn't hit the cap yet. When all remaining tracks violate the
+ * cap, round-robin through the deferred tracks by artist to
+ * preserve some diversity even in the overflow portion.
+ *
+ * 0 disables the cap (returns a shallow copy of the input).
+ *
+ * Pure: doesn't mutate the input array.
+ */
+export function applyArtistDiversity(
+  input: ScoredTrack[],
+  options: ArtistDiversityOptions,
+): ScoredTrack[] {
+  if (options.maxPerArtist <= 0) return [...input];
+
+  const counts = new Map<string, number>();
+  const result: ScoredTrack[] = [];
+  const remaining = [...input];
+
+  // Phase 1: greedily interleave respecting caps. For each slot,
+  // pick the highest-scoring track whose artist hasn't hit the
+  // cap yet. O(n²) in the worst case, but n is ≤ 30 tracks.
+  while (remaining.length > 0) {
+    let found = false;
+    for (let i = 0; i < remaining.length; i++) {
+      const key = artistKey(remaining[i]!.track);
+      if ((counts.get(key) ?? 0) < options.maxPerArtist) {
+        result.push(remaining[i]!);
+        counts.set(key, (counts.get(key) ?? 0) + 1);
+        remaining.splice(i, 1);
+        found = true;
+        break;
+      }
+    }
+    if (!found) break;
+  }
+
+  // Phase 2: append overflow (artists at cap) in round-robin
+  // order by artist to maintain some diversity even when the
+  // cap forces us past all uncapped artists.
+  if (remaining.length > 0) {
+    const byArtist = new Map<string, ScoredTrack[]>();
+    for (const s of remaining) {
+      const key = artistKey(s.track);
+      if (!byArtist.has(key)) byArtist.set(key, []);
+      byArtist.get(key)!.push(s);
+    }
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const queue of byArtist.values()) {
+        if (queue.length > 0) {
+          result.push(queue.shift()!);
+          changed = true;
+        }
+      }
+    }
+  }
+
+  return result;
 }

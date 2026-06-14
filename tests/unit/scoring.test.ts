@@ -2,18 +2,19 @@ import { describe, it, expect } from 'vitest';
 import {
   scoreResults,
   mergeRecommendations,
+  applyArtistDiversity,
   DEFAULT_CONFIG,
   type ScoredTrack,
 } from '@/lib/recommender/scoring';
 import type { Track } from '@/types/global';
 
-function makeTrack(id: string, title: string = id): Track {
+function makeTrack(id: string, title: string = id, artistName: string = 'Artist'): Track {
   return {
     id,
     source: 'ytmusic',
     sourceId: id.split(':').pop() ?? id,
     title,
-    artists: [{ id: 'a1', name: 'Artist', source: 'ytmusic' }],
+    artists: [{ id: 'a1', name: artistName, source: 'ytmusic' }],
     durationMs: 200000,
     isPlayable: true,
   };
@@ -300,5 +301,140 @@ describe('recommender/scoring', () => {
     expect(sample.score).toBe(0.5);
     expect(sample.signals.content).toBe(0.5);
     expect(sample.sourceCount).toBe(1);
+  });
+});
+
+describe('recommender/scoring — applyArtistDiversity (YouTube-Music-style "no 10 Coldplay in a row")', () => {
+  /**
+   * YouTube Music and Spotify both enforce a per-artist cap on
+   * the recommendation list because the user-experience problem
+   * "the recommender is broken, it just shows me the same artist
+   * 10 times in a row" is the single biggest complaint. We
+   * implement it as a post-rank reorder: the first occurrence
+   * of each artist is kept where it is; subsequent occurrences
+   * are demoted to the back, with a per-instance penalty so
+   * the demoted order is still deterministic (not random).
+   */
+  it('keeps the first occurrence of each artist and demotes the rest to the back', () => {
+    const a1 = makeTrack('a1', 'Song 1', 'Coldplay');
+    const a2 = makeTrack('a2', 'Song 2', 'Coldplay');
+    const a3 = makeTrack('a3', 'Song 3', 'Coldplay');
+    const b1 = makeTrack('b1', 'Song 4', 'Beatles');
+    const b2 = makeTrack('b2', 'Song 5', 'Beatles');
+    const c1 = makeTrack('c1', 'Song 6', 'Adele');
+
+    const input: ScoredTrack[] = [
+      scored(a1, 0.9),
+      scored(a2, 0.8),
+      scored(b1, 0.7),
+      scored(a3, 0.6),
+      scored(b2, 0.5),
+      scored(c1, 0.4),
+    ];
+
+    const output = applyArtistDiversity(input, { maxPerArtist: 1 });
+
+    // First occurrences stay in their relative order; the rest
+    // are pushed to the back in their original relative order.
+    expect(output[0]!.track.id).toBe('a1');
+    expect(output[1]!.track.id).toBe('b1');
+    expect(output[2]!.track.id).toBe('c1');
+    // The duplicates are demoted but still kept.
+    expect(output.map((s) => s.track.id).sort()).toEqual(['a1', 'a2', 'a3', 'b1', 'b2', 'c1']);
+  });
+
+  it('respects maxPerArtist > 1 (allows 2 songs per artist before demoting)', () => {
+    const a1 = makeTrack('a1', 'S1', 'Coldplay');
+    const a2 = makeTrack('a2', 'S2', 'Coldplay');
+    const a3 = makeTrack('a3', 'S3', 'Coldplay');
+    const a4 = makeTrack('a4', 'S4', 'Coldplay');
+
+    const input = [scored(a1, 0.9), scored(a2, 0.8), scored(a3, 0.7), scored(a4, 0.6)];
+
+    const output = applyArtistDiversity(input, { maxPerArtist: 2 });
+
+    // First 2 Coldplay songs stay at top; rest demoted to back.
+    expect(output[0]!.track.id).toBe('a1');
+    expect(output[1]!.track.id).toBe('a2');
+    expect(
+      output
+        .slice(2)
+        .map((s) => s.track.id)
+        .sort(),
+    ).toEqual(['a3', 'a4']);
+  });
+
+  it('is a no-op when no artist exceeds the cap', () => {
+    const a = makeTrack('a', 'S1', 'Coldplay');
+    const b = makeTrack('b', 'S2', 'Beatles');
+    const c = makeTrack('c', 'S3', 'Adele');
+
+    const input = [scored(a, 0.9), scored(b, 0.8), scored(c, 0.7)];
+    const inputIds = input.map((s) => s.track.id);
+    const output = applyArtistDiversity(input, { maxPerArtist: 2 });
+    expect(output.map((s) => s.track.id)).toEqual(inputIds);
+  });
+
+  it('treats tracks with no artists as a single bucket ("Unknown Artist") and still caps them', () => {
+    const noArtist = { ...makeTrack('n1', 'S1'), artists: [] };
+    const a = makeTrack('a', 'S2', 'Coldplay');
+    const input = [scored(noArtist, 0.9), scored(noArtist, 0.8), scored(a, 0.7)];
+
+    const output = applyArtistDiversity(input, { maxPerArtist: 1 });
+
+    // First "no artist" track kept, second demoted.
+    const noArtistHits = output.filter((s) => s.track.artists.length === 0);
+    expect(noArtistHits.length).toBe(2);
+    expect(output.indexOf(noArtistHits[0]!)).toBeLessThan(output.indexOf(noArtistHits[1]!));
+  });
+
+  it('is pure: does not mutate the input array', () => {
+    const a1 = makeTrack('a1', 'S1', 'X');
+    const a2 = makeTrack('a2', 'S2', 'X');
+    const input = [scored(a1, 0.9), scored(a2, 0.8)];
+    const before = [...input];
+
+    applyArtistDiversity(input, { maxPerArtist: 1 });
+
+    expect(input).toEqual(before);
+  });
+
+  function scored(track: Track, score: number): ScoredTrack {
+    return { track, score, signals: {}, sourceCount: 1 };
+  }
+});
+
+describe('mergeRecommendations — artist diversity is applied by default', () => {
+  it('caps Coldplay at 1 even when the content signal returns 5 Coldplay tracks at the top', () => {
+    const coldplay = ['cp1', 'cp2', 'cp3', 'cp4', 'cp5'].map((id) =>
+      makeTrack(id, 'CP Song', 'Coldplay'),
+    );
+    const beatles = ['b1', 'b2', 'b3', 'b4', 'b5'].map((id) =>
+      makeTrack(id, 'Beatles Song', 'Beatles'),
+    );
+    const adele = ['ad1', 'ad2', 'ad3', 'ad4', 'ad5'].map((id) =>
+      makeTrack(id, 'Adele Song', 'Adele'),
+    );
+    const taylor = ['ts1', 'ts2', 'ts3', 'ts4', 'ts5'].map((id) =>
+      makeTrack(id, 'Taylor Song', 'Taylor Swift'),
+    );
+    const edSheeran = ['es1', 'es2', 'es3', 'es4', 'es5'].map((id) =>
+      makeTrack(id, 'Ed Song', 'Ed Sheeran'),
+    );
+    const bruno = ['br1', 'br2', 'br3', 'br4', 'br5'].map((id) =>
+      makeTrack(id, 'Bruno Song', 'Bruno Mars'),
+    );
+    // All 5 Coldplay rank higher than any other artist, but diversity
+    // caps Coldplay at 1 in the final list. Needs 6+ artists so that
+    // maxPerArtist=1 is achievable within finalLimit=6.
+    const content = [...coldplay, ...beatles, ...adele, ...taylor, ...edSheeran, ...bruno];
+
+    const result = mergeRecommendations(content, [], [], new Set(), {
+      finalLimit: 6,
+      maxPerArtist: 1,
+      perSourceLimit: 30,
+    });
+    const coldplayInResult = result.filter((s) => s.track.artists[0]?.name === 'Coldplay').length;
+    expect(coldplayInResult).toBeLessThanOrEqual(1);
   });
 });
