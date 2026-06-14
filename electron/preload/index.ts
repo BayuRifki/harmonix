@@ -167,6 +167,14 @@ export interface HarmonixApi {
     spotifyLogin(): Promise<SpotifyLoginResult>;
     spotifyLogout(): Promise<{ ok: boolean }>;
     spotifyToken(): Promise<string | null>;
+    /**
+     * Batch-fetch Spotify audio features for the given track ids.
+     * Returns a record keyed by `spotify:{rawId}` (matching how
+     * tracks are stored app-wide). Tracks Spotify can't resolve
+     * are absent; any failure returns `{}` so the caller can
+     * degrade gracefully (skip audio re-ranking).
+     */
+    spotifyAudioFeatures(trackIds: string[]): Promise<Record<string, unknown>>;
     list(): Promise<AuthStatus[]>;
   };
   ytmusic: {
@@ -353,6 +361,8 @@ const api: HarmonixApi = {
     spotifyLogin: (): Promise<SpotifyLoginResult> => ipcRenderer.invoke('auth:spotify:login'),
     spotifyLogout: (): Promise<{ ok: boolean }> => ipcRenderer.invoke('auth:spotify:logout'),
     spotifyToken: (): Promise<string | null> => ipcRenderer.invoke('auth:spotify:token'),
+    spotifyAudioFeatures: (trackIds: string[]): Promise<Record<string, unknown>> =>
+      ipcRenderer.invoke('auth:spotify:audio-features', trackIds),
     list: (): Promise<AuthStatus[]> => ipcRenderer.invoke('auth:list'),
   },
   ytmusic: {

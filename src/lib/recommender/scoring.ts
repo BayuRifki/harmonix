@@ -260,6 +260,62 @@ export interface ArtistDiversityOptions {
 }
 
 /**
+ * Subset of Spotify's audio-features object that the
+ * audio-similarity re-rank uses. Mirrors the IPC contract
+ * (`Record<string, unknown>` on the wire) but typed here so
+ * the algorithm is testable in isolation.
+ *
+ * All fields in [0, 1] except `tempo` (BPM, typically 50-200).
+ * `tempo` is divided by 200 in the similarity function to
+ * bring it into a comparable scale.
+ */
+export interface AudioFeatures {
+  danceability: number;
+  energy: number;
+  valence: number;
+  tempo: number;
+  acousticness: number;
+  instrumentalness: number;
+  speechiness: number;
+  liveness: number;
+}
+
+/**
+ * Cosine similarity between two Spotify audio-feature vectors.
+ *
+ * Uses the 4 "vibe" dimensions (danceability, energy, valence,
+ * tempo-normalised) and ignores the noisier / less-discriminative
+ * fields (acousticness, instrumentalness, speechiness, liveness)
+ * so two "similar-sounding" tracks of the same genre don't get
+ * penalised for, e.g., one being a live recording.
+ *
+ * Returns a value in [-1, 1] where 1 = identical, 0 = orthogonal,
+ * -1 = opposite. For music features the realistic range is
+ * roughly [0, 1] — tracks rarely have negatively-correlated
+ * audio profiles. Callers that need a [0, 1] blend weight can
+ * normalise via `(sim + 1) / 2`.
+ */
+export function cosineSimilarity(a: AudioFeatures, b: AudioFeatures): number {
+  // Normalise tempo into the [0, 1] range so it has the same
+  // weight as the other dimensions. 200 BPM is the practical
+  // upper bound for most popular music.
+  const aVec = [a.danceability, a.energy, a.valence, a.tempo / 200];
+  const bVec = [b.danceability, b.energy, b.valence, b.tempo / 200];
+  let dot = 0;
+  let magA = 0;
+  let magB = 0;
+  for (let i = 0; i < aVec.length; i++) {
+    const av = aVec[i] ?? 0;
+    const bv = bVec[i] ?? 0;
+    dot += av * bv;
+    magA += av * av;
+    magB += bv * bv;
+  }
+  const denom = Math.sqrt(magA) * Math.sqrt(magB);
+  return denom === 0 ? 0 : dot / denom;
+}
+
+/**
  * YouTube-Music-style per-artist cap on a scored list.
  *
  * Greedy slot-by-slot interleaving: walk the score-sorted input
@@ -322,5 +378,56 @@ export function applyArtistDiversity(
     }
   }
 
+  return result;
+}
+
+/**
+ * Re-rank a scored list by Spotify audio-feature similarity
+ * to a "current" track (typically the track the user is
+ * listening to right now).
+ *
+ * For each scored track with features in `featuresMap`,
+ * computes cosine similarity to the current track's features
+ * and blends it into the score:
+ *
+ *     newScore = oldScore * (1 - weight) + normalisedSim * weight
+ *
+ * where `normalisedSim = (cosine + 1) / 2` maps the [-1, 1]
+ * similarity into [0, 1] for blending.
+ *
+ * Tracks without features in the map are passed through
+ * unchanged (we don't have audio data to score by, so we fall
+ * back to the merge-recommendations score alone). This means
+ * non-Spotify tracks (local, YT Music, etc.) and Spotify
+ * tracks for which the API didn't return features (region
+ * locks, etc.) keep their original rank.
+ *
+ * 0 disables re-ranking (returns a shallow copy, no score
+ * changes).
+ *
+ * Pure: doesn't mutate the input array.
+ */
+export function rerankByAudioSimilarity(
+  input: ScoredTrack[],
+  featuresMap: ReadonlyMap<string, AudioFeatures>,
+  currentFeatures: AudioFeatures,
+  weight: number,
+): ScoredTrack[] {
+  if (weight <= 0) return [...input];
+  const safeWeight = Math.min(1, weight);
+  const result: ScoredTrack[] = input.map((s) => {
+    const f = featuresMap.get(s.track.id);
+    if (!f) return s;
+    const sim = cosineSimilarity(currentFeatures, f);
+    const normalised = (sim + 1) / 2;
+    return {
+      ...s,
+      score: s.score * (1 - safeWeight) + normalised * safeWeight,
+    };
+  });
+  result.sort((a, b) => {
+    if (b.score !== a.score) return b.score - a.score;
+    return a.track.title.localeCompare(b.track.title);
+  });
   return result;
 }

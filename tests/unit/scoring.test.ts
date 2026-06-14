@@ -3,6 +3,8 @@ import {
   scoreResults,
   mergeRecommendations,
   applyArtistDiversity,
+  cosineSimilarity,
+  rerankByAudioSimilarity,
   DEFAULT_CONFIG,
   type ScoredTrack,
 } from '@/lib/recommender/scoring';
@@ -582,5 +584,145 @@ describe('mergeRecommendations — personal signal (top-played from listening hi
     const personal = [makeTrack('p1', 'P')];
     const result = mergeRecommendations([], [], [], new Set(), { personalWeight: 0 }, personal);
     expect(result).toEqual([]);
+  });
+});
+
+describe('recommender/scoring — audio-feature similarity re-ranking', () => {
+  /**
+   * Once the Spotify audio-features API is wired in, the
+   * recommender runs a post-merge re-ranking pass: tracks whose
+   * features are close (cosine similarity) to the current
+   * track's features get a score boost. This tests that
+   * function in isolation — the actual Spotify fetch is
+   * elsewhere.
+   */
+  type Feat = {
+    danceability: number;
+    energy: number;
+    valence: number;
+    tempo: number;
+    acousticness: number;
+    instrumentalness: number;
+    speechiness: number;
+    liveness: number;
+  };
+
+  function feat(overrides: Partial<Feat>): Feat {
+    return {
+      danceability: 0.5,
+      energy: 0.5,
+      valence: 0.5,
+      tempo: 120,
+      acousticness: 0.5,
+      instrumentalness: 0.5,
+      speechiness: 0.5,
+      liveness: 0.5,
+      ...overrides,
+    };
+  }
+
+  function scored(track: Track, score: number): ScoredTrack {
+    return { track, score, signals: {}, sourceCount: 1 };
+  }
+
+  it('cosineSimilarity returns ~1 for identical feature vectors', () => {
+    const a = feat({});
+    const b = feat({});
+    expect(Math.abs(cosineSimilarity(a, b) - 1)).toBeLessThan(1e-9);
+  });
+
+  it('cosineSimilarity returns low values for very-different feature vectors', () => {
+    // Use the same tempo in both so the tempo dimension can't
+    // accidentally align the vectors. danceability / energy /
+    // valence go from 1.0 → 0.0, which should produce a low
+    // similarity (the tempo contribution cancels out).
+    const a = feat({ danceability: 1, energy: 1, valence: 1, tempo: 120 });
+    const b = feat({ danceability: 0, energy: 0, valence: 0, tempo: 120 });
+    expect(cosineSimilarity(a, b)).toBeLessThan(0.5);
+  });
+
+  it('cosineSimilarity is symmetric (cosine(a, b) === cosine(b, a))', () => {
+    const a = feat({ danceability: 0.3, energy: 0.7, valence: 0.2 });
+    const b = feat({ danceability: 0.6, energy: 0.4, valence: 0.8 });
+    expect(cosineSimilarity(a, b)).toBeCloseTo(cosineSimilarity(b, a), 9);
+  });
+
+  it('rerankByAudioSimilarity boosts tracks with similar features and demotes dissimilar ones', () => {
+    const current = feat({ danceability: 0.8, energy: 0.8, valence: 0.8, tempo: 130 });
+    const similar = makeTrack('s', 'Similar');
+    const dissimilar = makeTrack('d', 'Dissimilar');
+    const features = new Map<string, Feat>([
+      ['s', feat({ danceability: 0.8, energy: 0.8, valence: 0.8, tempo: 130 })],
+      ['d', feat({ danceability: 0.1, energy: 0.1, valence: 0.1, tempo: 70 })],
+    ]);
+    const input = [scored(similar, 0.5), scored(dissimilar, 0.5)];
+    const out = rerankByAudioSimilarity(input, features, current, 0.3);
+    // The two had equal scores; similar should now rank first.
+    expect(out[0]?.track.id).toBe('s');
+    expect(out[1]?.track.id).toBe('d');
+    expect(out[0]!.score).toBeGreaterThan(out[1]!.score);
+  });
+
+  it('rerankByAudioSimilarity leaves tracks without features in their original relative order (no penalty)', () => {
+    const current = feat({});
+    const a = makeTrack('a', 'A');
+    const b = makeTrack('b', 'B');
+    const c = makeTrack('c', 'C');
+    const features = new Map<string, Feat>([['b', feat({})]]);
+    const input = [scored(a, 0.6), scored(b, 0.5), scored(c, 0.4)];
+    const out = rerankByAudioSimilarity(input, features, current, 0.3);
+    // a and c are unchanged (no features), b is boosted (identical
+    // features → similarity 1 → ~0.3 of the weight as a boost)
+    // Input scores: a=0.6, b=0.5, c=0.4 → output: a=0.6, b>0.5, c=0.4
+    expect(out.find((s) => s.track.id === 'a')!.score).toBeCloseTo(0.6);
+    expect(out.find((s) => s.track.id === 'c')!.score).toBeCloseTo(0.4);
+    expect(out.find((s) => s.track.id === 'b')!.score).toBeGreaterThan(0.5);
+  });
+
+  it('weight=0 is a no-op (pure re-ordering, no score changes)', () => {
+    const current = feat({});
+    const a = makeTrack('a', 'A');
+    const features = new Map<string, Feat>([['a', feat({})]]);
+    const input = [scored(a, 0.7)];
+    const out = rerankByAudioSimilarity(input, features, current, 0);
+    expect(out[0]!.score).toBeCloseTo(0.7);
+  });
+
+  it('output is sorted by score desc after re-ranking', () => {
+    const current = feat({});
+    const a = makeTrack('a', 'A');
+    const b = makeTrack('b', 'B');
+    const c = makeTrack('c', 'C');
+    const features = new Map<string, Feat>([
+      ['a', feat({})],
+      ['b', feat({})],
+      ['c', feat({})],
+    ]);
+    const input = [scored(a, 0.3), scored(b, 0.2), scored(c, 0.1)];
+    const out = rerankByAudioSimilarity(input, features, current, 0.5);
+    for (let i = 1; i < out.length; i++) {
+      expect(out[i - 1]!.score).toBeGreaterThanOrEqual(out[i]!.score);
+    }
+  });
+
+  it('preserves the per-track ScoredTrack fields (track, signals, sourceCount)', () => {
+    const current = feat({});
+    const track = makeTrack('t', 'T');
+    const input: ScoredTrack[] = [{ track, score: 0.5, signals: { content: 0.5 }, sourceCount: 1 }];
+    const features = new Map<string, Feat>([['t', feat({})]]);
+    const out = rerankByAudioSimilarity(input, features, current, 0.3);
+    expect(out[0]?.track).toBe(track);
+    expect(out[0]?.signals.content).toBe(0.5);
+    expect(out[0]?.sourceCount).toBe(1);
+  });
+
+  it('is pure: does not mutate the input array or its items', () => {
+    const current = feat({});
+    const a = makeTrack('a', 'A');
+    const input = [scored(a, 0.5)];
+    const before = JSON.parse(JSON.stringify(input));
+    const features = new Map<string, Feat>([['a', feat({})]]);
+    rerankByAudioSimilarity(input, features, current, 0.3);
+    expect(input).toEqual(before);
   });
 });

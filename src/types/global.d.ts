@@ -170,6 +170,7 @@ export interface HarmonixApi {
     spotifyLogin(): Promise<SpotifyLoginResult>;
     spotifyLogout(): Promise<{ ok: boolean }>;
     spotifyToken(): Promise<string | null>;
+    spotifyAudioFeatures(trackIds: string[]): Promise<Record<string, unknown>>;
     list(): Promise<AuthStatus[]>;
   };
   ytmusic: {

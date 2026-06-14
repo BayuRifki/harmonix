@@ -185,6 +185,51 @@ export function registerAuthHandlers(_getMainWindow: () => BrowserWindow | null)
     return getSpotifyAccessToken();
   });
 
+  /**
+   * Batch-fetch Spotify audio features for a list of track ids.
+   * Used by the recommender's audio-similarity re-ranking pass:
+   * given the current track's features, we boost the score of
+   * recommendations whose features are closest (cosine
+   * similarity on the danceability / energy / valence / tempo
+   * vector).
+   *
+   * Returns a `Record<trackId, features>` keyed by the
+   * `spotify:`-prefixed id, matching how tracks are stored
+   * app-wide. Tracks Spotify can't resolve (region-locked,
+   * removed, audio-features unavailable) are absent from the
+   * record; the renderer treats a miss as "no features
+   * available" rather than an error.
+   *
+   * Returns `{}` on any failure (not authenticated, network,
+   * rate-limited, malformed response) so the recommender can
+   * skip audio re-ranking gracefully.
+   */
+  ipcMain.handle(
+    'auth:spotify:audio-features',
+    async (_event, trackIds: string[]): Promise<Record<string, unknown>> => {
+      const src = getSource('spotify');
+      if (!(src instanceof SpotifySource)) return {};
+      if (!Array.isArray(trackIds) || trackIds.length === 0) return {};
+      // Spotify's per-request cap is 100 ids. For our use case
+      // (the recommender typically re-ranks the top 20
+      // candidates) this never fires, but guard it anyway so a
+      // future caller passing the whole library doesn't trip a
+      // 400.
+      const batches: string[][] = [];
+      for (let i = 0; i < trackIds.length; i += 100) {
+        batches.push(trackIds.slice(i, i + 100));
+      }
+      const out: Record<string, unknown> = {};
+      for (const batch of batches) {
+        const map = await src.getClient().getAudioFeatures(batch);
+        for (const [id, features] of map) {
+          out[id] = features;
+        }
+      }
+      return out;
+    },
+  );
+
   ipcMain.handle('auth:list', async (): Promise<AuthStatus[]> => {
     return getAllAuthStatuses();
   });

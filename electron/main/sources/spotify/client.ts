@@ -68,6 +68,102 @@ const SPOTIFY_DEFAULT_TYPES = ['track', 'album', 'artist', 'playlist'] as const;
 const SPOTIFY_DEFAULT_LIMIT = 5;
 const SPOTIFY_MAX_LIMIT = 10;
 
+// Spotify's /audio-features endpoint accepts up to 100 ids per
+// request and returns 400 on larger batches. The recommender
+// batches in chunks of this size.
+const SPOTIFY_AUDIO_FEATURES_MAX_IDS = 100;
+
+/**
+ * Subset of Spotify's audio-features object that the recommender
+ * actually uses for similarity scoring. The full payload also
+ * includes `id`, `uri`, `track_href`, `analysis_url`,
+ * `duration_ms`, `time_signature`, `key`, `loudness`, `mode` —
+ * omitted here to keep the contract narrow.
+ *
+ * All fields are in [0, 1] except `tempo` (BPM, typically 50-200).
+ */
+export interface SpotifyAudioFeatures {
+  danceability: number;
+  energy: number;
+  valence: number;
+  tempo: number;
+  acousticness: number;
+  instrumentalness: number;
+  speechiness: number;
+  liveness: number;
+}
+
+/**
+ * Build the path + querystring for the Spotify /audio-features
+ * batch endpoint.
+ *
+ * Spotify's Web API takes a comma-separated list of raw track ids
+ * (NOT `spotify:track:…` URIs), up to 100 per request. Passing
+ * more returns 400. This builder strips the `spotify:` prefix,
+ * filters empty / whitespace-only entries, and refuses to build a
+ * path when the result would exceed 100 ids — the caller is then
+ * expected to chunk the input.
+ *
+ * Returns `null` for an empty / invalid input so the caller can
+ * short-circuit with an empty result.
+ */
+export function buildSpotifyAudioFeaturesPath(trackIds: string[]): string | null {
+  // Strip a single `spotify:` or `spotify:track:` prefix. The app
+  // stores track ids as `spotify:{rawId}` (see trackToTrack below),
+  // but Spotify URIs from playlists / albums use the longer
+  // `spotify:track:{rawId}` form. Both reduce to the same raw id
+  // the Web API expects. Anything else is passed through as-is.
+  const SPOTIFY_PREFIX = /^spotify:(track:|artist:|album:|playlist:)?/;
+  const cleaned = trackIds
+    .map((id) => (id ?? '').trim())
+    .filter((id) => id.length > 0)
+    .map((id) => id.replace(SPOTIFY_PREFIX, ''));
+  if (cleaned.length === 0) return null;
+  if (cleaned.length > SPOTIFY_AUDIO_FEATURES_MAX_IDS) return null;
+  return `/audio-features?ids=${cleaned.join(',')}`;
+}
+
+/**
+ * Parse the JSON body of a successful Spotify /audio-features
+ * response into a `Map<trackId, features>` keyed by the
+ * `spotify:`-prefixed id (matching how tracks are stored
+ * throughout the app).
+ *
+ * Spotify returns a top-level `audio_features: [...]` array that
+ * may contain `null` entries for unplayable / unknown tracks.
+ * Feature objects without an `id` are also skipped (can't be
+ * keyed in the map).
+ *
+ * Defensive: any non-object / non-array response yields an
+ * empty map rather than throwing — `getAudioFeatures` swallows
+ * the error path this guards.
+ */
+export function parseSpotifyAudioFeaturesResponse(
+  json: unknown,
+): Map<string, SpotifyAudioFeatures> {
+  const out = new Map<string, SpotifyAudioFeatures>();
+  if (!json || typeof json !== 'object') return out;
+  const features = (json as { audio_features?: unknown }).audio_features;
+  if (!Array.isArray(features)) return out;
+  for (const entry of features) {
+    if (!entry || typeof entry !== 'object') continue;
+    const obj = entry as Record<string, unknown> & { id?: unknown };
+    if (typeof obj.id !== 'string' || obj.id.length === 0) continue;
+    const f: SpotifyAudioFeatures = {
+      danceability: Number(obj.danceability ?? 0),
+      energy: Number(obj.energy ?? 0),
+      valence: Number(obj.valence ?? 0),
+      tempo: Number(obj.tempo ?? 0),
+      acousticness: Number(obj.acousticness ?? 0),
+      instrumentalness: Number(obj.instrumentalness ?? 0),
+      speechiness: Number(obj.speechiness ?? 0),
+      liveness: Number(obj.liveness ?? 0),
+    };
+    out.set(`spotify:${obj.id}`, f);
+  }
+  return out;
+}
+
 /**
  * Build the path + querystring for the Spotify /search endpoint,
  * validating inputs that would otherwise produce a 400 from Spotify.
@@ -479,6 +575,35 @@ export class SpotifyClient {
         .map(trackToTrack);
     } catch {
       return [];
+    }
+  }
+
+  /**
+   * Fetch Spotify audio features for up to 100 tracks in one call.
+   *
+   * Returns a `Map<trackId, features>` keyed by the `spotify:`-
+   * prefixed id (matching how tracks are stored app-wide). IDs
+   * that Spotify can't resolve (region-locked, removed, etc.)
+   * are absent from the map — callers should treat a miss as
+   * "no features available" rather than an error.
+   *
+   * Returns an empty map on any failure (auth error, network
+   * error, non-2xx, malformed response) so the recommender's
+   * audio-similarity re-ranking degrades gracefully when the
+   * user isn't logged into Spotify, hits the rate limit, etc.
+   *
+   * Callers with >100 ids must chunk themselves; the URL builder
+   * refuses to build a path for batches larger than the API cap.
+   */
+  async getAudioFeatures(trackIds: string[]): Promise<Map<string, SpotifyAudioFeatures>> {
+    const path = buildSpotifyAudioFeaturesPath(trackIds);
+    if (!path) return new Map();
+    try {
+      const response = await this.authedFetch(path);
+      if (!response.ok) return new Map();
+      return parseSpotifyAudioFeaturesResponse(await response.json());
+    } catch {
+      return new Map();
     }
   }
 }

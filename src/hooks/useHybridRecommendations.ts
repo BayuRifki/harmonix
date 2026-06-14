@@ -5,8 +5,10 @@ import { useListeningHistoryStore, type TrackStat } from '@/stores/listeningHist
 import { buildContentQuery, detectTrackMood } from '@/lib/recommender/mood';
 import {
   mergeRecommendations,
+  rerankByAudioSimilarity,
   DEFAULT_CONFIG,
   type ScoredTrack,
+  type AudioFeatures,
   type RecommenderConfig,
 } from '@/lib/recommender/scoring';
 
@@ -81,6 +83,14 @@ export interface HybridRecommendationsOptions {
    */
   config?: Partial<RecommenderConfig>;
   /**
+   * Weight for the post-merge audio-similarity re-ranking
+   * pass. 0 disables it. The default 0.3 (defined below) means
+   * 30% of the final score comes from Spotify audio-feature
+   * similarity to the current track; the other 70% preserves
+   * the algorithmic signal contributions.
+   */
+  audioWeight?: number;
+  /**
    * Override the search function. Defaults to
    * `window.api.sources.search` over the multi-source registry.
    * Tests inject a mock.
@@ -154,7 +164,13 @@ export function useHybridRecommendations(
   currentTrack: Track | null,
   options: HybridRecommendationsOptions = {},
 ): HybridRecommendationsState {
-  const { limit, enabled = true, config, searchFn = defaultSearch } = options;
+  const {
+    limit,
+    enabled = true,
+    config,
+    audioWeight = DEFAULT_AUDIO_WEIGHT,
+    searchFn = defaultSearch,
+  } = options;
   const cfg: RecommenderConfig = { ...DEFAULT_CONFIG, ...(config ?? {}) };
   const finalLimit = limit ?? cfg.finalLimit;
   const perSourceLimit = cfg.perSourceLimit;
@@ -266,8 +282,17 @@ export function useHybridRecommendations(
         }
 
         const merged = mergeRecommendations(content, session, history, exclude, cfg, personal);
+
+        // Audio-similarity re-ranking: if the current track is
+        // from Spotify and we have a logged-in Spotify session,
+        // boost the score of recommendations whose audio features
+        // are close to the current track's. Skips gracefully on
+        // any error (no auth, no features, network failure) so
+        // the rail still works.
+        const reRanked = await maybeRerankByAudioFeatures(merged, currentTrack, audioWeight);
+
         setState({
-          tracks: merged.slice(0, finalLimit),
+          tracks: reRanked.slice(0, finalLimit),
           loading: false,
           error: null,
         });
@@ -297,3 +322,63 @@ export function useHybridRecommendations(
  * just to assert on shape.
  */
 export type { ScoredTrack } from '@/lib/recommender/scoring';
+
+/**
+ * Default weight for the audio-similarity re-ranking pass.
+ * 30% blends the audio similarity with the merge-recommendations
+ * score; the other 70% preserves the algorithmic signal
+ * contributions so a track with no features at all doesn't
+ * crash through to the top purely on vibe-match.
+ */
+const DEFAULT_AUDIO_WEIGHT = 0.3;
+
+/**
+ * Re-rank the merged recommendations by audio-feature
+ * similarity to the current track, when we can.
+ *
+ * No-ops (returns the input unchanged) when:
+ *   - `weight` is 0 or negative (re-ranking disabled)
+ *   - there's no current track
+ *   - the current track isn't from Spotify
+ *   - the user isn't authenticated with Spotify
+ *   - the audio-features IPC call fails or returns nothing
+ *
+ * In all error paths the original merge-recommendations
+ * ordering is preserved so the "For You" rail still works
+ * when Spotify is unavailable.
+ */
+async function maybeRerankByAudioFeatures(
+  tracks: ScoredTrack[],
+  currentTrack: Track | null,
+  weight: number,
+): Promise<ScoredTrack[]> {
+  if (weight <= 0) return tracks;
+  if (!currentTrack?.id?.startsWith('spotify:')) return tracks;
+  if (typeof window === 'undefined' || !window.api?.auth?.spotifyAudioFeatures) return tracks;
+
+  // Collect every Spotify track id we'll need features for:
+  // the current track plus every Spotify recommendation.
+  const spotifyIds = new Set<string>();
+  spotifyIds.add(currentTrack.id);
+  for (const s of tracks) {
+    if (s.track.id?.startsWith('spotify:')) spotifyIds.add(s.track.id);
+  }
+  if (spotifyIds.size === 0) return tracks;
+
+  let record: Record<string, unknown>;
+  try {
+    record = await window.api.auth.spotifyAudioFeatures(Array.from(spotifyIds));
+  } catch {
+    return tracks;
+  }
+  if (!record || typeof record !== 'object') return tracks;
+
+  const featuresMap = new Map<string, AudioFeatures>();
+  for (const [id, raw] of Object.entries(record)) {
+    if (raw && typeof raw === 'object') featuresMap.set(id, raw as AudioFeatures);
+  }
+  const currentFeatures = featuresMap.get(currentTrack.id);
+  if (!currentFeatures) return tracks;
+
+  return rerankByAudioSimilarity(tracks, featuresMap, currentFeatures, weight);
+}
