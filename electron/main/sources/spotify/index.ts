@@ -95,8 +95,19 @@ export class SpotifySource extends SourceAdapter {
     // account is Free — leading to a wasted SDK round-trip and a
     // fallback to the 30s preview URL. `getValidProfile` is cheap
     // (60s cache TTL) and avoids the round-trip in the common case.
-    await this.client.getValidProfile();
+    const profile = await this.client.getValidProfile();
+    const tier = profile?.product ?? 'unknown';
     if (this.client.isPremium()) {
+      // Diagnostic: surface the path decision so the user can
+      // tell at a glance whether they're on the SDK (Premium)
+      // path or the preview (Free) path — previously this was
+      // opaque, so a "no audio" report gave no clue which
+      // branch the app was on.
+      // eslint-disable-next-line no-console
+      console.info(
+        `[spotify] getStreamUrl: account=${tier}, ` +
+          `path=SDK, track=${track.sourceId} (${track.title ?? '?'})`,
+      );
       return {
         url: `spotify-sdk:${track.sourceId}`,
         protocol: 'spotify-sdk',
@@ -104,12 +115,34 @@ export class SpotifySource extends SourceAdapter {
     }
     const previewUrl = (track.meta as { previewUrl?: string | null } | undefined)?.previewUrl;
     if (!previewUrl) {
+      // eslint-disable-next-line no-console
+      console.info(
+        `[spotify] getStreamUrl: account=${tier}, ` +
+          `path=PREVIEW, track=${track.sourceId} (${track.title ?? '?'}) — ` +
+          `no meta.previewUrl on this track; will throw "no preview available".`,
+      );
       throw new Error(
         'No preview available for this track. ' +
           'Spotify Free only allows 30s previews and this track has none; ' +
           'upgrade to Spotify Premium for full playback.',
       );
     }
+    // Diagnostic: surface the preview CDN host + the actual URL
+    // the audio engine is about to load, so "no audio" reports
+    // can be correlated with "did the engine successfully hit
+    // p.scdn.co?" in the console log.
+    let previewHost = 'unknown';
+    try {
+      previewHost = new URL(previewUrl).host;
+    } catch {
+      // keep default
+    }
+    // eslint-disable-next-line no-console
+    console.info(
+      `[spotify] getStreamUrl: account=${tier}, ` +
+        `path=PREVIEW, track=${track.sourceId} (${track.title ?? '?'}) — ` +
+        `loading 30s preview from ${previewHost}`,
+    );
     return {
       url: previewUrl,
       protocol: 'http',
