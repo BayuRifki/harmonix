@@ -11,7 +11,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Adaptive theme** — UI accent (text, buttons, sliders, queue badge) subtly shifts to the dominant color of the currently playing album art. Driven by a new `colorExtractor` (canvas-based hue clustering) and a `useAdaptiveAccent` hook that sets CSS vars. Falls back to the theme default when no artwork is available.
+- **Spotify audio-features API integration** — `getAudioFeatures(trackIds)` on the Spotify client, exposed to the renderer as `window.api.auth.spotifyAudioFeatures(trackIds)` (IPC chunks the input into Spotify's 100-id-per-request batches). Returns a `Map<trackId, features>` covering danceability, energy, valence, tempo, acousticness, instrumentalness, speechiness, liveness. Skips gracefully on any failure (no auth, rate-limited, malformed response) so callers can degrade.
+- **"Personal" signal in the hybrid recommender** — the user's top-played tracks (from the local listening-history store) are synthesised into `Track` objects and injected as a 4th signal into `mergeRecommendations`. Default weight 0.15 (low enough to bias without overriding the search-based signals). Helps the "For You" rail surface trusted tracks even when the content / session / history search signals miss them.
+- **Audio-similarity re-ranking pass** — `cosineSimilarity(a, b)` + `rerankByAudioSimilarity(tracks, featuresMap, currentFeatures, weight)` in `src/lib/recommender/scoring.ts`. `useHybridRecommendations` now calls a new `maybeRerankByAudioFeatures` after the merge that boosts Spotify recommendations whose danceability / energy / valence / tempo are close to the current track. No-ops cleanly when the user isn't on Spotify or isn't authenticated. Default weight 0.3.
+- **NSIS installer for Windows** — `npm run dist:win` now produces a working `Harmonix-0.1.0-x64-Setup.exe` (~110 MB) that bundles the Electron app, `yt-dlp.exe` for YT Music streaming, and installs via the standard NSIS wizard (start menu + desktop shortcuts, configurable install dir, uninstaller). The release CI workflow (`.github/workflows/release.yml`) already builds installers for all three platforms in parallel on tagged releases.
+- **Stronger artist-diversity algorithm** — replaced the old "head+tail" demote-overflow with a two-phase greedy slot-by-slot interleaving. Phase 1 fills positions with the highest-scoring track whose artist hasn't hit the cap; phase 2 round-robins overflow by artist so the deferred portion still has some variety. The 6-artist / 1-per-artist integration test now actually achieves 1-Coldplay-in-top-6 (was 5).
+
+### Changed
+
+- **`dist:all` script** bumped from `-mw` to `-mwl` so a single command produces installers for macOS, Windows, and Linux instead of just Mac + Windows.
+- `electron-builder.yml`:
+  - `win.signAndEditExecutable: false` — winCodeSign tries to extract darwin dylib symlinks which Windows can't create without admin/Developer Mode, so 7za returns exit 2 and electron-builder aborts. We don't have a code-signing certificate yet, so the winCodeSign step is skipped. Re-enable (and wire up `CSC_LINK` / `CSC_KEY_PASSWORD` env vars) before the first public release.
+  - `win.artifactName` now includes `-Setup` so the NSIS installer doesn't collide with a future portable build.
+- `package.json` scripts: dropped the redundant `portable` Windows target (was overwriting the NSIS installer due to a non-existent `${target}` macro in the artifactName template).
+- `resources/extraResources` glob `'yt-dlp*'` → explicit `'yt-dlp.exe'` (electron-builder's `expand` step rejected the glob with "file source does not exist").
+- `resources/app.meta.json` version 0.0.1 → 0.1.0 to match `package.json`.
+- `.gitignore` now ignores `test_output.txt` (with underscore) in addition to the existing `test-output.txt` (with dash).
+
+### Fixed
+
+- **`npm run dist:win` now produces an installer** on Windows in non-admin / non-Developer-Mode environments. Was silently failing the whole build with `cannot execute cause=exit status 2` from the winCodeSign extraction step.
+- NSIS installer's `extraResources` glob is no longer rejected — yt-dlp now correctly bundles inside the installer (was previously only in the unpacked build).
+- `mergeRecommendations` integration test for the per-artist cap was actually broken by the old head+tail algorithm (5-Coldplay-in-top-6 instead of 1); the new algorithm fixes it and the test now passes deterministically.
+
+### Removed
+
+- `test_output.txt` (281 KB of stray test output) and `resources/brand-guide.png` (byte-identical duplicate of `resources/logo.png`, not referenced anywhere) deleted. The latter is preserved by `splashWindow.ts`'s fallback path which prefers `public/logo.png` and falls back to `resources/logo.png` in the production Electron build.
+
+### Tests
+
+- 20 new tests in `tests/unit/spotifyAudioFeatures.test.ts` covering the URL builder (prefix stripping, empty / whitespace handling, 100-id cap rejection, mixed-prefix inputs) and the response parser (null entry skipping, missing-id skipping, defensive type handling).
+- 9 new tests in `tests/unit/scoring.test.ts` for `cosineSimilarity` (identical, different, symmetry) and `rerankByAudioSimilarity` (boost, no-penalty, weight=0, sort stability, purity, per-track field preservation).
+- 11 new tests in `tests/unit/scoring.test.ts` for the 4th "personal" signal (contribution, rank decay, weight=0 disabled, additive with other signals, exclude set, backward compat, empty input, dedup, diversity reorder, lone-personal case).
+- Total: **1029 tests across 111 files**; **1002 pass**, **27 fail** (all pre-existing better-sqlite3 env issues in `playlistRepository` / `trackRepository` — `NODE_MODULE_VERSION 137` vs the test runner's `115`). Zero new regressions.
 - **Global keyboard shortcuts** — `Space` (play/pause), `←`/`→` (prev/next), `↑`/`↓` (volume), `M` (mute). Skipped automatically when typing in inputs. A new `KeyboardShortcutsPanel` in Settings lists them.
 - **OLED-friendly chrome** — sidebar, player bar, and main body background switched to pure `#000000` so colorful artwork pops and OLED pixels are off.
 - **Track-change animation** in the player bar (subtle fade + slide) via a new `harmonix-track-in` keyframe; respects `motion-reduce`.
