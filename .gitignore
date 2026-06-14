@@ -83,6 +83,7 @@ out/
 esbuild-version.txt
 esbuild-err.txt
 test-output.txt
+test_output.txt
 git-status.txt
 status.txt
 
