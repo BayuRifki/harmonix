@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { Track } from '@/types/global';
 import { useSessionStore } from '@/stores/sessionStore';
-import { useListeningHistoryStore } from '@/stores/listeningHistoryStore';
+import { useListeningHistoryStore, type TrackStat } from '@/stores/listeningHistoryStore';
 import { buildContentQuery, detectTrackMood } from '@/lib/recommender/mood';
 import {
   mergeRecommendations,
@@ -9,6 +9,56 @@ import {
   type ScoredTrack,
   type RecommenderConfig,
 } from '@/lib/recommender/scoring';
+
+/**
+ * Convert a `TrackStat` from the listening-history store into a
+ * minimal `Track` object suitable for the personal-best signal.
+ *
+ * The history store keeps aggregated stats (playCount, total duration,
+ * last played) rather than full Track objects, so we synthesise
+ * enough of a Track for `mergeRecommendations` to score it. Missing
+ * fields (album, full artist IDs, etc.) are tolerated — the personal
+ * signal is used only as a small score boost, not for display.
+ */
+function trackStatToTrack(stat: TrackStat): Track {
+  const artistNames: string[] = stat.artist
+    .split(',')
+    .map((s: string) => s.trim())
+    .filter(Boolean);
+  return {
+    id: stat.id,
+    source: stat.source as Track['source'],
+    sourceId: stat.sourceId,
+    title: stat.title,
+    artists: artistNames.map((name: string, idx: number) => ({
+      // The history store doesn't persist individual artist IDs,
+      // only the joined string. Synthesise a stable ID from the
+      // source + name + position so the artistKey in
+      // applyArtistDiversity groups repeats correctly.
+      id: idx === 0 ? `${stat.source}:artist:${stat.sourceId}` : `${stat.source}:artist:${name}`,
+      name,
+      source: stat.source as Track['source'],
+    })),
+    // Average duration across plays (avoids divide-by-zero for a
+    // single play). The actual duration is unknown from the stat
+    // record alone.
+    durationMs: stat.playCount > 0 ? Math.round(stat.totalDurationMs / stat.playCount) : 0,
+    isPlayable: true,
+    album: stat.album
+      ? {
+          id: '',
+          title: stat.album,
+          source: stat.source as Track['source'],
+          artists: artistNames.map((name: string) => ({
+            id: `${stat.source}:artist:${name}`,
+            name,
+            source: stat.source as Track['source'],
+          })),
+        }
+      : undefined,
+    artworkUrl: stat.artworkUrl ?? undefined,
+  };
+}
 
 export interface HybridRecommendationsState {
   tracks: ScoredTrack[];
@@ -143,6 +193,27 @@ export function useHybridRecommendations(
       return top.join(' ');
     };
 
+    /**
+     * Build the "personal" signal: the user's top-played tracks
+     * from the persistent history store. Injected directly into
+     * `mergeRecommendations` as a low-weight boost (DEFAULT_CONFIG
+     * personalWeight = 0.15) so tracks the user has clearly
+     * demonstrated affinity for surface in the "For You" rail
+     * even when the search-based signals miss them.
+     *
+     * Returns the synthesized Track array (empty if the user
+     * has no history yet — e.g. on first launch).
+     */
+    const buildPersonalSignal = (): Track[] => {
+      const top = useListeningHistoryStore
+        .getState()
+        .topTracks(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      // Cap at perSourceLimit (10 by default) so a user with 500
+      // history entries doesn't see 500 candidates competing for
+      // the same personal signal slot.
+      return top.slice(0, perSourceLimit).map(trackStatToTrack);
+    };
+
     const buildSessionQuerySafe = (): string | null => {
       // Read the live session via getState() (the dep tracks
       // `recentSession` for re-runs, but the actual query
@@ -159,6 +230,7 @@ export function useHybridRecommendations(
     const contentQuery = buildContentQuerySafe();
     const sessQuery = buildSessionQuerySafe();
     const histQuery = buildHistoryQuery();
+    const personal = buildPersonalSignal();
 
     // Helper that runs a single signal's search, returns empty on
     // error or abort. The signal here is the user-driven "stop
@@ -193,7 +265,7 @@ export function useHybridRecommendations(
           exclude.add(entry.id);
         }
 
-        const merged = mergeRecommendations(content, session, history, exclude, cfg);
+        const merged = mergeRecommendations(content, session, history, exclude, cfg, personal);
         setState({
           tracks: merged.slice(0, finalLimit),
           loading: false,

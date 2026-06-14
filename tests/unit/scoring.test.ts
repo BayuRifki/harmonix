@@ -438,3 +438,149 @@ describe('mergeRecommendations — artist diversity is applied by default', () =
     expect(coldplayInResult).toBeLessThanOrEqual(1);
   });
 });
+
+describe('mergeRecommendations — personal signal (top-played from listening history)', () => {
+  /**
+   * The "personal" signal injects the user's most-played tracks
+   * directly into the recommendation list. It bypasses the search
+   * APIs (which can be noisy) for tracks the user has clearly
+   * demonstrated an affinity for. The weight is intentionally low
+   * (~0.15 by default) so it acts as a small boost for trusted
+   * tracks, not a dominant force.
+   *
+   * The signal is opt-out via personalWeight=0 and is the 4th
+   * positional arg (with a default of [] for backward compatibility
+   * with existing call sites that don't know about it).
+   */
+  it('contributes its weighted score to tracks that appear in the personal list', () => {
+    const personal = [makeTrack('p1', 'Personal Hit')];
+    const result = mergeRecommendations([], [], [], new Set(), { personalWeight: 0.2 }, personal);
+    expect(result).toHaveLength(1);
+    // personal score at rank 0: 0.2 * (1 - 0/10) = 0.2
+    expect(result[0]?.signals.personal).toBeCloseTo(0.2);
+    expect(result[0]?.score).toBeCloseTo(0.2);
+  });
+
+  it('decays linearly by rank within the personal signal (same math as content/session/history)', () => {
+    const personal = ['p1', 'p2', 'p3'].map((id) => makeTrack(id));
+    const result = mergeRecommendations(
+      [],
+      [],
+      [],
+      new Set(),
+      { personalWeight: 1.0, perSourceLimit: 3 },
+      personal,
+    );
+    // rank 0: 1.0 * (1 - 0/3) = 1.0
+    // rank 1: 1.0 * (1 - 1/3) = 0.667
+    // rank 2: 1.0 * (1 - 2/3) = 0.333
+    expect(result[0]?.signals.personal).toBeCloseTo(1.0);
+    expect(result[1]?.signals.personal).toBeCloseTo(2 / 3);
+    expect(result[2]?.signals.personal).toBeCloseTo(1 / 3);
+  });
+
+  it('personal weight of 0 disables the signal entirely (no contribution, no signal field)', () => {
+    const personal = [makeTrack('p1', 'Personal Hit')];
+    const result = mergeRecommendations(
+      [],
+      [],
+      [],
+      new Set(),
+      { personalWeight: 0, perSourceLimit: 3 },
+      personal,
+    );
+    // p1 has score 0, so it gets filtered out
+    expect(result).toHaveLength(0);
+  });
+
+  it('combines additively with other signals (personal + content for the same track)', () => {
+    const shared = makeTrack('shared', 'Cross-Signal');
+    const result = mergeRecommendations(
+      [shared],
+      [],
+      [],
+      new Set(),
+      { personalWeight: 0.1, contentWeight: 0.4, perSourceLimit: 3 },
+      [shared],
+    );
+    expect(result).toHaveLength(1);
+    expect(result[0]?.signals.content).toBeCloseTo(0.4);
+    expect(result[0]?.signals.personal).toBeCloseTo(0.1);
+    expect(result[0]?.score).toBeCloseTo(0.5);
+    expect(result[0]?.sourceCount).toBe(2);
+  });
+
+  it('excludes tracks that are in the excludeIds set (matches the other signals)', () => {
+    const personal = [makeTrack('excluded', 'Skip Me'), makeTrack('kept', 'Keep Me')];
+    const result = mergeRecommendations([], [], [], new Set(['excluded']), {}, personal);
+    expect(result).toHaveLength(1);
+    expect(result[0]?.track.id).toBe('kept');
+  });
+
+  it('backward compatible: omitting the personal arg works (empty personal signal)', () => {
+    const content = [makeTrack('c1', 'C1')];
+    // 5-arg call (no personal) — must not throw
+    const result = mergeRecommendations(content, [], [], new Set());
+    expect(result).toHaveLength(1);
+    expect(result[0]?.signals.personal).toBeUndefined();
+  });
+
+  it('empty personal array works (no personal contribution, no error)', () => {
+    const content = [makeTrack('c1', 'C1')];
+    const result = mergeRecommendations(content, [], [], new Set(), {}, []);
+    expect(result).toHaveLength(1);
+    expect(result[0]?.signals.personal).toBeUndefined();
+  });
+
+  it('deduplicates: a track that appears in both personal and content is scored once with both signals', () => {
+    const shared = makeTrack('shared', 'Both');
+    const result = mergeRecommendations(
+      [shared],
+      [],
+      [],
+      new Set(),
+      { personalWeight: 0.1, contentWeight: 0.4, perSourceLimit: 3 },
+      [shared],
+    );
+    expect(result).toHaveLength(1);
+    // The trackById lookup prefers content (first array) for display
+    expect(result[0]?.track.title).toBe('Both');
+    expect(result[0]?.sourceCount).toBe(2);
+  });
+
+  it('personal tracks participate in the artist-diversity reorder (first occurrence keeps top slot)', () => {
+    // YouTube Music and Spotify both treat maxPerArtist as a *soft*
+    // cap: the first occurrence of each artist is kept at its
+    // position; subsequent occurrences are demoted to the back but
+    // not dropped entirely. With 3 Coldplay + maxPerArtist=1, all 3
+    // survive the reorder, but p1 keeps the top slot and the rest
+    // are demoted to the tail.
+    const personal = ['p1', 'p2', 'p3'].map((id) => makeTrack(id, 'P', 'Coldplay'));
+    const result = mergeRecommendations(
+      [],
+      [],
+      [],
+      new Set(),
+      { personalWeight: 1.0, perSourceLimit: 3, maxPerArtist: 1, finalLimit: 3 },
+      personal,
+    );
+    expect(result).toHaveLength(3);
+    expect(result[0]?.track.id).toBe('p1');
+    const coldplayInResult = result.filter((s) => s.track.artists[0]?.name === 'Coldplay').length;
+    expect(coldplayInResult).toBe(3);
+  });
+
+  it('personal tracks that contribute a non-zero score appear even when other signals are empty', () => {
+    const personal = [makeTrack('p1', 'Lone Personal')];
+    const result = mergeRecommendations([], [], [], new Set(), { personalWeight: 0.1 }, personal);
+    expect(result).toHaveLength(1);
+    expect(result[0]?.track.id).toBe('p1');
+    expect(result[0]?.signals.personal).toBeCloseTo(0.1);
+  });
+
+  it('handles weight=0 with non-empty personal (treated as signal disabled, no contribution)', () => {
+    const personal = [makeTrack('p1', 'P')];
+    const result = mergeRecommendations([], [], [], new Set(), { personalWeight: 0 }, personal);
+    expect(result).toEqual([]);
+  });
+});

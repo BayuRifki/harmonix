@@ -25,12 +25,13 @@ import type { Track } from '@/types/global';
  * track, no already-played-in-session) and sorted by score desc.
  */
 
-export type Signal = 'content' | 'session' | 'history';
+export type Signal = 'content' | 'session' | 'history' | 'personal';
 
 export interface RecommenderConfig {
   contentWeight: number;
   sessionWeight: number;
   historyWeight: number;
+  personalWeight: number;
   perSourceLimit: number;
   finalLimit: number;
   maxPerArtist: number;
@@ -51,6 +52,14 @@ export const DEFAULT_CONFIG: RecommenderConfig = {
   contentWeight: 0.4,
   sessionWeight: 0.35,
   historyWeight: 0.25,
+  /**
+   * Weight for the "personal" signal — the user's top-played tracks
+   * from the local listening-history store. Acts as a small boost for
+   * tracks the user has clearly demonstrated an affinity for; the
+   * algorithm spec keeps it intentionally low so it doesn't override
+   * the algorithmic search signals. 0 disables the signal.
+   */
+  personalWeight: 0.15,
   perSourceLimit: 10,
   finalLimit: 20,
   /**
@@ -73,7 +82,12 @@ export interface ScoredTrack {
    * debugging ("why did this track rank #3?") and for future
    * UI affordances ("Recommended because you like Coldplay").
    */
-  signals: { content?: number; session?: number; history?: number };
+  signals: {
+    content?: number;
+    session?: number;
+    history?: number;
+    personal?: number;
+  };
   /**
    * Number of distinct signals that contributed to the score.
    * A track that hit on all three signals is more likely to be
@@ -127,14 +141,17 @@ function buildSignalMap(
   contentScores: Map<string, number>,
   sessionScores: Map<string, number>,
   historyScores: Map<string, number>,
+  personalScores: Map<string, number>,
 ): ScoredTrack['signals'] {
   const signals: ScoredTrack['signals'] = {};
   const c = contentScores.get(trackId);
   const s = sessionScores.get(trackId);
   const h = historyScores.get(trackId);
+  const p = personalScores.get(trackId);
   if (c !== undefined) signals.content = c;
   if (s !== undefined) signals.session = s;
   if (h !== undefined) signals.history = h;
+  if (p !== undefined) signals.personal = p;
   return signals;
 }
 
@@ -161,41 +178,50 @@ export function mergeRecommendations(
   history: Track[],
   excludeIds: ReadonlySet<string>,
   config: Partial<RecommenderConfig> = {},
+  personal: Track[] = [],
 ): ScoredTrack[] {
   const cfg: RecommenderConfig = { ...DEFAULT_CONFIG, ...config };
 
   const contentScores = scoreResults(content, cfg.contentWeight, cfg.perSourceLimit);
   const sessionScores = scoreResults(session, cfg.sessionWeight, cfg.perSourceLimit);
   const historyScores = scoreResults(history, cfg.historyWeight, cfg.perSourceLimit);
+  const personalScores = scoreResults(personal, cfg.personalWeight, cfg.perSourceLimit);
 
   // Collect every track id that appeared in any signal.
   const allIds = new Set<string>();
   for (const id of contentScores.keys()) allIds.add(id);
   for (const id of sessionScores.keys()) allIds.add(id);
   for (const id of historyScores.keys()) allIds.add(id);
+  for (const id of personalScores.keys()) allIds.add(id);
 
   // For each track id, sum the per-signal contributions. We also
   // need the Track object itself, so we look it up across the
-  // three result lists (preferring content > session > history
-  // for richer metadata — content is artist+title+mood, the
-  // richest signal).
+  // four result lists (preferring content > session > history >
+  // personal for richer metadata — content is artist+title+mood,
+  // the richest signal).
   const trackById = new Map<string, Track>();
   for (const t of content) if (t.id && !trackById.has(t.id)) trackById.set(t.id, t);
   for (const t of session) if (t.id && !trackById.has(t.id)) trackById.set(t.id, t);
   for (const t of history) if (t.id && !trackById.has(t.id)) trackById.set(t.id, t);
+  for (const t of personal) if (t.id && !trackById.has(t.id)) trackById.set(t.id, t);
 
   const scored: ScoredTrack[] = [];
   for (const id of allIds) {
     if (excludeIds.has(id)) continue;
-    const signals = buildSignalMap(id, contentScores, sessionScores, historyScores);
-    const score = (signals.content ?? 0) + (signals.session ?? 0) + (signals.history ?? 0);
+    const signals = buildSignalMap(id, contentScores, sessionScores, historyScores, personalScores);
+    const score =
+      (signals.content ?? 0) +
+      (signals.session ?? 0) +
+      (signals.history ?? 0) +
+      (signals.personal ?? 0);
     if (score <= 0) continue;
     const track = trackById.get(id);
     if (!track) continue;
     const sourceCount =
       (signals.content !== undefined ? 1 : 0) +
       (signals.session !== undefined ? 1 : 0) +
-      (signals.history !== undefined ? 1 : 0);
+      (signals.history !== undefined ? 1 : 0) +
+      (signals.personal !== undefined ? 1 : 0);
     scored.push({ track, score, signals, sourceCount });
   }
 
