@@ -288,10 +288,26 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
               // load + device registration only happens when a
               // Premium track is actually requested.
               if (!spotifyPlayer) {
+                // eslint-disable-next-line no-console
+                console.info('[player] ensureSpotifySdkPlayer: starting (no cached player)');
                 spotifyPlayer = (await ensureSpotifySdkPlayer()) ?? undefined;
+                // eslint-disable-next-line no-console
+                console.info(
+                  `[player] ensureSpotifySdkPlayer: result=${spotifyPlayer ? 'connected' : 'NULL (connect failed - see SpotifyPlayerStore.status)'}`,
+                );
+              } else {
+                // eslint-disable-next-line no-console
+                console.info(
+                  '[player] ensureSpotifySdkPlayer: cached player present, skipping init',
+                );
               }
               sdkAccessToken = (await window.api.auth.spotifyToken()) ?? undefined;
+              // eslint-disable-next-line no-console
+              console.info(
+                `[player] spotifyToken: result=${sdkAccessToken ? 'present (len=' + sdkAccessToken.length + ')' : 'NULL'}`,
+              );
             } catch (tokenErr) {
+              // eslint-disable-next-line no-console
               console.warn('[player] spotify init/token failed:', (tokenErr as Error).message);
             }
           }
