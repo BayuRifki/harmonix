@@ -14,25 +14,30 @@ directories:
   output: release/${version}
 
 extraResources:
-  - from: "resources/yt-dlp*"
-    to: "yt-dlp.exe"
+  - from: 'resources/yt-dlp.exe'
+    to: 'yt-dlp.exe'
 
 files:
-  - "dist/**/*"
-  - "dist-electron/**/*"
-  - "package.json"
-  - "LICENSE"
-  - "!**/*.{md,markdown}"
-  - "!**/{.eslintrc,.prettierrc,.editorconfig,.gitignore}"
+  - 'dist/**/*'
+  - 'dist-electron/**/*'
+  - 'package.json'
+  - 'LICENSE'
+  - '!**/*.{md,markdown}'
+  - '!**/{.eslintrc,.prettierrc,.editorconfig,.gitignore}'
 
 win:
   target:
     - target: nsis
       arch: [x64]
-    - target: portable
-      arch: [x64]
-  artifactName: ${productName}-${version}-${arch}.${ext}
+  artifactName: ${productName}-${version}-${arch}-Setup.${ext}
   icon: resources/icon.ico
+  # winCodeSign (used to edit version info and sign the .exe) tries to
+  # extract symlinks for darwin dylibs on Windows. Without admin or
+  # Developer Mode, 7za fails with "Cannot create symbolic link" and
+  # the whole build aborts. We don't ship a code-signing certificate
+  # yet, so skip both signing and the rcedit step. Re-enable and add
+  # certificate handling before the first public release.
+  signAndEditExecutable: false
 
 nsis:
   oneClick: false
