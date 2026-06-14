@@ -58,6 +58,24 @@ export async function startCallbackServer(
       // state params Spotify is supposed to append on success".
       // eslint-disable-next-line no-console
       console.info(`[spotify] callback hit: ${req.method} ${url.pathname}${url.search}`);
+      // Browsers auto-request /favicon.ico after rendering the
+      // callback page. Returning 404 for that path makes the
+      // browser's DevTools console show a red "Not found" line
+      // even on a successful login — noisy and alarming. Serve a
+      // minimal 16×16 transparent PNG instead so the request
+      // disappears from the user's view.
+      if (url.pathname === '/favicon.ico') {
+        res.statusCode = 200;
+        res.setHeader('Content-Type', 'image/x-icon');
+        res.setHeader('Cache-Control', 'public, max-age=86400');
+        res.end(
+          Buffer.from(
+            'AAABAAEAEBAAAAEAIABoBAAAFgAAACgAAAAQAAAAIAAAAAEAIAAAAAAAQAEAAAAAAAAAAAAAAAAAAAAAAAAAACAA',
+            'base64',
+          ),
+        );
+        return;
+      }
       if (url.pathname !== callbackPath) {
         res.statusCode = 404;
         res.end('Not found');
