@@ -7,8 +7,7 @@ import {
   Sparkles,
   BarChart3,
   Circle,
-  Eye,
-  Wind,
+  EyeOff,
   Activity,
   Shuffle,
   SkipBack,
@@ -19,6 +18,9 @@ import {
   VolumeX,
   Volume1,
   Volume2,
+  Check,
+  AlertTriangle,
+  type LucideIcon,
 } from 'lucide-react';
 import { usePlayerStore } from '@/stores/playerStore';
 import { useSourcesStore } from '@/stores/sourcesStore';
@@ -50,17 +52,15 @@ function loadVisualizerMode(): VisualizerMode {
   return 'none';
 }
 
-const THEME_STORAGE_KEY = 'harmonix.np.theme';
-type ThemeMode = 'match-artwork' | 'brand-pink';
+// "Match artwork" accent theming is handled globally by
+// `useAdaptiveAccent` (mounted at the App level). It reactively
+// pulls a dominant colour from the current track's artwork and
+// applies it as the `--accent` CSS vars, then interpolates to
+// the new colour on each track change. A local toggle here would
+// only race/override the global hook, so the previous
+// `setTheme('match-artwork' | 'brand-pink')` button was removed.
 
-type NpTab = 'lyrics' | 'similar' | 'credits' | 'visualizer';
-
-function loadThemeMode(): ThemeMode {
-  if (typeof localStorage === 'undefined') return 'match-artwork';
-  const v = localStorage.getItem(THEME_STORAGE_KEY);
-  if (v === 'match-artwork' || v === 'brand-pink') return v;
-  return 'match-artwork';
-}
+type NpTab = 'lyrics' | 'similar' | 'visualizer';
 
 const SOURCE_BADGE_COLORS: Record<string, string> = {
   local: 'bg-blue-500/20 text-blue-300 border-blue-500/40',
@@ -102,6 +102,29 @@ function pickSimilarTracks(current: Track, history: Track[], library: Track[]): 
   return out;
 }
 
+interface SimilarEmptyStateProps {
+  artist: string;
+}
+
+function SimilarEmptyState({ artist }: SimilarEmptyStateProps): JSX.Element {
+  // The "Similar" tab only shows tracks from the same artist that
+  // already exist in either the local library or the listening
+  // history (i.e. tracks the user has *already played*). It is not
+  // a search; it doesn't fetch from the catalogue. The previous
+  // implementation rendered nothing in this state, so the user saw
+  // a blank tab with no explanation. Surface the limitation so the
+  // tab doesn't read as "broken".
+  return (
+    <div className="px-1 py-10 text-center space-y-2" data-testid="similar-empty-state">
+      <Sparkles size={20} className="text-zinc-700 mx-auto" aria-hidden />
+      <p className="text-sm text-zinc-400">No similar tracks yet</p>
+      <p className="text-xs text-zinc-600 max-w-xs mx-auto">
+        Play more tracks by {artist} to see them here, or import some to your library.
+      </p>
+    </div>
+  );
+}
+
 export function NowPlayingView(): JSX.Element {
   const navigate = useSafeNavigate();
   const currentTrack = usePlayerStore((s) => s.currentTrack);
@@ -126,9 +149,9 @@ export function NowPlayingView(): JSX.Element {
   const previous = usePlayerStore((s) => s.previous);
   const seek = usePlayerStore((s) => s.seek);
   const [visualizer, setVisualizer] = useState<VisualizerMode>(() => loadVisualizerMode());
-  const [theme, setTheme] = useState<ThemeMode>(() => loadThemeMode());
   const [activeTab, setActiveTab] = useState<NpTab>('lyrics');
   const enabledVisualizers = useUiStore((s) => s.enabledVisualizers);
+  const setEnabledVisualizer = useUiStore((s) => s.setEnabledVisualizer);
   const lastSimilarTrackId = useRef<string | null>(null);
   const [similar, setSimilar] = useState<Track[]>([]);
 
@@ -158,29 +181,6 @@ export function NowPlayingView(): JSX.Element {
       localStorage.setItem(VISUALIZER_STORAGE_KEY, visualizer);
     }
   }, [visualizer]);
-
-  useEffect(() => {
-    if (typeof localStorage !== 'undefined') {
-      localStorage.setItem(THEME_STORAGE_KEY, theme);
-    }
-  }, [theme]);
-
-  useEffect(() => {
-    if (typeof document === 'undefined') return;
-    const root = document.documentElement;
-    if (theme === 'brand-pink') {
-      root.style.setProperty('--accent', 'hsl(322, 81%, 60%)');
-      root.style.setProperty('--accent-hover', 'hsl(322, 81%, 52%)');
-      root.style.setProperty('--accent-vibrant', 'hsl(322, 81%, 65%)');
-      root.style.setProperty('--accent-muted', 'hsl(322, 40%, 30%)');
-    }
-    return (): void => {
-      root.style.removeProperty('--accent');
-      root.style.removeProperty('--accent-hover');
-      root.style.removeProperty('--accent-vibrant');
-      root.style.removeProperty('--accent-muted');
-    };
-  }, [theme]);
 
   const artworkUrl = currentTrack?.artworkUrl ?? currentTrack?.album?.artworkUrl ?? null;
   const progress = durationMs > 0 ? (positionMs / durationMs) * 100 : 0;
@@ -329,31 +329,6 @@ export function NowPlayingView(): JSX.Element {
               </p>
             )}
 
-            {currentTrack && (
-              <div className="mt-2 flex items-center justify-center gap-3 text-[10px] text-zinc-500">
-                <button
-                  type="button"
-                  onClick={() =>
-                    setTheme(theme === 'match-artwork' ? 'brand-pink' : 'match-artwork')
-                  }
-                  className="inline-flex items-center gap-1.5 uppercase tracking-wider hover:text-zinc-300 transition-colors"
-                  title={`Theme: ${theme === 'match-artwork' ? 'Match artwork' : 'Brand pink'}`}
-                  data-testid="now-playing-theme-toggle"
-                  aria-label={`Theme mode: ${theme === 'match-artwork' ? 'match artwork' : 'brand pink'}. Click to switch.`}
-                >
-                  <span
-                    className={`w-2 h-2 rounded-full ${
-                      theme === 'match-artwork'
-                        ? 'bg-gradient-to-br from-pink-400 to-fuchsia-500'
-                        : 'bg-brand-400'
-                    }`}
-                    aria-hidden
-                  />
-                  {theme === 'match-artwork' ? 'Match artwork' : 'Brand pink'}
-                </button>
-              </div>
-            )}
-
             <div className="w-full max-w-2xl mt-8">
               <div className="flex items-center gap-3 text-xs text-zinc-300 tabular-nums">
                 <span className="w-12 text-right">{formatTime(positionMs)}</span>
@@ -484,7 +459,6 @@ export function NowPlayingView(): JSX.Element {
                 [
                   { key: 'lyrics', label: 'Lyrics' },
                   { key: 'similar', label: 'Similar' },
-                  { key: 'credits', label: 'Credits' },
                   { key: 'visualizer', label: 'Visualizer' },
                 ] as { key: NpTab; label: string }[]
               ).map((t) => (
@@ -507,82 +481,96 @@ export function NowPlayingView(): JSX.Element {
 
             <div className="flex-1 min-h-0 overflow-y-auto rounded-xl">
               {activeTab === 'lyrics' && <LyricsPanel />}
-              {activeTab === 'similar' && similar.length > 0 && (
-                <section aria-label="More by this artist" className="px-1">
-                  <p className="text-xs uppercase tracking-wider text-zinc-500 mb-2 flex items-center gap-1.5">
-                    <Sparkles size={11} aria-hidden />
-                    More by {currentTrack?.artists[0]?.name ?? 'this artist'}
-                  </p>
-                  <div className="grid grid-cols-2 gap-2">
-                    {similar.map((t) => {
-                      const tArt = t.artworkUrl ?? t.album?.artworkUrl;
-                      return (
-                        <button
-                          key={t.id}
-                          type="button"
-                          onClick={() => {
-                            const queue = usePlayerStore.getState().queue;
-                            const idx = queue.findIndex((q) => q.id === t.id);
-                            if (idx >= 0) {
-                              usePlayerStore
-                                .getState()
-                                .setQueue(queue, idx, { shuffle: false, smartShuffle: false });
-                            }
-                          }}
-                          className="text-left rounded-lg p-1.5 hover:bg-zinc-800/60 transition-colors"
-                        >
-                          {tArt ? (
-                            <img
-                              src={tArt}
-                              alt=""
-                              className="w-full aspect-square rounded object-cover mb-1.5"
-                            />
-                          ) : (
-                            <div className="w-full aspect-square rounded bg-zinc-800 flex items-center justify-center mb-1.5">
-                              <Music size={20} className="text-zinc-600" />
-                            </div>
-                          )}
-                          <p className="text-xs text-zinc-200 truncate">{t.title}</p>
-                          <p className="text-[10px] text-zinc-500 truncate">
-                            {t.artists.map((a) => a.name).join(', ')}
-                          </p>
-                        </button>
-                      );
-                    })}
+              {activeTab === 'similar' &&
+                (currentTrack ? (
+                  similar.length > 0 ? (
+                    <section aria-label="More by this artist" className="px-1">
+                      <p className="text-xs uppercase tracking-wider text-zinc-500 mb-2 flex items-center gap-1.5">
+                        <Sparkles size={11} aria-hidden />
+                        More by {currentTrack.artists[0]?.name ?? 'this artist'}
+                      </p>
+                      <div className="grid grid-cols-2 gap-2">
+                        {similar.map((t) => {
+                          const tArt = t.artworkUrl ?? t.album?.artworkUrl;
+                          return (
+                            <button
+                              key={t.id}
+                              type="button"
+                              onClick={() => {
+                                const queue = usePlayerStore.getState().queue;
+                                const idx = queue.findIndex((q) => q.id === t.id);
+                                if (idx >= 0) {
+                                  usePlayerStore
+                                    .getState()
+                                    .setQueue(queue, idx, { shuffle: false, smartShuffle: false });
+                                }
+                              }}
+                              className="text-left rounded-lg p-1.5 hover:bg-zinc-800/60 transition-colors"
+                            >
+                              {tArt ? (
+                                <img
+                                  src={tArt}
+                                  alt=""
+                                  className="w-full aspect-square rounded object-cover mb-1.5"
+                                />
+                              ) : (
+                                <div className="w-full aspect-square rounded bg-zinc-800 flex items-center justify-center mb-1.5">
+                                  <Music size={20} className="text-zinc-600" />
+                                </div>
+                              )}
+                              <p className="text-xs text-zinc-200 truncate">{t.title}</p>
+                              <p className="text-[10px] text-zinc-500 truncate">
+                                {t.artists.map((a) => a.name).join(', ')}
+                              </p>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </section>
+                  ) : (
+                    <SimilarEmptyState artist={currentTrack.artists[0]?.name ?? 'this artist'} />
+                  )
+                ) : (
+                  <div
+                    className="px-1 py-12 text-center text-xs text-zinc-500"
+                    data-testid="similar-empty-no-track"
+                  >
+                    Play a track to find more by the same artist.
                   </div>
-                </section>
-              )}
-              {activeTab === 'credits' && currentTrack && (
-                <div className="glass rounded-lg p-3 text-left text-xs space-y-1">
-                  <p className="flex items-center justify-between gap-3">
-                    <span className="text-zinc-500">Title</span>
-                    <span className="text-zinc-200 truncate">{currentTrack.title}</span>
-                  </p>
-                  <p className="flex items-center justify-between gap-3">
-                    <span className="text-zinc-500">Artist</span>
-                    <span className="text-zinc-200 truncate">
-                      {currentTrack.artists.map((a) => a.name).join(', ') || 'Unknown'}
-                    </span>
-                  </p>
-                  {currentTrack.album && (
-                    <p className="flex items-center justify-between gap-3">
-                      <span className="text-zinc-500">Album</span>
-                      <span className="text-zinc-200 truncate">{currentTrack.album.title}</span>
-                    </p>
-                  )}
-                  <p className="flex items-center justify-between gap-3">
-                    <span className="text-zinc-500">Duration</span>
-                    <span className="text-zinc-200 tabular-nums">{formatTime(durationMs)}</span>
-                  </p>
-                  <p className="flex items-center justify-between gap-3">
-                    <span className="text-zinc-500">Source</span>
-                    <span className="text-zinc-200">{sourceName}</span>
-                  </p>
-                </div>
-              )}
+                ))}
               {activeTab === 'visualizer' && (
                 <div className="space-y-3">
-                  <p className="text-xs text-zinc-500">Pick a background visualizer.</p>
+                  <div>
+                    <h3 className="text-sm font-medium text-zinc-100">Background visualizer</h3>
+                    <p className="text-xs text-zinc-500 mt-0.5">
+                      Overlay shown on the album art. Pick a style or turn it off.
+                    </p>
+                  </div>
+
+                  {!enabledVisualizers.nowPlaying && (
+                    <div
+                      className="flex items-start gap-2 p-2.5 rounded-lg border border-amber-900/60 bg-amber-950/30 text-[11px] text-amber-200"
+                      data-testid="visualizer-disabled-banner"
+                      role="status"
+                    >
+                      <AlertTriangle size={12} className="shrink-0 mt-0.5" aria-hidden />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium">Visualizers are turned off</p>
+                        <p className="text-amber-300/80 mt-0.5">
+                          The artwork overlay won't render even when a mode is selected.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setEnabledVisualizer('nowPlaying', true)}
+                        className="shrink-0 text-[11px] px-2 py-1 rounded border border-amber-700/50 hover:border-amber-500 hover:bg-amber-900/30 transition-colors focus-ring"
+                        data-testid="visualizer-enable-now-playing"
+                      >
+                        Turn on
+                      </button>
+                    </div>
+                  )}
+
                   <div
                     role="radiogroup"
                     aria-label="Background visualizer"
@@ -591,33 +579,102 @@ export function NowPlayingView(): JSX.Element {
                   >
                     {(
                       [
-                        { mode: 'none', icon: Eye, label: 'None' },
-                        { mode: 'bars', icon: BarChart3, label: 'Frequency bars' },
-                        { mode: 'ring', icon: Circle, label: 'Waveform ring' },
-                        { mode: 'particles', icon: Wind, label: 'Particle field' },
-                        { mode: 'scope', icon: Activity, label: 'Stereo oscilloscope' },
-                      ] as { mode: VisualizerMode; icon: typeof Eye; label: string }[]
-                    ).map(({ mode, icon: Icon, label }) => (
-                      <button
-                        key={mode}
-                        type="button"
-                        role="radio"
-                        aria-checked={visualizer === mode}
-                        aria-label={label}
-                        onClick={() => setVisualizer(mode)}
-                        className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
-                          visualizer === mode
-                            ? 'bg-brand-500/15 text-brand-300'
-                            : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60'
-                        }`}
-                        title={label}
-                        data-testid={`np-visualizer-${mode}`}
-                      >
-                        <Icon size={14} aria-hidden />
-                        <span>{label}</span>
-                      </button>
-                    ))}
+                        {
+                          mode: 'none',
+                          icon: EyeOff,
+                          label: 'None',
+                          description: 'No overlay. Just the album art.',
+                        },
+                        {
+                          mode: 'bars',
+                          icon: BarChart3,
+                          label: 'Frequency bars',
+                          description: 'Spectrum bars pulsing with the beat.',
+                        },
+                        {
+                          mode: 'ring',
+                          icon: Circle,
+                          label: 'Waveform ring',
+                          description: 'Circular FFT radiating from the center.',
+                        },
+                        {
+                          mode: 'particles',
+                          icon: Sparkles,
+                          label: 'Particle field',
+                          description: 'Drifting particles reacting to bass and treble.',
+                        },
+                        {
+                          mode: 'scope',
+                          icon: Activity,
+                          label: 'Stereo oscilloscope',
+                          description: 'Left/right waveform drawn as a line.',
+                        },
+                      ] as {
+                        mode: VisualizerMode;
+                        icon: LucideIcon;
+                        label: string;
+                        description: string;
+                      }[]
+                    ).map(({ mode, icon: Icon, label, description }) => {
+                      const isSelected = visualizer === mode;
+                      return (
+                        <button
+                          key={mode}
+                          type="button"
+                          role="radio"
+                          aria-checked={isSelected}
+                          aria-label={label}
+                          onClick={() => setVisualizer(mode)}
+                          title={label}
+                          data-testid={`np-visualizer-${mode}`}
+                          className={`group relative w-full text-left rounded-lg border px-3 py-2.5 transition-all focus-ring ${
+                            isSelected
+                              ? 'border-brand-500/60 bg-brand-500/10 text-zinc-100 shadow-[0_0_0_1px_rgba(236,72,153,0.15)]'
+                              : 'border-zinc-800/80 bg-zinc-900/40 text-zinc-300 hover:border-zinc-700 hover:bg-zinc-900/70'
+                          }`}
+                        >
+                          <div className="flex items-start gap-3">
+                            <div
+                              className={`mt-0.5 w-7 h-7 rounded-md flex items-center justify-center shrink-0 transition-colors ${
+                                isSelected
+                                  ? 'bg-brand-500/20 text-brand-300'
+                                  : 'bg-zinc-800/60 text-zinc-400 group-hover:text-zinc-300'
+                              }`}
+                              aria-hidden
+                            >
+                              <Icon size={14} />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p
+                                className={`text-sm font-medium leading-tight ${
+                                  isSelected ? 'text-white' : 'text-zinc-200'
+                                }`}
+                              >
+                                {label}
+                              </p>
+                              <p className="text-[11px] text-zinc-500 mt-0.5 leading-snug">
+                                {description}
+                              </p>
+                            </div>
+                            {isSelected && (
+                              <span
+                                className="shrink-0 w-5 h-5 rounded-full bg-brand-500 text-white flex items-center justify-center"
+                                aria-hidden
+                              >
+                                <Check size={12} strokeWidth={3} />
+                              </span>
+                            )}
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
+
+                  {visualizer !== 'none' && enabledVisualizers.nowPlaying && (
+                    <p className="text-[10px] text-zinc-600 text-center pt-1">
+                      Visualizer is overlaid on the album art.
+                    </p>
+                  )}
                 </div>
               )}
             </div>

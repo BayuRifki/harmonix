@@ -1,5 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronDown, ChevronUp, Loader2, Music, AlertCircle } from 'lucide-react';
+import {
+  ChevronDown,
+  ChevronUp,
+  Loader2,
+  Music,
+  AlertCircle,
+  ExternalLink,
+  RefreshCw,
+} from 'lucide-react';
 import { usePlayerStore } from '@/stores/playerStore';
 import { fetchLyrics, findActiveLineIndex, type LyricsResult } from '@/lib/lyrics';
 
@@ -50,6 +58,7 @@ export function LyricsPanel({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState(collapsedByDefault);
+  const [retryNonce, setRetryNonce] = useState(0);
   const abortRef = useRef<AbortController | null>(null);
   const lastFetchKeyRef = useRef<string | null>(null);
 
@@ -58,13 +67,29 @@ export function LyricsPanel({
     return cacheKey(currentTrack.id, currentTrack.artists[0]?.name ?? '', currentTrack.title);
   }, [currentTrack]);
 
+  // LRCLib's `/search` page lets users contribute/correct lyrics
+  // when none are found automatically. Linking out from the empty
+  // state gives the user an obvious next step instead of leaving
+  // them with a dead-end "No lyrics found" message.
+  const lrclibSearchUrl = useMemo(() => {
+    if (!currentTrack) return null;
+    const params = new URLSearchParams({
+      track_name: currentTrack.title,
+      artist_name: currentTrack.artists[0]?.name ?? '',
+    });
+    if (currentTrack.album?.title) params.set('album_name', currentTrack.album.title);
+    return `https://lrclib.net/search?${params.toString()}`;
+  }, [currentTrack]);
+
   useEffect(() => {
     if (!currentTrack || !trackKey) {
       setResult(null);
       setError(null);
       return;
     }
-    if (lastFetchKeyRef.current === trackKey) return;
+    // `retryNonce` is in the dep list so the retry button below
+    // can force a re-fetch after clearing the local cache.
+    if (lastFetchKeyRef.current === trackKey && retryNonce === 0) return;
     lastFetchKeyRef.current = trackKey;
 
     if (abortRef.current) abortRef.current.abort();
@@ -117,7 +142,21 @@ export function LyricsPanel({
     return () => {
       controller.abort();
     };
-  }, [currentTrack, trackKey]);
+  }, [currentTrack, trackKey, retryNonce]);
+
+  const handleRetry = (): void => {
+    if (!trackKey) return;
+    // Drop the cached "no lyrics" result so the next fetch actually
+    // hits the network. Without this, a retry would short-circuit
+    // on the stale CACHE_TTL_MS window and the user would see no
+    // change.
+    try {
+      localStorage.removeItem(trackKey);
+    } catch {
+      // ignore quota / private-mode errors
+    }
+    setRetryNonce((n) => n + 1);
+  };
 
   if (!currentTrack) {
     return (
@@ -150,7 +189,10 @@ export function LyricsPanel({
         {collapsed ? <ChevronDown size={11} /> : <ChevronUp size={11} />}
       </button>
       {!collapsed && (
-        <div id="lyrics-panel-body" className="mt-2 max-h-[60vh] overflow-y-auto glass rounded-lg p-4">
+        <div
+          id="lyrics-panel-body"
+          className="mt-2 max-h-[60vh] overflow-y-auto glass rounded-lg p-4"
+        >
           {loading && (
             <div
               className="flex items-center justify-center py-8 text-zinc-500"
@@ -162,11 +204,39 @@ export function LyricsPanel({
           )}
           {!loading && error && lines.length === 0 && !result?.plain && (
             <div
-              className="flex items-center justify-center py-8 text-zinc-500"
+              className="flex flex-col items-center justify-center gap-2 py-8 text-zinc-500"
               data-testid="lyrics-error"
             >
-              <AlertCircle size={14} className="mr-2" />
-              {error}
+              <div className="flex items-center">
+                <AlertCircle size={14} className="mr-2" />
+                {error}
+              </div>
+              {currentTrack && (
+                <p className="text-[11px] text-zinc-600 text-center max-w-xs">
+                  Synced lyrics come from{' '}
+                  <a
+                    href={lrclibSearchUrl ?? '#'}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="underline underline-offset-2 hover:text-zinc-300 inline-flex items-center gap-0.5"
+                    data-testid="lyrics-lrclib-link"
+                  >
+                    LRCLib
+                    <ExternalLink size={10} aria-hidden />
+                  </a>
+                  .
+                </p>
+              )}
+              <button
+                type="button"
+                onClick={handleRetry}
+                className="mt-1 inline-flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded border border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700 transition-colors focus-ring"
+                data-testid="lyrics-retry"
+                aria-label="Retry lyrics lookup"
+              >
+                <RefreshCw size={11} aria-hidden />
+                Retry
+              </button>
             </div>
           )}
           {result?.instrumental && !loading && (
