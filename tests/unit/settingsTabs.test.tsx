@@ -1,26 +1,32 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { SettingsTabs } from '@/features/settings/SettingsTabs';
 import { useUiStore, flushUiPersist } from '@/stores/uiStore';
 import { installMockWindowApi } from '../setup';
 
-function renderWithPath(initialPath: string): void {
-  render(
-    <MemoryRouter initialEntries={[initialPath]}>
-      <Routes>
-        <Route path="/settings/*" element={<SettingsTabs />} />
-      </Routes>
-    </MemoryRouter>,
-  );
+async function renderWithPath(initialPath: string): Promise<void> {
+  await act(async () => {
+    render(
+      <MemoryRouter initialEntries={[initialPath]}>
+        <Routes>
+          <Route path="/settings/*" element={<SettingsTabs />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    await new Promise((r) => setTimeout(r, 0));
+  });
 }
 
-function clickSectionToggle(id: string): void {
+async function clickSectionToggle(id: string): Promise<void> {
   // The data-testid is on the <button> (the clickable header),
   // not the <section> wrapper. This way the test can interact
   // with the section even when it is `hidden` because the test
   // is mounting a different active tab.
-  fireEvent.click(screen.getByTestId(`settings-section-toggle-${id}`));
+  await act(async () => {
+    fireEvent.click(screen.getByTestId(`settings-section-toggle-${id}`));
+    await new Promise((r) => setTimeout(r, 0));
+  });
 }
 
 describe('SettingsTabs', () => {
@@ -38,8 +44,8 @@ describe('SettingsTabs', () => {
     });
   });
 
-  it('renders all 5 tab links', () => {
-    renderWithPath('/settings/appearance');
+  it('renders all 5 tab links', async () => {
+    await renderWithPath('/settings/appearance');
     expect(screen.getByTestId('settings-tab-appearance')).toBeInTheDocument();
     expect(screen.getByTestId('settings-tab-audio')).toBeInTheDocument();
     expect(screen.getByTestId('settings-tab-shortcuts')).toBeInTheDocument();
@@ -47,48 +53,48 @@ describe('SettingsTabs', () => {
     expect(screen.getByTestId('settings-tab-sources')).toBeInTheDocument();
   });
 
-  it('marks the active tab with aria-selected=true', () => {
-    renderWithPath('/settings/audio');
+  it('marks the active tab with aria-selected=true', async () => {
+    await renderWithPath('/settings/audio');
     expect(screen.getByTestId('settings-tab-audio')).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByTestId('settings-tab-appearance')).toHaveAttribute('aria-selected', 'false');
   });
 
-  it('shows the appearance tab content by default for unknown paths', () => {
-    renderWithPath('/settings');
+  it('shows the appearance tab content by default for unknown paths', async () => {
+    await renderWithPath('/settings');
     expect(screen.getByTestId('settings-tab-content-appearance')).toBeInTheDocument();
   });
 
-  it('shows the correct tab content based on the URL', () => {
-    renderWithPath('/settings/audio');
+  it('shows the correct tab content based on the URL', async () => {
+    await renderWithPath('/settings/audio');
     expect(screen.getByTestId('settings-tab-content-audio')).toBeInTheDocument();
   });
 
-  it('clicking a tab navigates to its URL', () => {
-    renderWithPath('/settings/appearance');
+  it('clicking a tab navigates to its URL', async () => {
+    await renderWithPath('/settings/appearance');
     fireEvent.click(screen.getByTestId('settings-tab-sources'));
     expect(screen.getByTestId('settings-tab-sources')).toHaveAttribute('aria-selected', 'true');
   });
 
-  it('shows the first-time hint when no section has been expanded', () => {
-    renderWithPath('/settings/appearance');
+  it('shows the first-time hint when no section has been expanded', async () => {
+    await renderWithPath('/settings/appearance');
     expect(screen.getByTestId('settings-hint')).toBeInTheDocument();
     expect(screen.getByText(/Click a section to expand/i)).toBeInTheDocument();
   });
 
-  it('hides the first-time hint after a section is expanded', () => {
+  it('hides the first-time hint after a section is expanded', async () => {
     useUiStore.getState().expandSettingsSection('appearance:theme-picker');
-    renderWithPath('/settings/appearance');
+    await renderWithPath('/settings/appearance');
     expect(screen.queryByTestId('settings-hint')).not.toBeInTheDocument();
   });
 
-  it('hides the first-time hint after the user dismissed it explicitly', () => {
+  it('hides the first-time hint after the user dismissed it explicitly', async () => {
     useUiStore.getState().dismissSettingsHint();
-    renderWithPath('/settings/appearance');
+    await renderWithPath('/settings/appearance');
     expect(screen.queryByTestId('settings-hint')).not.toBeInTheDocument();
   });
 
-  it('all sections start collapsed on first visit', () => {
-    renderWithPath('/settings/appearance');
+  it('all sections start collapsed on first visit', async () => {
+    await renderWithPath('/settings/appearance');
     expect(screen.getByTestId('settings-section-appearance:theme-picker')).toHaveAttribute(
       'data-collapsed',
       'true',
@@ -99,40 +105,40 @@ describe('SettingsTabs', () => {
     );
   });
 
-  it('expands a section from the Appearance tab', () => {
-    renderWithPath('/settings/appearance');
-    clickSectionToggle('appearance:theme-picker');
+  it('expands a section from the Appearance tab', async () => {
+    await renderWithPath('/settings/appearance');
+    await clickSectionToggle('appearance:theme-picker');
     expect(useUiStore.getState().isSettingsSectionCollapsed('appearance:theme-picker')).toBe(false);
   });
 
-  it('expands a section from the Audio tab', () => {
-    renderWithPath('/settings/audio');
-    clickSectionToggle('audio:crossfade');
+  it('expands a section from the Audio tab', async () => {
+    await renderWithPath('/settings/audio');
+    await clickSectionToggle('audio:crossfade');
     expect(useUiStore.getState().isSettingsSectionCollapsed('audio:crossfade')).toBe(false);
   });
 
-  it('expands a section from the Shortcuts tab', () => {
-    renderWithPath('/settings/shortcuts');
-    clickSectionToggle('shortcuts:keyboard');
+  it('expands a section from the Shortcuts tab', async () => {
+    await renderWithPath('/settings/shortcuts');
+    await clickSectionToggle('shortcuts:keyboard');
     expect(useUiStore.getState().isSettingsSectionCollapsed('shortcuts:keyboard')).toBe(false);
   });
 
-  it('expands a section from the Performance tab', () => {
-    renderWithPath('/settings/performance');
-    clickSectionToggle('performance:memory');
+  it('expands a section from the Performance tab', async () => {
+    await renderWithPath('/settings/performance');
+    await clickSectionToggle('performance:memory');
     expect(useUiStore.getState().isSettingsSectionCollapsed('performance:memory')).toBe(false);
   });
 
-  it('expands a section from the Sources tab', () => {
-    renderWithPath('/settings/sources');
-    clickSectionToggle('sources:spotify');
+  it('expands a section from the Sources tab', async () => {
+    await renderWithPath('/settings/sources');
+    await clickSectionToggle('sources:spotify');
     expect(useUiStore.getState().isSettingsSectionCollapsed('sources:spotify')).toBe(false);
   });
 
-  it('expanding a section dismisses the first-time hint', () => {
-    renderWithPath('/settings/audio');
+  it('expanding a section dismisses the first-time hint', async () => {
+    await renderWithPath('/settings/audio');
     expect(screen.getByTestId('settings-hint')).toBeInTheDocument();
-    clickSectionToggle('audio:crossfade');
+    await clickSectionToggle('audio:crossfade');
     // The hint is removed from the store once a section is
     // expanded. The actual DOM removal happens through
     // AnimatePresence's exit animation, so we verify the store

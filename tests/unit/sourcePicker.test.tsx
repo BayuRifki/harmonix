@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { SourcePicker } from '@/features/settings/SourcePicker';
 import { useSourcesStore } from '@/stores/sourcesStore';
 import { installMockWindowApi } from '../setup';
@@ -59,8 +59,9 @@ describe('SourcePicker', () => {
 
   it('shows loading state when fetching', async () => {
     installMockWindowApi();
-    useSourcesStore.setState({ loading: true, registrations: [] });
+    useSourcesStore.setState({ loading: true, registrations: [], refresh: async () => {} });
     const { container } = render(<SourcePicker />);
+    await act(async () => {});
     const skeletons = container.querySelectorAll('[aria-hidden="true"].animate-pulse');
     expect(skeletons.length).toBeGreaterThan(0);
   });
@@ -68,6 +69,7 @@ describe('SourcePicker', () => {
   it('shows empty state when no sources registered', async () => {
     setupWithRegistrations([]);
     render(<SourcePicker />);
+    await act(async () => {});
     expect(await screen.findByText(/no sources registered/i)).toBeInTheDocument();
   });
 
@@ -77,6 +79,7 @@ describe('SourcePicker', () => {
       reg({ id: 'local', name: 'Local Library' }),
     ]);
     render(<SourcePicker />);
+    await act(async () => {});
     expect(await screen.findByText('Spotify')).toBeInTheDocument();
     expect(await screen.findByText('Local Library')).toBeInTheDocument();
   });
@@ -98,7 +101,9 @@ describe('SourcePicker', () => {
         },
       }),
     ]);
-    render(<SourcePicker />);
+    await act(async () => {
+      render(<SourcePicker />);
+    });
     expect(await screen.findByText('Search')).toBeInTheDocument();
     expect(screen.getByText('Stream')).toBeInTheDocument();
     expect(screen.getByText('Playlists')).toBeInTheDocument();
@@ -107,7 +112,9 @@ describe('SourcePicker', () => {
 
   it('shows authenticated checkmark for authed sources', async () => {
     setupWithRegistrations([reg({ id: 'spotify', name: 'Spotify', authenticated: true })]);
-    render(<SourcePicker />);
+    await act(async () => {
+      render(<SourcePicker />);
+    });
     const check = await screen.findByTitle('Authenticated');
     expect(check).toBeInTheDocument();
     expect(check).toHaveTextContent('✓');
@@ -126,9 +133,13 @@ describe('SourcePicker', () => {
       loading: false,
       registrations: [reg({ id: 'spotify', name: 'Spotify', enabled: true })],
     });
-    render(<SourcePicker />);
+    await act(async () => {
+      render(<SourcePicker />);
+    });
     const toggle = await screen.findByLabelText('Enable Spotify');
-    fireEvent.click(toggle);
+    await act(async () => {
+      fireEvent.click(toggle);
+    });
     await waitFor(() => {
       expect(setEnabledMock).toHaveBeenCalledWith({ id: 'spotify', enabled: false });
     });
@@ -152,16 +163,22 @@ describe('SourcePicker', () => {
       loading: false,
       registrations: [reg({ id: 'soundcloud', name: 'SoundCloud' })],
     });
-    render(<SourcePicker />);
+    await act(async () => {
+      render(<SourcePicker />);
+    });
     const configBtn = await screen.findByLabelText('Configure SoundCloud');
-    fireEvent.click(configBtn);
+    await act(async () => {
+      fireEvent.click(configBtn);
+    });
     expect(await screen.findByRole('dialog')).toBeInTheDocument();
     expect(screen.getByText('Configure SoundCloud')).toBeInTheDocument();
   });
 
   it('does not show gear button for non-configurable sources', async () => {
     setupWithRegistrations([reg({ id: 'local', name: 'Local Files' })]);
-    render(<SourcePicker />);
+    await act(async () => {
+      render(<SourcePicker />);
+    });
     expect(await screen.findByText('Local Files')).toBeInTheDocument();
     expect(screen.queryByLabelText('Configure Local Files')).not.toBeInTheDocument();
   });

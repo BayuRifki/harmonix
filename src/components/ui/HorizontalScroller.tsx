@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+/* eslint-disable react-refresh/only-export-components */
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useUiStore } from '@/stores/uiStore';
 
@@ -42,6 +43,16 @@ export function HorizontalScroller({
     setCanScrollRight(right);
   }
 
+  const scrollBy = useCallback(
+    (dir: 1 | -1): void => {
+      const el = ref.current;
+      if (!el) return;
+      const step = Math.max(itemWidth, el.clientWidth * 0.6);
+      el.scrollBy({ left: dir * step, behavior: 'smooth' });
+    },
+    [itemWidth],
+  );
+
   useEffect(() => {
     const el = ref.current;
     if (!el) return undefined;
@@ -70,14 +81,7 @@ export function HorizontalScroller({
       }
       ro?.disconnect();
     };
-  }, [snapOn]);
-
-  const scrollBy = (dir: 1 | -1): void => {
-    const el = ref.current;
-    if (!el) return;
-    const step = Math.max(itemWidth, el.clientWidth * 0.6);
-    el.scrollBy({ left: dir * step, behavior: 'smooth' });
-  };
+  }, [snapOn, scrollBy]);
 
   const snapClass = snapOn ? 'scroll-snap-type-x-mandatory [&>*]:scroll-snap-align-start' : '';
 

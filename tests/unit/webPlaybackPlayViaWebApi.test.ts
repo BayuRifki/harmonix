@@ -4,11 +4,6 @@ import { WebPlaybackController } from '../../src/lib/audio/spotifyPlayback';
 type Listener = (payload: unknown) => void;
 const listeners: Record<string, Listener[]> = {};
 
-const readyListeners = (): Listener[] => {
-  listeners['ready'] = listeners['ready'] ?? [];
-  return listeners['ready'];
-};
-
 function makeMockPlayer() {
   return {
     connect: vi.fn().mockResolvedValue(true),
@@ -46,8 +41,6 @@ afterEach(() => {
   vi.unstubAllGlobals();
   delete (window as unknown as { Spotify?: unknown }).Spotify;
 });
-
-const flushAsync = (): Promise<void> => new Promise((r) => setTimeout(r, 0));
 
 describe('WebPlaybackController.playViaWebApi — Spotify Connect fallback (no Widevine needed)', () => {
   it('PUTs to /v1/me/player/play WITHOUT device_id so Spotify transfers to the user’s active device (phone/PC)', async () => {

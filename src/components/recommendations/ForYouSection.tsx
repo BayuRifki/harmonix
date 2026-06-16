@@ -1,4 +1,5 @@
 import { useMemo, type ReactNode } from 'react';
+import { Info } from 'lucide-react';
 import { useListeningHistoryStore, type HistoryEntry } from '@/stores/listeningHistoryStore';
 import { usePlayerStore } from '@/stores/playerStore';
 import { RecommendationCard } from '@/components/recommendations/RecommendationCard';
@@ -12,6 +13,12 @@ interface ForYouSectionProps {
   emptyAction?: ReactNode;
   showHeader?: boolean;
   eyebrow?: string;
+  /**
+   * Short sentence describing how the recommendations were picked.
+   * Shown next to the header and as a `title` tooltip on the info
+   * icon. Defaults to a generic "based on what you've played" line.
+   */
+  explanation?: string;
 }
 
 const STARTER_RECOMMENDATIONS: HistoryEntry[] = [
@@ -64,6 +71,7 @@ export function ForYouSection({
   emptyAction,
   showHeader = true,
   eyebrow,
+  explanation,
 }: ForYouSectionProps): JSX.Element {
   const recent = useListeningHistoryStore((s) => s.entries);
   const play = usePlayerStore((s) => s.play);
@@ -86,20 +94,34 @@ export function ForYouSection({
   const containerClass =
     layout === 'grid' ? 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3' : 'space-y-1';
 
+  const reason =
+    explanation ??
+    (hasHistory
+      ? 'Based on your last 7 days of listening history.'
+      : 'Play some tracks to see personalized recommendations.');
+
   return (
     <section data-testid="for-you-section" data-layout={layout} data-has-history={hasHistory}>
       {showHeader && (
         <header className="mb-3">
-          <p className="text-[10px] uppercase tracking-wider text-zinc-500 font-medium">
-            {eyebrow ?? 'Recommendations'}
-          </p>
+          <div className="flex items-center gap-1.5">
+            <p className="text-[10px] uppercase tracking-wider text-zinc-500 font-medium">
+              {eyebrow ?? 'Recommendations'}
+            </p>
+            <span
+              title={reason}
+              aria-label={reason}
+              data-testid="for-you-explanation"
+              className="text-zinc-600 hover:text-zinc-400 transition-colors"
+            >
+              <Info size={10} aria-hidden />
+            </span>
+          </div>
           <h2 className="text-sm font-semibold text-zinc-200 mt-0.5">For You</h2>
         </header>
       )}
       {layout === 'grid' && !hasHistory ? (
-        <p className="text-xs text-zinc-500 mb-3">
-          Play some tracks to see personalized recommendations.
-        </p>
+        <p className="text-xs text-zinc-500 mb-3">{reason}</p>
       ) : null}
       <div className={containerClass}>
         {items.map((entry) => {

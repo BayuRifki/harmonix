@@ -6,7 +6,7 @@ vi.mock('@/lib/audio/engine', () => ({
     setVolume: () => undefined,
     pause: () => undefined,
   },
-}))
+}));
 
 vi.mock('@/lib/audio/sourceResolver', () => ({
   playTrack: vi.fn(),
@@ -71,6 +71,14 @@ describe('playerStore queue manipulation', () => {
   it('insertIntoQueue dedupes by id', () => {
     usePlayerStore.getState().insertIntoQueue(makeTrack('a', 'A Dup'), 99);
     expect(usePlayerStore.getState().queue.length).toBe(3);
+  });
+
+  it('insertIntoQueue allows same id from different sources', () => {
+    const cross = makeTrack('a', 'A Cross');
+    cross.source = 'spotify';
+    usePlayerStore.getState().insertIntoQueue(cross, 99);
+    expect(usePlayerStore.getState().queue.length).toBe(4);
+    expect(usePlayerStore.getState().queue[3]?.source).toBe('spotify');
   });
 
   it('insertIntoQueue before current shifts index', () => {

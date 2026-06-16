@@ -2,6 +2,16 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, fireEvent, screen, act } from '@testing-library/react';
 import { LyricsPanel } from '@/features/lyrics/LyricsPanel';
 
+vi.mock('@/lib/lyrics', () => ({
+  fetchLyrics: () =>
+    Promise.resolve({
+      source: 'none',
+      trackName: 'Never Gonna Give You Up',
+      artistName: 'Rick Astley',
+    }),
+  findActiveLineIndex: () => -1,
+}));
+
 const mockState = {
   currentTrack: null as null | {
     id: string;
@@ -50,24 +60,24 @@ describe('LyricsPanel', () => {
     expect(screen.getByTestId('lyrics-panel-empty')).toBeInTheDocument();
   });
 
-  it('starts expanded by default and toggles to collapsed', () => {
-    act(() => {
-      mockState.currentTrack = makeTrack('t1');
+  it('starts expanded by default and toggles to collapsed', async () => {
+    mockState.currentTrack = makeTrack('t1');
+    await act(async () => {
+      render(<LyricsPanel />);
     });
-    render(<LyricsPanel />);
-    const header = screen.getByRole('button', { name: /Lyrics/i });
+    const header = screen.getByRole('button', { name: /^Lyrics$/i });
     expect(header).toBeInTheDocument();
     expect(header.getAttribute('aria-expanded')).toBe('true');
     fireEvent.click(header);
     expect(header.getAttribute('aria-expanded')).toBe('false');
   });
 
-  it('starts collapsed when collapsedByDefault=true', () => {
-    act(() => {
-      mockState.currentTrack = makeTrack('t1');
+  it('starts collapsed when collapsedByDefault=true', async () => {
+    mockState.currentTrack = makeTrack('t1');
+    await act(async () => {
+      render(<LyricsPanel collapsedByDefault />);
     });
-    render(<LyricsPanel collapsedByDefault />);
-    const header = screen.getByRole('button', { name: /Lyrics/i });
+    const header = screen.getByRole('button', { name: /^Lyrics$/i });
     expect(header.getAttribute('aria-expanded')).toBe('false');
     fireEvent.click(header);
     expect(header.getAttribute('aria-expanded')).toBe('true');

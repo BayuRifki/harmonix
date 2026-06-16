@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor, act } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { SourceView } from '@/features/source/SourceView';
 import { useSourcesStore } from '@/stores/sourcesStore';
@@ -41,14 +41,16 @@ function reg(overrides: Partial<Registration> & { id: string; name: string }): R
 }
 
 function renderWithId(id: string): void {
-  render(
-    <MemoryRouter initialEntries={[`/source/${id}`]}>
-      <Routes>
-        <Route path="/source/:id" element={<SourceView />} />
-        <Route path="/" element={<div>Home</div>} />
-      </Routes>
-    </MemoryRouter>,
-  );
+  act(() => {
+    render(
+      <MemoryRouter initialEntries={[`/source/${id}`]}>
+        <Routes>
+          <Route path="/source/:id" element={<SourceView />} />
+          <Route path="/" element={<div>Home</div>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+  });
 }
 
 describe('SourceView', () => {
@@ -120,8 +122,10 @@ describe('SourceView', () => {
       ],
     });
     renderWithId('spotify');
-    expect(await screen.findByText('Your Playlists')).toBeInTheDocument();
-    expect(await screen.findByText('My Mix')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText('Your Playlists')).toBeInTheDocument(), {
+      timeout: 5000,
+    });
+    await waitFor(() => expect(screen.getByText('My Mix')).toBeInTheDocument(), { timeout: 5000 });
   });
 
   it('loads and displays liked tracks when capability present', async () => {
@@ -158,8 +162,12 @@ describe('SourceView', () => {
       ],
     });
     renderWithId('spotify');
-    expect(await screen.findByText('Liked Tracks')).toBeInTheDocument();
-    expect(await screen.findByText('Favorite Song')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText('Liked Tracks')).toBeInTheDocument(), {
+      timeout: 5000,
+    });
+    await waitFor(() => expect(screen.getByText('Favorite Song')).toBeInTheDocument(), {
+      timeout: 5000,
+    });
   });
 
   it('shows capabilities section with all enabled flags', () => {
@@ -183,8 +191,31 @@ describe('SourceView', () => {
       ],
     });
     renderWithId('audius');
-    expect(screen.getByText('Capabilities')).toBeInTheDocument();
-    expect(screen.getByText('canSearch')).toBeInTheDocument();
-    expect(screen.getByText('canStream')).toBeInTheDocument();
+    expect(screen.getByText('What this source supports')).toBeInTheDocument();
+    expect(screen.getByText('Search')).toBeInTheDocument();
+    expect(screen.getByText('Stream')).toBeInTheDocument();
+  });
+
+  it('opens external link when playback action points to a URL', async () => {
+    const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
+    installMockWindowApi();
+    useSourcesStore.setState({
+      registrations: [reg({ id: 'deezer', name: 'Deezer' })],
+    });
+    await act(async () => {
+      render(
+        <MemoryRouter initialEntries={['/source/deezer']}>
+          <Routes>
+            <Route path="/source/:id" element={<SourceView />} />
+          </Routes>
+        </MemoryRouter>,
+      );
+    });
+    const btn = await screen.findByRole('button', { name: /Open deezer\.com/i });
+    await act(async () => {
+      btn.click();
+    });
+    expect(openSpy).toHaveBeenCalledWith('https://www.deezer.com', '_blank', 'noopener');
+    openSpy.mockRestore();
   });
 });

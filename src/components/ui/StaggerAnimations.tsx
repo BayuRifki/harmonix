@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { motion, Variants, useReducedMotion as useFramerReducedMotion } from 'framer-motion';
 
 export const staggerContainer: Variants = {

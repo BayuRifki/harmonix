@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Music, X, Play, Trash2, ListMusic } from 'lucide-react';
+import { Music, X, Play, Trash2, ListMusic, Search, Compass } from 'lucide-react';
+import { useSafeNavigate } from '@/hooks/useSafeNavigate';
 import { usePlayerStore } from '@/stores/playerStore';
 import { useListeningHistoryStore } from '@/stores/listeningHistoryStore';
 import { ForYouSection, STARTER_RECOMMENDATIONS } from '@/components/recommendations/ForYouSection';
@@ -55,21 +56,25 @@ function ArtworkThumb({
 }
 
 export function RightRail({ onPlayHistoryEntry }: RightRailProps): JSX.Element {
+  const navigate = useSafeNavigate();
   const queue = usePlayerStore((s) => s.queue);
   const queueIndex = usePlayerStore((s) => s.queueIndex);
   const setQueue = usePlayerStore((s) => s.setQueue);
+  const removeFromQueue = usePlayerStore((s) => s.removeFromQueue);
   const recent = useListeningHistoryStore((s) => s.entries);
   const clearHistory = useListeningHistoryStore((s) => s.clear);
 
   const upNext = queue.slice(queueIndex + 1, queueIndex + 6);
 
   const playQueueItem = (realIndex: number): void => {
-    void setQueue(queue, realIndex);
+    void setQueue(queue, realIndex, { shuffle: false, smartShuffle: false });
   };
 
   const clearUpNext = (): void => {
-    const newQueue = queue.slice(0, queueIndex + 1);
-    usePlayerStore.setState({ queue: newQueue });
+    const state = usePlayerStore.getState();
+    for (let i = state.queue.length - 1; i > state.queueIndex; i--) {
+      state.removeFromQueue(i);
+    }
   };
 
   const [clearHistoryConfirm, setClearHistoryConfirm] = useState(false);
@@ -107,41 +112,32 @@ export function RightRail({ onPlayHistoryEntry }: RightRailProps): JSX.Element {
               return (
                 <li
                   key={`u-${realIndex}-${track.id}`}
-                  onClick={() => playQueueItem(realIndex)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      playQueueItem(realIndex);
-                    }
-                  }}
-                  tabIndex={0}
-                  className="group flex items-center gap-2.5 px-2 py-1.5 rounded-md hover:bg-zinc-900/70 cursor-pointer transition-colors"
+                  className="group flex items-center gap-2.5 px-2 py-1.5 rounded-md hover:bg-zinc-900/70 transition-colors"
                 >
-                  <div className="relative shrink-0">
-                    <ArtworkThumb url={artworkUrl} alt={track.title} size={44} />
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded">
-                      <Play size={14} className="text-white fill-white" />
-                    </div>
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm text-zinc-200 truncate">{track.title}</p>
-                    <p className="text-xs text-zinc-500 truncate">
-                      {track.artists.map((a) => a.name).join(', ') || 'Unknown artist'}
-                    </p>
-                  </div>
-                  <span className="text-[11px] text-zinc-600 tabular-nums shrink-0">
-                    {formatDuration(track.durationMs)}
-                  </span>
                   <button
                     type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      const newQueue = queue.filter((_, idx) => idx !== realIndex);
-                      usePlayerStore.setState({
-                        queue: newQueue,
-                        queueIndex: Math.min(queueIndex, newQueue.length - 1),
-                      });
-                    }}
+                    onClick={() => playQueueItem(realIndex)}
+                    className="flex items-center gap-2.5 flex-1 min-w-0 text-left"
+                  >
+                    <div className="relative shrink-0">
+                      <ArtworkThumb url={artworkUrl} alt={track.title} size={44} />
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded">
+                        <Play size={14} className="text-white fill-white" />
+                      </div>
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm text-zinc-200 truncate">{track.title}</p>
+                      <p className="text-xs text-zinc-500 truncate">
+                        {track.artists.map((a) => a.name).join(', ') || 'Unknown artist'}
+                      </p>
+                    </div>
+                    <span className="text-[11px] text-zinc-600 tabular-nums shrink-0">
+                      {formatDuration(track.durationMs)}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => removeFromQueue(realIndex)}
                     className="opacity-0 group-hover:opacity-100 focus:opacity-100 text-zinc-500 hover:text-zinc-300 transition-all p-1"
                     aria-label="Remove from queue"
                     title="Remove from queue"
@@ -194,6 +190,22 @@ export function RightRail({ onPlayHistoryEntry }: RightRailProps): JSX.Element {
                 >
                   <Play size={12} />
                   <span className="text-xs">Open library</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => navigate('/search')}
+                  className="w-full text-left flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-zinc-900/60 text-zinc-400 hover:text-zinc-200 transition-colors"
+                >
+                  <Search size={12} />
+                  <span className="text-xs">Search</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => navigate('/discover')}
+                  className="w-full text-left flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-zinc-900/60 text-zinc-400 hover:text-zinc-200 transition-colors"
+                >
+                  <Compass size={12} />
+                  <span className="text-xs">Discover</span>
                 </button>
               </div>
             </div>

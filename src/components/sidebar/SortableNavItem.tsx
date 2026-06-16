@@ -10,6 +10,13 @@ export interface SortableNavItemProps {
   label: string;
   icon: LucideIcon;
   disabled?: boolean;
+  /**
+   * Optional hint shown as a native `title` attribute on the
+   * anchor (and as a visible sub-line when the item is
+   * collapsed/expanded on hover). Used to disambiguate
+   * destinations that look similar at a glance.
+   */
+  hint?: string;
 }
 
 export function SortableNavItem({
@@ -17,6 +24,7 @@ export function SortableNavItem({
   label,
   icon: Icon,
   disabled = false,
+  hint,
 }: SortableNavItemProps): JSX.Element {
   const enabled = useUiStore((s) => !s.reducedMotion);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -37,6 +45,8 @@ export function SortableNavItem({
       to={to}
       end={to === '/'}
       style={style}
+      title={hint ?? label}
+      aria-label={hint ? `${label} — ${hint}` : label}
       className={({ isActive }) =>
         `relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all duration-150 mt-0.5 animate-slide-in group ${
           isActive
@@ -72,6 +82,14 @@ export function SortableNavItem({
           </span>
           <Icon size={18} strokeWidth={1.5} className="shrink-0" aria-hidden />
           <span className="truncate pr-5">{label}</span>
+          {hint && (
+            <span
+              className="text-[10px] text-zinc-500 truncate font-normal"
+              data-testid={`sidebar-nav-hint-${to.replace(/\//g, '_') || 'home'}`}
+            >
+              {hint}
+            </span>
+          )}
           {enabled && isDragging && <span className="sr-only"> (dragging)</span>}
         </>
       )}

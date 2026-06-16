@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState, useRef, useDeferredValue } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Search, SearchCheck, Sparkles, Play, History, Info } from 'lucide-react';
+import { Search, SearchCheck, Sparkles, Play, History, Info, AlertCircle, X } from 'lucide-react';
 import { useSourcesStore } from '@/stores/sourcesStore';
 import { usePlayerStore } from '@/stores/playerStore';
 import { useInsightsStore } from '@/stores/insightsStore';
 import { useSearchHistoryStore } from '@/stores/searchHistoryStore';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { TrackRowMenu } from '@/components/player/TrackRowMenu';
 import type { Track, SourceSearchResult } from '@/types/global';
 
 type GroupedResults = SourceSearchResult & { sourceName: string };
@@ -35,6 +36,8 @@ export function SearchView(): JSX.Element {
   const addRecent = useSearchHistoryStore((s) => s.add);
   const clearRecent = useSearchHistoryStore((s) => s.clear);
 
+  const sourceFilter = searchParams.get('source') ?? null;
+
   useEffect(() => {
     void refresh();
   }, [refresh]);
@@ -47,19 +50,35 @@ export function SearchView(): JSX.Element {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
-  // Sync local query to URL when user types in SearchView
   useEffect(() => {
     if (query.trim()) {
-      setSearchParams({ q: query }, { replace: true });
+      const params: Record<string, string> = { q: query };
+      if (sourceFilter) params.source = sourceFilter;
+      setSearchParams(params, { replace: true });
     } else {
-      setSearchParams({}, { replace: true });
+      setSearchParams(sourceFilter ? { source: sourceFilter } : {}, { replace: true });
     }
-  }, [query, setSearchParams]);
+  }, [query, sourceFilter, setSearchParams]);
 
-  // AbortController for search concurrency
   const abortRef = useRef<AbortController | null>(null);
 
   const enabledSources = useMemo(() => registrations.filter((r) => r.enabled), [registrations]);
+
+  const filteredSourceIds = useMemo<string[] | undefined>(() => {
+    if (!sourceFilter) return undefined;
+    const match = registrations.find(
+      (r) => r.id === sourceFilter || r.name.toLowerCase() === sourceFilter.toLowerCase(),
+    );
+    return match ? [match.id] : undefined;
+  }, [sourceFilter, registrations]);
+
+  const activeSourceName = useMemo(() => {
+    if (!sourceFilter) return null;
+    const match = registrations.find(
+      (r) => r.id === sourceFilter || r.name.toLowerCase() === sourceFilter.toLowerCase(),
+    );
+    return match?.name ?? sourceFilter;
+  }, [sourceFilter, registrations]);
 
   useEffect(() => {
     const q = query.trim();
@@ -67,7 +86,6 @@ export function SearchView(): JSX.Element {
       setResults([]);
       return;
     }
-    // Cancel previous search
     if (abortRef.current) {
       abortRef.current.abort();
     }
@@ -80,7 +98,7 @@ export function SearchView(): JSX.Element {
     }, 1500);
     const handle = window.setTimeout(async () => {
       try {
-        const r = await search(q, { limit: 25 });
+        const r = await search(q, { limit: 25 }, filteredSourceIds);
         if (!controller.signal.aborted) {
           const regMap = new Map(registrations.map((rr) => [rr.id, rr.name]));
           const grouped: GroupedResults[] = r.map((sr) => ({
@@ -102,11 +120,12 @@ export function SearchView(): JSX.Element {
       window.clearTimeout(handle);
       window.clearTimeout(saveHandle);
     };
-  }, [query, search, registrations, addRecent]);
+  }, [query, search, registrations, addRecent, filteredSourceIds]);
 
   const deferredResults = useDeferredValue(results);
 
   const totalTracks = deferredResults.reduce((sum, r) => sum + r.result.tracks.length, 0);
+  const hasMore = deferredResults.some((r) => r.result.tracks.length >= 25);
 
   const topTrack = useMemo(() => {
     for (const g of deferredResults) {
@@ -122,9 +141,26 @@ export function SearchView(): JSX.Element {
   return (
     <div className="p-8 max-w-4xl">
       <h1 className="text-2xl font-bold text-white mb-2">Search</h1>
-      <p className="text-zinc-400 mb-4 text-sm">Search across all enabled music sources at once.</p>
+      <div className="flex items-center gap-2 mb-4">
+        <p className="text-zinc-400 text-sm">
+          {activeSourceName
+            ? `Searching ${activeSourceName} only`
+            : 'Search across all enabled music sources at once.'}
+        </p>
+        {activeSourceName && (
+          <button
+            type="button"
+            onClick={() => setSearchParams({ q: query }, { replace: true })}
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-zinc-800 border border-zinc-700 text-xs text-zinc-300 hover:border-zinc-500 hover:text-white transition-colors"
+            aria-label="Clear source filter"
+          >
+            {activeSourceName}
+            <X size={10} aria-hidden />
+          </button>
+        )}
+      </div>
 
-      <div className="relative mb-6">
+      <div className="relative mb-2">
         <Search
           size={18}
           className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 pointer-events-none"
@@ -134,19 +170,16 @@ export function SearchView(): JSX.Element {
           placeholder="Search for tracks, artists, albums…"
           value={query}
           onChange={(e) => {
-            const next = e.target.value;
-            setQuery(next);
-            if (next.trim()) {
-              setSearchParams({ q: next }, { replace: true });
-            } else {
-              setSearchParams({}, { replace: true });
-            }
+            setQuery(e.target.value);
           }}
           className="w-full bg-zinc-900 border border-zinc-700 rounded-lg pl-10 pr-4 py-3 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-600 transition-all"
           autoFocus
           aria-label="Search for tracks, artists, albums"
         />
       </div>
+      <p className="text-[11px] text-zinc-600 mb-4">
+        Row click plays from that source group. Use the + menu for queue actions.
+      </p>
 
       <div className="mt-2">
         {query.trim() === '' ? (
@@ -200,14 +233,45 @@ export function SearchView(): JSX.Element {
           <EmptyState
             icon={<SearchCheck size={20} />}
             title={`No results for "${query}"`}
-            description="Try a different query, or check that you have sources enabled in Settings."
+            description={
+              activeSourceName
+                ? `No tracks found from ${activeSourceName}. Try a different query, or clear the source filter to search across all sources.`
+                : 'Try a different query, or check that you have sources enabled in Settings.'
+            }
+            action={
+              activeSourceName ? (
+                <button
+                  type="button"
+                  onClick={() => setSearchParams({ q: query }, { replace: true })}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded border border-zinc-700 text-xs text-zinc-300 hover:border-zinc-500 hover:text-white transition-colors"
+                >
+                  <X size={10} aria-hidden />
+                  Clear source filter
+                </button>
+              ) : undefined
+            }
           />
         ) : (
           <div className="space-y-6">
+            {hasMore && (
+              <div
+                className="flex items-start gap-2 p-2.5 rounded-lg border border-amber-900/60 bg-amber-950/30 text-[11px] text-amber-200"
+                data-testid="search-cap-banner"
+                role="status"
+              >
+                <AlertCircle size={12} className="shrink-0 mt-0.5" aria-hidden />
+                <p>Showing up to 25 tracks per source. Refine your query to narrow the results.</p>
+              </div>
+            )}
             {topTrack && topTrackGroup && (
               <button
                 type="button"
-                onClick={() => void playQueue(topTrackGroup.result.tracks, 0)}
+                onClick={() =>
+                  void playQueue(topTrackGroup.result.tracks, 0, {
+                    shuffle: false,
+                    smartShuffle: false,
+                  })
+                }
                 className="w-full flex items-center gap-4 p-4 rounded-2xl bg-gradient-to-br from-brand-900/30 to-accent-900/20 border border-brand-500/30 hover:border-brand-400/60 transition-all duration-200 active:scale-[0.99] text-left"
               >
                 <div className="w-16 h-16 rounded-xl bg-zinc-800/60 overflow-hidden flex items-center justify-center text-zinc-600 shrink-0">
@@ -248,53 +312,68 @@ export function SearchView(): JSX.Element {
                     {group.result.tracks.map((track) => (
                       <li
                         key={track.id}
-                        onClick={() =>
-                          void playQueue(group.result.tracks, group.result.tracks.indexOf(track))
-                        }
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault();
-                            void playQueue(group.result.tracks, group.result.tracks.indexOf(track));
-                          }
-                        }}
-                        tabIndex={0}
                         className="group flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-zinc-900 cursor-pointer transition-colors"
                       >
-                        <span className="text-zinc-500 text-xs w-8 text-right tabular-nums">
-                          {formatDuration(track.durationMs)}
-                        </span>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm text-zinc-100 truncate">{track.title}</p>
-                          <p className="text-xs text-zinc-500 truncate">
-                            {getArtistNames(track)}
-                            {track.album && ` · ${track.album.title}`}
-                          </p>
-                        </div>
-                        <code className="text-[10px] text-zinc-500 bg-zinc-800 px-1.5 py-0.5 rounded">
-                          {track.source}
-                        </code>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            void playQueue(
+                              group.result.tracks,
+                              group.result.tracks.indexOf(track),
+                              {
+                                shuffle: false,
+                                smartShuffle: false,
+                              },
+                            )
+                          }
+                          className="flex items-center gap-3 flex-1 min-w-0 text-left"
+                          aria-label={`Play ${track.title}`}
+                        >
+                          <span className="text-zinc-500 text-xs w-8 text-right tabular-nums">
+                            {formatDuration(track.durationMs)}
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm text-zinc-100 truncate">{track.title}</p>
+                            <p className="text-xs text-zinc-500 truncate">
+                              {getArtistNames(track)}
+                              {track.album && ` · ${track.album.title}`}
+                            </p>
+                          </div>
+                          <code className="text-[10px] text-zinc-500 bg-zinc-800 px-1.5 py-0.5 rounded">
+                            {track.source}
+                          </code>
+                        </button>
                         <button
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation();
                             useInsightsStore.getState().open(track);
                           }}
-                          className="opacity-0 group-hover:opacity-100 focus:opacity-100 p-1.5 rounded-full hover:bg-brand-500/20 text-zinc-400 hover:text-brand-400 transition-all active:scale-95"
+                          className="opacity-50 sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100 p-1.5 rounded-full hover:bg-brand-500/20 text-zinc-400 hover:text-brand-400 transition-all active:scale-95"
                           aria-label={`Show insights for ${track.title}`}
-                          title="Show insights"
+                          title="Insights"
                         >
                           <Info size={14} />
                         </button>
                         <button
                           type="button"
                           onClick={() =>
-                            void playQueue(group.result.tracks, group.result.tracks.indexOf(track))
+                            void playQueue(
+                              group.result.tracks,
+                              group.result.tracks.indexOf(track),
+                              {
+                                shuffle: false,
+                                smartShuffle: false,
+                              },
+                            )
                           }
-                          className="opacity-0 group-hover:opacity-100 focus:opacity-100 p-1.5 rounded-full hover:bg-brand-500/20 text-zinc-400 hover:text-brand-400 transition-all active:scale-95"
-                          aria-label="Play track"
+                          className="opacity-50 sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100 p-1.5 rounded-full hover:bg-brand-500/20 text-zinc-400 hover:text-brand-400 transition-all active:scale-95"
+                          aria-label="Play now"
+                          title="Play now"
                         >
                           <Play size={14} />
                         </button>
+                        <TrackRowMenu track={track} allTracks={group.result.tracks} />
                       </li>
                     ))}
                   </ul>

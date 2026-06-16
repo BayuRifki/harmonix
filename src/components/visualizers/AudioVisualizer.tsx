@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { useEffect, useRef, useState } from 'react';
 import { audioEngine } from '@/lib/audio/engine';
 import { useUiStore } from '@/stores/uiStore';

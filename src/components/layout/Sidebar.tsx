@@ -44,9 +44,12 @@ import { usePlayerStore } from '@/stores/playerStore';
 import { useUiStore } from '@/stores/uiStore';
 import { useSourceHealth, HEALTH_DOT_COLORS } from '@/hooks/useSourceHealth';
 
+type NavGroup = 'browse' | 'library' | 'tools';
+
 interface StaticNavItem {
   to: string;
   label: string;
+  group: NavGroup;
   icon:
     | typeof Home
     | typeof Compass
@@ -55,18 +58,43 @@ interface StaticNavItem {
     | typeof Music
     | typeof SlidersHorizontal
     | typeof Settings;
+  /**
+   * One-line hint shown on hover and as a `title` attribute.
+   * Used to disambiguate destinations that look similar at a glance
+   * (e.g. Explore vs Discover). Items without a hint only get a
+   * plain title.
+   */
+  hint?: string;
 }
 
 const STATIC_NAV: StaticNavItem[] = [
-  { to: '/', label: 'Home', icon: Home },
-  { to: '/explore', label: 'Explore', icon: Compass },
-  { to: '/discover', label: 'Discover', icon: Sparkles },
-  { to: '/library', label: 'Library', icon: Library },
-  { to: '/favorites', label: 'Favorites', icon: Heart },
-  { to: '/playlists', label: 'Playlists', icon: Music },
-  { to: '/equalizer', label: 'Equalizer', icon: SlidersHorizontal },
-  { to: '/settings', label: 'Settings', icon: Settings },
+  { to: '/', label: 'Home', group: 'browse', icon: Home },
+  {
+    to: '/explore',
+    label: 'Explore',
+    group: 'browse',
+    icon: Compass,
+    hint: 'Browse catalogs and genres across sources',
+  },
+  {
+    to: '/discover',
+    label: 'Discover',
+    group: 'browse',
+    icon: Sparkles,
+    hint: 'Personalized recommendations from your history',
+  },
+  { to: '/library', label: 'Library', group: 'library', icon: Library },
+  { to: '/favorites', label: 'Favorites', group: 'library', icon: Heart },
+  { to: '/playlists', label: 'Playlists', group: 'library', icon: Music },
+  { to: '/equalizer', label: 'Equalizer', group: 'tools', icon: SlidersHorizontal },
+  { to: '/settings', label: 'Settings', group: 'tools', icon: Settings },
 ];
+
+const GROUP_LABEL: Record<NavGroup, string> = {
+  browse: 'Browse',
+  library: 'Collection',
+  tools: 'Tools',
+};
 
 const SIDEBAR_PLAYLIST_LIMIT = 4;
 
@@ -134,10 +162,17 @@ export function Sidebar(): JSX.Element {
   }
 
   useEffect(() => {
-    void refreshLibrary();
-    void refreshSources();
-    void refreshPlaylists();
-  }, [refreshLibrary, refreshSources, refreshPlaylists]);
+    if (playlists.length === 0) void refreshPlaylists();
+    if (registrations.length === 0) void refreshSources();
+    if (stats.trackCount === 0) void refreshLibrary();
+  }, [
+    refreshLibrary,
+    refreshSources,
+    refreshPlaylists,
+    playlists.length,
+    registrations.length,
+    stats.trackCount,
+  ]);
 
   const visiblePlaylists = playlists.slice(0, SIDEBAR_PLAYLIST_LIMIT);
   const hasMorePlaylists = playlists.length > SIDEBAR_PLAYLIST_LIMIT;
@@ -290,17 +325,34 @@ export function Sidebar(): JSX.Element {
 
       <nav ref={navRef} className="flex-1 p-2 overflow-y-auto">
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-          <SortableContext
-            items={orderedNav.map((i) => i.to)}
-            strategy={verticalListSortingStrategy}
-          >
-            <div className={layoutClass} data-testid="sidebar-nav-list">
-              {orderedNav.map((item) => (
-                <SortableNavItem key={item.to} to={item.to} label={item.label} icon={item.icon} />
-              ))}
-              {!reducedMotion && <span className="sr-only">Use grip handle to reorder</span>}
-            </div>
-          </SortableContext>
+          <div className={layoutClass} data-testid="sidebar-nav-list">
+            {(['browse', 'library', 'tools'] as NavGroup[]).map((group) => {
+              const groupItems = orderedNav.filter((i) => i.group === group);
+              if (groupItems.length === 0) return null;
+              return (
+                <div key={group} className="mb-2">
+                  <p className="text-[10px] uppercase tracking-wider text-zinc-700 font-medium px-3 mb-1">
+                    {GROUP_LABEL[group]}
+                  </p>
+                  <SortableContext
+                    items={groupItems.map((i) => i.to)}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    {groupItems.map((item) => (
+                      <SortableNavItem
+                        key={item.to}
+                        to={item.to}
+                        label={item.label}
+                        icon={item.icon}
+                        hint={item.hint}
+                      />
+                    ))}
+                  </SortableContext>
+                </div>
+              );
+            })}
+            {!reducedMotion && <span className="sr-only">Use grip handle to reorder</span>}
+          </div>
         </DndContext>
 
         {recentsToShow.length > 0 && (

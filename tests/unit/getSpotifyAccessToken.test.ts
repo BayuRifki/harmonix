@@ -51,7 +51,7 @@ describe('getSpotifyAccessToken', () => {
     // user disabled Spotify in settings), there's nothing to ask.
     // Returning null lets the renderer show a clear "connect Spotify"
     // message rather than crashing on `src.getClient()`.
-    vi.mocked(getSource).mockReturnValue(null);
+    vi.mocked(getSource).mockReturnValue(null as unknown as ReturnType<typeof getSource>);
 
     const token = await getSpotifyAccessToken();
 

@@ -64,6 +64,9 @@ const MiniPlayerView = lazy(() =>
 const NowPlayingView = lazy(() =>
   import('@/features/nowPlaying/NowPlayingView').then((m) => ({ default: m.NowPlayingView })),
 );
+const HistoryView = lazy(() =>
+  import('@/features/history/HistoryView').then((m) => ({ default: m.HistoryView })),
+);
 
 function PageTransition({ children }: { children: ReactNode }): JSX.Element {
   return (
@@ -246,6 +249,14 @@ function MainApp(): JSX.Element {
                     element={
                       <PageTransition>
                         <LibraryView />
+                      </PageTransition>
+                    }
+                  />
+                  <Route
+                    path="/history"
+                    element={
+                      <PageTransition>
+                        <HistoryView />
                       </PageTransition>
                     }
                   />

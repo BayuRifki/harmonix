@@ -7,10 +7,6 @@ const initErrorListeners = (): Listener[] => {
   listeners['initialization_error'] = listeners['initialization_error'] ?? [];
   return listeners['initialization_error'];
 };
-const readyListeners = (): Listener[] => {
-  listeners['ready'] = listeners['ready'] ?? [];
-  return listeners['ready'];
-};
 
 vi.mock('../../src/stores/spotifyPlayerStore', () => ({
   useSpotifyPlayerStore: {

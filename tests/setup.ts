@@ -2,6 +2,15 @@ import { afterEach, vi } from 'vitest';
 import { cleanup } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
+const originalWarn = console.warn;
+console.warn = (...args: unknown[]): void => {
+  const msg = args[0] as string;
+  if (typeof msg === 'string' && msg.includes('React Router Future Flag Warning')) {
+    return;
+  }
+  originalWarn(...args);
+};
+
 if (typeof globalThis !== 'undefined' && typeof window !== 'undefined') {
   const w = window as unknown as Record<string, unknown>;
   const g = globalThis as unknown as Record<string, unknown>;

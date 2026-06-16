@@ -608,7 +608,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
     insertIntoQueue: (track, position) => {
       const { queue, queueIndex } = get();
       const insertAt = Math.max(0, Math.min(position, queue.length));
-      if (queue.some((t) => t.id === track.id)) return;
+      if (queue.some((t) => t.id === track.id && t.source === track.source)) return;
       const next = queue.slice();
       next.splice(insertAt, 0, track);
       let nextIndex = queueIndex;

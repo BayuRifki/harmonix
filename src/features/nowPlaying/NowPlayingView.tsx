@@ -244,7 +244,13 @@ export function NowPlayingView(): JSX.Element {
         <div className="flex justify-end p-6">
           <Button
             variant="icon"
-            onClick={() => navigate(-1)}
+            onClick={() => {
+              if (window.history.length > 1) {
+                navigate(-1);
+              } else {
+                navigate('/');
+              }
+            }}
             aria-label="Close now playing"
             title="Close"
           >
@@ -341,16 +347,22 @@ export function NowPlayingView(): JSX.Element {
                 </div>
                 <span className="w-12">{formatTime(durationMs)}</span>
               </div>
-              <input
-                type="range"
-                min={0}
-                max={durationMs || 0}
-                value={positionMs}
-                onChange={(e) => void seek(Number(e.target.value))}
-                disabled={!hasTrack}
-                className="w-full h-2 opacity-0 cursor-pointer -mt-3.5"
-                aria-label="Seek"
-              />
+              <div className="relative w-full h-2 -mt-3.5 group/slider">
+                <input
+                  type="range"
+                  min={0}
+                  max={durationMs || 0}
+                  value={positionMs}
+                  onChange={(e) => void seek(Number(e.target.value))}
+                  disabled={!hasTrack}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                  aria-label="Seek"
+                />
+                <div
+                  className="absolute top-1/2 -translate-y-1/2 w-3.5 h-3.5 bg-white rounded-full shadow-md border-2 border-brand-500 pointer-events-none transition-opacity duration-200"
+                  style={{ left: `calc(${Math.min(100, progress)}% - 7px)` }}
+                />
+              </div>
             </div>
 
             <div className="flex items-center gap-4 mt-8">
@@ -431,10 +443,14 @@ export function NowPlayingView(): JSX.Element {
                   <Volume2 size={18} />
                 )}
               </button>
-              <div className="flex-1 h-1.5 rounded-full bg-white/10 overflow-hidden">
+              <div className="relative flex-1 h-1.5 rounded-full bg-white/10 overflow-hidden group/slider">
                 <div
                   className="h-full bg-zinc-300 rounded-full"
                   style={{ width: `${volume * 100}%` }}
+                />
+                <div
+                  className="absolute top-1/2 -translate-y-1/2 w-3.5 h-3.5 bg-white rounded-full shadow-md border-2 border-brand-500 pointer-events-none transition-opacity duration-200"
+                  style={{ left: `calc(${volume * 100}% - 7px)` }}
                 />
               </div>
               <input
@@ -443,7 +459,7 @@ export function NowPlayingView(): JSX.Element {
                 max={100}
                 value={volume * 100}
                 onChange={(e) => setVolume(Number(e.target.value) / 100)}
-                className="absolute opacity-0 w-48 h-6 cursor-pointer"
+                className="absolute inset-y-0 left-0 w-48 h-6 opacity-0 cursor-pointer z-10"
                 aria-label="Volume"
               />
             </div>
@@ -485,39 +501,55 @@ export function NowPlayingView(): JSX.Element {
                 (currentTrack ? (
                   similar.length > 0 ? (
                     <section aria-label="More by this artist" className="px-1">
-                      <p className="text-xs uppercase tracking-wider text-zinc-500 mb-2 flex items-center gap-1.5">
-                        <Sparkles size={11} aria-hidden />
-                        More by {currentTrack.artists[0]?.name ?? 'this artist'}
-                      </p>
+                      <div className="mb-2">
+                        <p className="text-xs uppercase tracking-wider text-zinc-500 flex items-center gap-1.5">
+                          <Sparkles size={11} aria-hidden />
+                          More by {currentTrack.artists[0]?.name ?? 'this artist'}
+                        </p>
+                        <p className="text-[10px] text-zinc-600 mt-0.5">
+                          Already in queue? Click to jump to it. Otherwise it plays now.
+                        </p>
+                      </div>
                       <div className="grid grid-cols-2 gap-2">
                         {similar.map((t) => {
                           const tArt = t.artworkUrl ?? t.album?.artworkUrl;
+                          const queue = usePlayerStore.getState().queue;
+                          const idx = queue.findIndex((q) => q.id === t.id);
+                          const inQueue = idx >= 0;
                           return (
                             <button
                               key={t.id}
                               type="button"
                               onClick={() => {
-                                const queue = usePlayerStore.getState().queue;
-                                const idx = queue.findIndex((q) => q.id === t.id);
-                                if (idx >= 0) {
+                                if (inQueue) {
                                   usePlayerStore
                                     .getState()
                                     .setQueue(queue, idx, { shuffle: false, smartShuffle: false });
+                                } else {
+                                  void usePlayerStore.getState().play(t);
                                 }
                               }}
-                              className="text-left rounded-lg p-1.5 hover:bg-zinc-800/60 transition-colors"
+                              title={inQueue ? 'Play from queue' : 'Play now'}
+                              className="text-left rounded-lg p-1.5 hover:bg-zinc-800/60 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-pink-500/60"
                             >
-                              {tArt ? (
-                                <img
-                                  src={tArt}
-                                  alt=""
-                                  className="w-full aspect-square rounded object-cover mb-1.5"
-                                />
-                              ) : (
-                                <div className="w-full aspect-square rounded bg-zinc-800 flex items-center justify-center mb-1.5">
-                                  <Music size={20} className="text-zinc-600" />
-                                </div>
-                              )}
+                              <div className="relative mb-1.5">
+                                {tArt ? (
+                                  <img
+                                    src={tArt}
+                                    alt=""
+                                    className="w-full aspect-square rounded object-cover"
+                                  />
+                                ) : (
+                                  <div className="w-full aspect-square rounded bg-zinc-800 flex items-center justify-center">
+                                    <Music size={20} className="text-zinc-600" />
+                                  </div>
+                                )}
+                                {inQueue && (
+                                  <span className="absolute top-1 left-1 text-[9px] px-1 py-0.5 rounded bg-brand-500/90 text-white font-medium">
+                                    In queue
+                                  </span>
+                                )}
+                              </div>
                               <p className="text-xs text-zinc-200 truncate">{t.title}</p>
                               <p className="text-[10px] text-zinc-500 truncate">
                                 {t.artists.map((a) => a.name).join(', ')}
@@ -557,7 +589,7 @@ export function NowPlayingView(): JSX.Element {
                       <div className="flex-1 min-w-0">
                         <p className="font-medium">Visualizers are turned off</p>
                         <p className="text-amber-300/80 mt-0.5">
-                          The artwork overlay won't render even when a mode is selected.
+                          The artwork overlay won&apos;t render even when a mode is selected.
                         </p>
                       </div>
                       <button

@@ -1,18 +1,32 @@
 import { useEffect, useState } from 'react';
 import { useParams, NavLink } from 'react-router-dom';
 import { useSafeNavigate } from '@/hooks/useSafeNavigate';
-import { Music } from 'lucide-react';
+import { Music, Info, ExternalLink, Play, ListMusic } from 'lucide-react';
 import { useSourcesStore } from '@/stores/sourcesStore';
 import { usePlayerStore } from '@/stores/playerStore';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
-import type { Playlist, Track, SourceRegistration } from '@/types/global';
+import { TrackRowMenu } from '@/components/player/TrackRowMenu';
+import type { Playlist, Track, SourceRegistration, SourceCapabilities } from '@/types/global';
+
+const CAPABILITY_LABELS: Record<keyof SourceCapabilities, string> = {
+  canSearch: 'Search',
+  canStream: 'Stream',
+  canGetPlaylists: 'Playlists',
+  canGetLikedTracks: 'Liked tracks',
+  requiresAuth: 'Requires sign-in',
+  supportsFileStreaming: 'Local file streaming',
+  supportsRemoteStreaming: 'Remote streaming',
+  supportsPlaylists: 'Playlist support',
+};
 
 interface SourceMeta {
   description: string;
   searchHint: string;
   emoji: string;
   docsUrl?: string;
+  playbackNote?: string;
+  playbackAction?: { label: string; to: string };
 }
 
 const SOURCE_META: Record<string, SourceMeta> = {
@@ -31,17 +45,24 @@ const SOURCE_META: Record<string, SourceMeta> = {
     searchHint:
       'Search the full Spotify catalog. Sign in to access your playlists and liked tracks.',
     emoji: '🟢',
+    playbackNote:
+      'Premium tracks stream via the Web Playback SDK; the Electron build falls back to Spotify Connect on another device when Widevine is unavailable.',
+    playbackAction: { label: 'Open Spotify settings', to: '/settings/sources' },
   },
   ytmusic: {
     description: 'Unofficial YouTube Music integration. Streams are powered by yt-dlp.',
     searchHint: 'Search YouTube Music. Audio quality depends on yt-dlp availability.',
     emoji: '▶️',
+    playbackNote: 'Audio is extracted on demand by yt-dlp; signed URLs expire after ~6 hours.',
   },
   deezer: {
     description:
       'Public Deezer catalog. 30-second MP3 previews only — full playback requires a Premium account.',
     searchHint: 'Search Deezer for tracks, albums, and artists.',
     emoji: '🎧',
+    playbackNote:
+      'Only 30-second previews are streamable without a Deezer Premium account. Open the source on deezer.com to listen in full.',
+    playbackAction: { label: 'Open deezer.com', to: 'https://www.deezer.com' },
   },
   jamendo: {
     description: 'Creative Commons music from Jamendo. Full MP3 streams, no sign-in required.',
@@ -52,11 +73,15 @@ const SOURCE_META: Record<string, SourceMeta> = {
     description: 'Decentralized, open-source music on the Audius protocol. No sign-in required.',
     searchHint: 'Search Audius for tracks and playlists hosted on a peer-to-peer network.',
     emoji: '🪐',
+    playbackNote:
+      'Tracks stream directly from Audius content nodes; some may be unavailable offline.',
   },
   soundcloud: {
     description: 'SoundCloud public catalog. Requires a client_id env var to be configured.',
     searchHint: 'Search SoundCloud for tracks, users, and playlists.',
     emoji: '🟠',
+    playbackNote: 'Stream access requires SOUNDCLOUD_CLIENT_ID to be set in your .env file.',
+    playbackAction: { label: 'Open SoundCloud settings', to: '/settings/sources' },
   },
 };
 
@@ -100,10 +125,16 @@ export function SourceView(): JSX.Element {
   const source = registrations.find((r) => r.id === id);
 
   useEffect(() => {
-    if (!source) return;
-    setError(null);
-    if (playlists !== null || liked !== null) return;
+    if (!source) {
+      setPlaylists(null);
+      setLiked(null);
+      setError(null);
+      return;
+    }
     let cancelled = false;
+    setPlaylists(null);
+    setLiked(null);
+    setError(null);
     void (async () => {
       try {
         if (source.capabilities.canGetPlaylists) {
@@ -128,7 +159,7 @@ export function SourceView(): JSX.Element {
     return () => {
       cancelled = true;
     };
-  }, [source, loadUserPlaylists, loadLikedTracks, playlists, liked]);
+  }, [source, loadUserPlaylists, loadLikedTracks]);
 
   if (!source) {
     return (
@@ -178,6 +209,36 @@ export function SourceView(): JSX.Element {
       {!source.enabled && (
         <div className="mb-4 p-3 bg-amber-950/30 border border-amber-900 rounded text-xs text-amber-200">
           This source is disabled. Enable it in Settings → Music Sources.
+        </div>
+      )}
+
+      {meta.playbackNote && (
+        <div
+          className="mb-4 p-3 bg-zinc-900/60 border border-zinc-800 rounded text-xs text-zinc-300 flex items-start gap-2"
+          data-testid="source-playback-note"
+        >
+          <Info size={12} className="shrink-0 mt-0.5 text-zinc-500" aria-hidden />
+          <div className="flex-1 min-w-0">
+            <p>{meta.playbackNote}</p>
+            {meta.playbackAction && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (meta.playbackAction!.to.startsWith('http')) {
+                    window.open(meta.playbackAction!.to, '_blank', 'noopener');
+                  } else {
+                    navigate(meta.playbackAction!.to);
+                  }
+                }}
+                className="mt-1.5 inline-flex items-center gap-1 text-brand-400 hover:text-brand-300 transition-colors"
+              >
+                {meta.playbackAction.label}
+                {meta.playbackAction.to.startsWith('http') && (
+                  <ExternalLink size={10} aria-hidden />
+                )}
+              </button>
+            )}
+          </div>
         </div>
       )}
 
@@ -235,26 +296,31 @@ export function SourceView(): JSX.Element {
                 {liked.slice(0, 50).map((track) => (
                   <li
                     key={track.id}
-                    onClick={() => canPlay && void playQueue(liked, liked.indexOf(track))}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        if (canPlay) void playQueue(liked, liked.indexOf(track));
-                      }
-                    }}
-                    role="button"
-                    tabIndex={0}
-                    className="flex items-center gap-3 px-3 py-2 rounded hover:bg-zinc-900 cursor-pointer"
+                    className="group flex items-center gap-3 px-3 py-2 rounded hover:bg-zinc-900"
                   >
-                    <span className="text-zinc-500 text-xs w-8 text-right tabular-nums">
-                      {formatDuration(track.durationMs)}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm text-zinc-100 truncate">{track.title}</p>
-                      <p className="text-xs text-zinc-500 truncate">
-                        {track.artists.map((a) => a.name).join(', ') || 'Unknown'}
-                      </p>
-                    </div>
+                    <button
+                      type="button"
+                      disabled={!canPlay}
+                      onClick={() =>
+                        void playQueue(liked, liked.indexOf(track), {
+                          shuffle: false,
+                          smartShuffle: false,
+                        })
+                      }
+                      className="flex items-center gap-3 flex-1 min-w-0 text-left disabled:cursor-not-allowed"
+                      aria-label={`Play ${track.title}`}
+                    >
+                      <span className="text-zinc-500 text-xs w-8 text-right tabular-nums">
+                        {formatDuration(track.durationMs)}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm text-zinc-100 truncate">{track.title}</p>
+                        <p className="text-xs text-zinc-500 truncate">
+                          {track.artists.map((a) => a.name).join(', ') || 'Unknown'}
+                        </p>
+                      </div>
+                    </button>
+                    {canPlay && <TrackRowMenu track={track} allTracks={liked} />}
                   </li>
                 ))}
               </ul>
@@ -302,18 +368,21 @@ export function SourceView(): JSX.Element {
       )}
 
       <section className="mb-6">
-        <h2 className="text-xs uppercase tracking-wide text-zinc-500 mb-2">Capabilities</h2>
+        <h2 className="text-xs uppercase tracking-wide text-zinc-500 mb-2">
+          What this source supports
+        </h2>
         <div className="flex flex-wrap gap-1">
-          {Object.entries(source.capabilities).map(([key, value]) =>
-            value ? (
+          {Object.entries(CAPABILITY_LABELS)
+            .filter(([key]) => source.capabilities[key as keyof SourceCapabilities])
+            .map(([key, label]) => (
               <span
                 key={key}
                 className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 bg-zinc-800 text-zinc-300 rounded"
+                title={key}
               >
-                {key}
+                {label}
               </span>
-            ) : null,
-          )}
+            ))}
         </div>
       </section>
     </div>
@@ -370,16 +439,17 @@ function PlaylistRow({
   };
 
   return (
-    <li className="bg-zinc-900 border border-zinc-800 rounded">
+    <li className="bg-zinc-900 border border-zinc-800 rounded hover:border-zinc-700 transition-colors">
       <div className="flex items-center gap-3 px-3 py-2">
         <button
           type="button"
           onClick={() => void toggle()}
-          className="text-zinc-400 hover:text-zinc-200 w-5 text-center"
+          className="text-zinc-400 hover:text-zinc-200 w-5 text-center shrink-0"
           aria-label={expanded ? 'Collapse' : 'Expand'}
         >
           {expanded ? '▾' : '▸'}
         </button>
+        <ListMusic size={16} className="text-zinc-500 shrink-0" aria-hidden />
         <div className="flex-1 min-w-0">
           <p className="text-sm text-zinc-100 truncate">{playlist.name}</p>
           <p className="text-xs text-zinc-500 truncate">
@@ -391,9 +461,10 @@ function PlaylistRow({
           type="button"
           onClick={() => void playPlaylist()}
           disabled={!canPlay || playlist.trackCount === 0}
-          className="text-xs text-brand-400 hover:text-brand-300 disabled:opacity-40"
+          className="inline-flex items-center gap-1 text-xs text-brand-400 hover:text-brand-300 disabled:opacity-40 px-2 py-1 rounded hover:bg-brand-500/10 transition-colors"
         >
-          ▶ Play
+          <Play size={12} aria-hidden />
+          Play
         </button>
       </div>
       {expanded && (
@@ -409,23 +480,28 @@ function PlaylistRow({
               {tracks.slice(0, 50).map((t) => (
                 <li
                   key={t.id}
-                  onClick={() => canPlay && void playQueue(tracks, tracks.indexOf(t))}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      if (canPlay) void playQueue(tracks, tracks.indexOf(t));
-                    }
-                  }}
-                  role="button"
-                  tabIndex={0}
-                  className="flex items-center gap-2 px-2 py-1 rounded hover:bg-zinc-800 cursor-pointer"
+                  className="group flex items-center gap-2 px-2 py-1 rounded hover:bg-zinc-800"
                 >
-                  <span className="text-xs text-zinc-500 truncate flex-1">
-                    {t.title} — {t.artists.map((a) => a.name).join(', ')}
-                  </span>
+                  <button
+                    type="button"
+                    disabled={!canPlay}
+                    onClick={() =>
+                      void playQueue(tracks, tracks.indexOf(t), {
+                        shuffle: false,
+                        smartShuffle: false,
+                      })
+                    }
+                    className="flex-1 min-w-0 text-left disabled:cursor-not-allowed"
+                    aria-label={`Play ${t.title}`}
+                  >
+                    <span className="text-xs text-zinc-500 truncate">
+                      {t.title} — {t.artists.map((a) => a.name).join(', ')}
+                    </span>
+                  </button>
                   <span className="text-[10px] text-zinc-600 tabular-nums">
                     {formatDuration(t.durationMs)}
                   </span>
+                  {canPlay && <TrackRowMenu track={t} allTracks={tracks} />}
                 </li>
               ))}
               {tracks.length > 50 && (

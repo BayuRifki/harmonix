@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, act } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { ExploreView } from '@/features/explore/ExploreView';
 import { useSourcesStore } from '@/stores/sourcesStore';
@@ -41,33 +41,36 @@ function reg(overrides: Partial<Registration> & { id: string; name: string }): R
   };
 }
 
-function renderWithRouter(): void {
-  render(
-    <MemoryRouter>
-      <ExploreView />
-    </MemoryRouter>,
-  );
+async function renderWithRouter(): Promise<void> {
+  await act(async () => {
+    render(
+      <MemoryRouter>
+        <ExploreView />
+      </MemoryRouter>,
+    );
+    await new Promise((r) => setTimeout(r, 0));
+  });
 }
 
 describe('ExploreView', () => {
   beforeEach(() => {
     installMockWindowApi();
-    useSourcesStore.setState({ registrations: [], loading: false });
+    useSourcesStore.setState({ registrations: [], loading: false, refresh: async () => {} });
     useListeningHistoryStore.setState({ entries: [] });
   });
 
-  it('shows the Explore heading', () => {
-    renderWithRouter();
+  it('shows the Explore heading', async () => {
+    await renderWithRouter();
     expect(screen.getByRole('heading', { name: /Explore/i })).toBeInTheDocument();
   });
 
-  it('renders the For You section with starter cards when no history', () => {
-    renderWithRouter();
+  it('renders the For You section with starter cards when no history', async () => {
+    await renderWithRouter();
     expect(screen.getByTestId('explore-for-you')).toBeInTheDocument();
     expect(screen.getByText('Browse your Library')).toBeInTheDocument();
   });
 
-  it('shows recently played tracks when history exists', () => {
+  it('shows recently played tracks when history exists', async () => {
     useListeningHistoryStore.setState({
       entries: [
         {
@@ -84,11 +87,11 @@ describe('ExploreView', () => {
         },
       ],
     });
-    renderWithRouter();
+    await renderWithRouter();
     expect(screen.getByText('Played Song')).toBeInTheDocument();
   });
 
-  it('shows enabled source count badge', () => {
+  it('shows enabled source count badge', async () => {
     useSourcesStore.setState({
       registrations: [
         reg({ id: 'spotify', name: 'Spotify' }),
@@ -96,27 +99,27 @@ describe('ExploreView', () => {
         reg({ id: 'local', name: 'Local', enabled: false }),
       ],
     });
-    renderWithRouter();
+    await renderWithRouter();
     expect(screen.getByText(/2 sources ready/i)).toBeInTheDocument();
   });
 
-  it('shows empty state with link to Settings when no sources enabled', () => {
+  it('shows empty state with link to Settings when no sources enabled', async () => {
     useSourcesStore.setState({
       registrations: [reg({ id: 'local', name: 'Local', enabled: false })],
     });
-    renderWithRouter();
+    await renderWithRouter();
     expect(screen.getAllByText(/No sources enabled yet/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/Open Settings/i)).toBeInTheDocument();
   });
 
-  it('renders enabled source quick links', () => {
+  it('renders enabled source quick links', async () => {
     useSourcesStore.setState({
       registrations: [
         reg({ id: 'spotify', name: 'Spotify' }),
         reg({ id: 'local', name: 'Local', enabled: false }),
       ],
     });
-    renderWithRouter();
+    await renderWithRouter();
     expect(screen.getAllByText('Spotify').length).toBeGreaterThan(0);
     expect(screen.queryByText('Local')).not.toBeInTheDocument();
   });

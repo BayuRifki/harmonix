@@ -23,12 +23,14 @@ import { startTransition } from 'react';
  * call-sites (`navigate('/foo')`, `navigate('/bar', { replace: true })`,
  * `navigate(-1)`, …) work without changes.
  */
-export function useSafeNavigate(): (to: To, options?: NavigateOptions) => void {
+export type SafeNavigate = (to: To | number, options?: NavigateOptions) => void;
+
+export function useSafeNavigate(): SafeNavigate {
   const navigate = useNavigate();
-  return useCallback(
+  return useCallback<SafeNavigate>(
     (to, options) => {
       startTransition(() => {
-        navigate(to, options);
+        navigate(to as To, options);
       });
     },
     [navigate],
