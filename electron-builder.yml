@@ -25,6 +25,17 @@ files:
   - '!**/*.{md,markdown}'
   - '!**/{.eslintrc,.prettierrc,.editorconfig,.gitignore}'
 
+# Hook: runs after electron-builder finishes packing the unpacked
+# output dir but before the NSIS installer is built. The hook is a
+# no-op on non-Windows platforms, so the same `electron-builder.yml`
+# works for `dist:mac` / `dist:linux` without modification. See
+# `scripts/embed-icon.cjs` for the implementation — it re-implements
+# the icon-embedding half of `win.signAndEditExecutable: true` using
+# the `rcedit` npm package directly, because the upstream
+# `winCodeSign` 7za extractor fails on Windows (can't create darwin
+# dylib symlinks without admin / Developer Mode).
+afterPack: scripts/embed-icon.cjs
+
 win:
   target:
     - target: nsis
@@ -35,8 +46,14 @@ win:
   # extract symlinks for darwin dylibs on Windows. Without admin or
   # Developer Mode, 7za fails with "Cannot create symbolic link" and
   # the whole build aborts. We don't ship a code-signing certificate
-  # yet, so skip both signing and the rcedit step. Re-enable and add
-  # certificate handling before the first public release.
+  # yet, so skip both signing and the built-in rcedit step. The
+  # `afterPack` hook below re-implements just the icon-embedding half
+  # by calling the `rcedit` npm package directly, so the Start Menu
+  # / taskbar pinned shortcut / Explorer all show the Harmonix logo
+  # instead of the broken-image placeholder Electron ships by
+  # default. Re-enable `signAndEditExecutable: true` (and wire up
+  # `CSC_LINK` / `CSC_KEY_PASSWORD`) once a code-signing certificate
+  # is available — at that point the `afterPack` hook can be removed.
   signAndEditExecutable: false
 
 nsis:

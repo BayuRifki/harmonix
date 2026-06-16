@@ -10,6 +10,7 @@
   "include": [
     "src/**/*",
     "tests/**/*",
+    "scripts/embed-icon.d.cts",
     "electron/main/sources/local/scanner.ts",
     "electron/main/sources/demo/index.ts",
     "electron/main/sources/spotify/client.ts",
