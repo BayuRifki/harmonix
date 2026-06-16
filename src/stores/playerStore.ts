@@ -44,6 +44,128 @@ export function getFallbackUrl(stream: StreamInfo): string | null {
   return stream.fallbackUrl;
 }
 
+/**
+ * Identifies the YouTube / proxied-CDN case where a 403 from
+ * upstream is a recoverable "signature expired" condition.
+ *
+ * Returns `true` only when:
+ *   - the source explicitly opted into the proxy
+ *     (`requiresProxy: true`), AND
+ *   - the URL the renderer is about to load is the proxy scheme
+ *     (`harmonix-media://stream/...`).
+ *
+ * The dual check is defensive: a future regression that sets
+ * `requiresProxy: true` but forgets to swap the URL for the
+ * proxy scheme would otherwise trigger a preflight against an
+ * http URL (whose CORS-tainted failure would mask the real
+ * issue). The Spotify SDK path uses `requiresProxy: true` for
+ * the Web Playback SDK's own CORS bootstrap and must be
+ * excluded — its URLs are `spotify:track:…`, not the proxy scheme.
+ *
+ * Exported for unit testing; called from `resolveStreamWithRetry`
+ * below.
+ */
+export function isProxyStream(stream: StreamInfo): boolean {
+  return stream.requiresProxy === true && stream.url.startsWith('harmonix-media://');
+}
+
+/**
+ * Lightweight `HEAD` request against the proxy URL. Used to
+ * surface YouTube's 403 (expired signature) BEFORE the audio
+ * element reports a misleading `MEDIA_ERR_SRC_NOT_SUPPORTED`.
+ *
+ * Returns `{ status, ok }` on any HTTP response (including
+ * 4xx/5xx — `ok` mirrors the `Response.ok` flag, true for
+ * 2xx), or `null` when the fetch itself threw (network
+ * failure, offline, CORS rejection at the renderer level). A
+ * `null` result is intentionally non-fatal: the caller falls
+ * through to the normal `playTrack` path and lets the audio
+ * element surface the real error.
+ *
+ * Exported for unit testing; called from `resolveStreamWithRetry`
+ * below.
+ */
+export async function preflightProxyStream(
+  url: string,
+): Promise<{ status: number; ok: boolean } | null> {
+  try {
+    const res = await fetch(url, { method: 'HEAD' });
+    return { status: res.status, ok: res.ok };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Resolves the stream the renderer should actually play, with
+ * a one-shot retry for the YouTube 403-expired-signature case.
+ *
+ * Algorithm:
+ *   1. If the stream is NOT a proxy stream (HTTP, local file,
+ *      Spotify SDK, etc.) → return it as-is.
+ *   2. Preflight the proxy URL. If the preflight is `null`
+ *      (network error) or 2xx → return the original stream.
+ *      The audio element will surface the real error if the
+ *      stream is actually broken; we don't pretend to know.
+ *   3. If the preflight is 403 → the upstream YouTube CDN
+ *      rejected the signed URL (default ~6h lifetime). Re-resolve
+ *      via the IPC `playTrack` call (which re-runs yt-dlp in the
+ *      main process), preflight again, and return the fresh
+ *      stream. If the re-resolved stream is *also* 403 → throw
+ *      a clear error (the user has a deeper problem than a
+ *      stale signature; looping wouldn't help).
+ *   4. If the preflight is 5xx → throw a clear "upstream down"
+ *      error rather than letting the audio element emit the
+ *      generic `MEDIA_ERR_SRC_NOT_SUPPORTED`.
+ *
+ * The retry is bounded — we never loop more than once. Exported
+ * for unit testing; called from `play()` below.
+ */
+export async function resolveStreamWithRetry(
+  track: Track,
+  initialStream: StreamInfo,
+): Promise<StreamInfo> {
+  if (!isProxyStream(initialStream)) {
+    return initialStream;
+  }
+  const preflight = await preflightProxyStream(initialStream.url);
+  if (!preflight) {
+    // Preflight itself failed (network, CORS, offline). Don't
+    // pretend we know the stream is bad — let the audio element
+    // surface the real error.
+    return initialStream;
+  }
+  if (preflight.status === 403) {
+    // eslint-disable-next-line no-console
+    console.warn(
+      `[player] proxy preflight 403 for ${track.id} (URL signature likely expired); ` +
+        `re-resolving via yt-dlp…`,
+    );
+    const fresh = await window.api.sources.playTrack({ track });
+    if (!isProxyStream(fresh)) {
+      // The re-resolve returned a non-proxy stream (unusual but
+      // possible). Skip the second preflight; just use the
+      // fresh stream.
+      return fresh;
+    }
+    const preflight2 = await preflightProxyStream(fresh.url);
+    if (preflight2?.status === 403) {
+      throw new Error(
+        `YouTube stream signature expired and re-resolve still returned 403. ` +
+          `Try again in a few minutes.`,
+      );
+    }
+    return fresh;
+  }
+  if (preflight.status >= 500) {
+    throw new Error(
+      `Audio proxy upstream returned ${preflight.status}. ` +
+        `The remote source appears to be down.`,
+    );
+  }
+  return initialStream;
+}
+
 async function preloadNextInQueue(get: PlayerGet): Promise<void> {
   const { queue, queueIndex, shuffle, repeat, currentTrack } = get();
   if (shuffle || queue.length === 0) return;
@@ -294,15 +416,24 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
       useSessionStore.getState().add(track);
       set({ currentTrack: track, error: null, loading: true, preloadTriggeredTrackId: null });
       try {
-        const stream = await window.api.sources.playTrack({ track });
+        const initialStream = await window.api.sources.playTrack({ track });
         // eslint-disable-next-line no-console
         console.log(
           `[player] playTrack(${track.id}) ` +
-            `url=${stream.url.slice(0, 80)}… ` +
-            `protocol=${stream.protocol} ` +
-            `requiresProxy=${stream.requiresProxy ?? false} ` +
-            `fallbackUrl=${stream.fallbackUrl ? 'yes' : 'no'}`,
+            `url=${initialStream.url.slice(0, 80)}… ` +
+            `protocol=${initialStream.protocol} ` +
+            `requiresProxy=${initialStream.requiresProxy ?? false} ` +
+            `fallbackUrl=${initialStream.fallbackUrl ? 'yes' : 'no'}`,
         );
+        // Proxy streams (YouTube / googlevideo.com) HEAD-preflight
+        // the URL before handing it to the audio element. A 403
+        // means the signed URL expired (~6h lifetime) and the
+        // audio element would otherwise report an opaque
+        // MEDIA_ERR_SRC_NOT_SUPPORTED. We re-resolve via the IPC
+        // `playTrack` call (which re-runs yt-dlp) and try once
+        // more with the fresh stream. See `resolveStreamWithRetry`
+        // for the full algorithm.
+        const stream = await resolveStreamWithRetry(track, initialStream);
         set({ stream });
         try {
           // Spotify Premium (sdk protocol) needs the connected Web
