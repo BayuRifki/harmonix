@@ -43,9 +43,8 @@ export function createMainWindow(): BrowserWindow {
     minWidth: 960,
     minHeight: 600,
     show: false,
-    frame: false,
-    titleBarStyle: 'hidden',
     backgroundColor: '#0a0a0a',
+    autoHideMenuBar: true,
     webPreferences: {
       preload: join(__dirname, '../preload/index.mjs'),
       contextIsolation: true,
