@@ -81,15 +81,17 @@ export function SortableNavItem({
             <GripVertical size={11} aria-hidden />
           </span>
           <Icon size={18} strokeWidth={1.5} className="shrink-0" aria-hidden />
-          <span className="truncate pr-5">{label}</span>
-          {hint && (
-            <span
-              className="text-[10px] text-zinc-500 truncate font-normal"
-              data-testid={`sidebar-nav-hint-${to.replace(/\//g, '_') || 'home'}`}
-            >
-              {hint}
-            </span>
-          )}
+          <div className="min-w-0 flex-1 flex flex-col pr-5">
+            <span className="truncate text-sm leading-tight">{label}</span>
+            {hint && (
+              <span
+                className="text-[10px] text-zinc-500 truncate font-normal leading-tight"
+                data-testid={`sidebar-nav-hint-${to.replace(/\//g, '_') || 'home'}`}
+              >
+                {hint}
+              </span>
+            )}
+          </div>
           {enabled && isDragging && <span className="sr-only"> (dragging)</span>}
         </>
       )}

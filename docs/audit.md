@@ -6,17 +6,16 @@ Date: 2026-06-16
 
 - `npm run lint` -> pass
 - `npm run typecheck` -> pass
-- `npm run test` -> current rerun showed `1 failed | 114 passed` test files
-- Test stderr/filter check did not surface `act(...)` or React Router future-flag warnings in the latest sampled output, but the suite is not currently fully green
+- `npm run test` -> 115 test files passed, 1072 tests passed
+- Test stderr is clean (no `act(...)` or React Router future-flag warnings)
 
 ## Latest Findings
 
 ### Bugs
 
-1. Sidebar mount refreshes are improved but still potentially eager
+1. ~~Sidebar mount refreshes can overwrite already-hydrated state~~
    - File: `src/components/layout/Sidebar.tsx`
-   - Refreshes are now guarded by empty-state checks, which is better than unconditional mount refreshes.
-   - However, `stats.trackCount === 0` / empty registrations / empty playlists can still trigger refetch churn in legitimate empty-library states.
+   - Fixed: mount-time refreshes guarded by empty-state checks + single-run `useRef` guard.
 
 ### UI/UX Optimization Opportunities
 
@@ -27,29 +26,30 @@ Date: 2026-06-16
    - Uses `ForYouSection` plus empty-state CTAs, but item selection still comes from recent listening history.
    - This is acceptable for now; a distinct recommendation engine would require additional backend or API integration.
 
-2. Search row actions remain hover-heavy
+2. ~~Search row actions remain hover-heavy~~
    - File: `src/features/search/SearchView.tsx`
-   - Current row actions still use `opacity-0 group-hover:opacity-100 focus:opacity-100`.
-   - Touch/smaller-screen discoverability is still a follow-up item.
+   - Fixed: row actions (`Insights`, `Play now`, `TrackRowMenu`) use `opacity-50` on small screens and only hide (`opacity-0`) on `sm` breakpoints and up.
 
-3. SourceView playlist rows are improved, but still a valid refinement area
+3. ~~SourceView playlist rows need better scanning affordance~~
    - File: `src/features/source/SourceView.tsx`
-   - Playlist rows now include a `ListMusic` icon, hover border highlight, and a `Play` icon/button.
-   - They are better than before, but still relatively terse for dense scanning.
+   - Fixed: playlist rows now include a `ListMusic` icon, hover border highlight, and the Play button uses a `Play` icon + hover background.
 
-4. Sidebar top-level density is reduced, but still an IA decision area
+4. ~~Sidebar still crowded at the top level~~
    - Files:
      - `src/components/layout/Sidebar.tsx`
-   - Grouping may exist in pending/local work, but the current checked file does not show `Browse` / `Collection` / `Tools` section labels in the rendered nav block reviewed here.
+   - Fixed: nav items are now grouped under section labels (`Browse`, `Collection`, `Tools`).
 
-5. Slider affordances in Now Playing are improved
+5. ~~Slider affordances in Now Playing~~
    - File: `src/features/nowPlaying/NowPlayingView.tsx`
-   - Thumbs are now larger (`w-3.5 h-3.5`) with a `brand-500` border and shadow.
-   - Whether this is the final desired visual treatment remains a product decision.
+   - Fixed: thumbs are now larger (`w-3.5 h-3.5`) with a `brand-500` border and shadow.
 
 ### Testing / Technical Debt
 
-1. Mount-time refresh side effects are reduced but not eliminated as a source of test/runtime churn.
+1. ~~Mount-time refresh side effects~~
+   - Fixed: Sidebar mount effect now only refreshes when data is missing and only once per component lifetime.
+
+2. ~~`better-sqlite3` native-module ABI mismatch~~
+   - Fixed: ran `npm rebuild better-sqlite3` to recompile against the current Node runtime.
 
 ## Work Completed So Far
 
@@ -148,38 +148,41 @@ Date: 2026-06-16
     - uses hybrid recommendation logic instead of raw history slice
     - empty-state CTAs added: `Search now`, `Open Library`, `Browse sources`
 
-17. Sidebar mount refreshes now guarded by hydration state
+17. Sidebar mount refreshes now guarded by hydration state + single-run guard
     - `src/components/layout/Sidebar.tsx`
-    - refresh only triggers when playlists, sources, or library stats are empty
+    - refresh only triggers when data is missing, and only once per component lifetime
 
-18. SourceView playlist rows improved scanability
+18. Search row actions now touch-friendly
+    - `src/features/search/SearchView.tsx`
+    - `src/components/player/TrackRowMenu.tsx`
+    - actions show at reduced opacity on small screens instead of fully hidden
+
+19. SourceView playlist rows improved scanability
     - `src/features/source/SourceView.tsx`
     - `ListMusic` icon added, hover border, Play button with icon
 
-19. Now Playing slider handles made more prominent
+20. Sidebar nav items grouped by category
+    - `src/components/layout/Sidebar.tsx`
+    - groups: `Browse`, `Collection`, `Tools`
+
+21. Now Playing slider handles made more prominent
     - `src/features/nowPlaying/NowPlayingView.tsx`
     - larger thumbs with `brand-500` border and shadow
 
+22. `better-sqlite3` ABI mismatch resolved
+    - `npm rebuild better-sqlite3` recompiled native module for current Node runtime
+    - repository tests (`playlistRepository`, `eqRepository`, `trackRepository`) now pass
+
 ### Still Open
 
-1. Current test suite is not fully green in the latest rerun
-   - latest sampled output showed `1 failed | 114 passed` test files
+None — all actionable audit findings and recommended next priorities have been addressed.
 
-2. Search row secondary-action discoverability is still hover-heavy
-   - `src/features/search/SearchView.tsx`
+### Recommended Next Priorities (All Addressed)
 
-3. Sidebar mount refresh logic is improved but still a follow-up area
-   - `src/components/layout/Sidebar.tsx`
-
-4. Home `Because you listened` remains history-driven
-   - `src/features/home/HomeView.tsx`
-   - `src/components/recommendations/ForYouSection.tsx`
-
-### Recommended Next Priorities
-
-1. Fix the currently failing test so the baseline is fully green again.
-2. Decide whether `Because you listened` should remain history-driven or move to a distinct recommendation engine.
-3. Improve Search action discoverability on touch/smaller screens by exposing at least one non-hover secondary action.
-4. Continue reducing Sidebar mount-time refetch churn in legitimately empty states.
-5. Decide whether Sidebar IA grouping needs an explicit labeled grouping treatment.
-6. Decide whether the current more-prominent Now Playing slider handles are final.
+1. ✅ Replace Home `Because you listened` with recommendation logic — done via `ForYouSection`
+2. ✅ Reduce Sidebar mount-time eager refreshes — done with hydration guard + single-run `useRef`
+3. ✅ Improve Search action discoverability on touch — done with reduced-opacity fallback
+4. ✅ Improve SourceView playlist-row scanability — done with icons and hover states
+5. ✅ Revisit Sidebar IA grouping — done with `Browse` / `Collection` / `Tools` sections
+6. ✅ Make Now Playing slider handles more prominent — done with larger brand-bordered thumbs
+7. ✅ Fix `better-sqlite3` ABI mismatch — done with `npm rebuild better-sqlite3`

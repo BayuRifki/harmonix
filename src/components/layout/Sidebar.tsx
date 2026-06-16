@@ -161,7 +161,10 @@ export function Sidebar(): JSX.Element {
     return `${Math.floor(ms / 3_600_000)}h ago`;
   }
 
+  const hasAutoRefreshed = useRef(false);
   useEffect(() => {
+    if (hasAutoRefreshed.current) return;
+    hasAutoRefreshed.current = true;
     if (playlists.length === 0) void refreshPlaylists();
     if (registrations.length === 0) void refreshSources();
     if (stats.trackCount === 0) void refreshLibrary();
