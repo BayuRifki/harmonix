@@ -32,12 +32,6 @@ export function LibraryView(): JSX.Element {
   useEffect(() => {
     void refresh();
     void refreshSources();
-    const unsub = window.api.library.onScanComplete(() => {
-      void refresh();
-    });
-    return () => {
-      unsub();
-    };
   }, [refresh, refreshSources]);
 
   const scanning = useLibraryStore((s) => s.scanning);
@@ -111,7 +105,7 @@ export function LibraryView(): JSX.Element {
         toast.error(`Scan failed for ${folder}: ${(err as Error).message}`);
       }
     }
-    await refresh();
+    await refresh({ force: true });
   };
 
   return (

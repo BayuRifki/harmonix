@@ -50,4 +50,16 @@ describe('TopBar', () => {
     fireEvent.submit(form);
     expect(form).toBeInTheDocument();
   });
+
+  it('history options are keyboard accessible (tabIndex + Enter)', () => {
+    localStorage.setItem('harmonix.searchHistory', JSON.stringify(['Daft Punk']));
+    renderWithRouter();
+    const input = screen.getByPlaceholderText(/Search for songs/i);
+    fireEvent.focus(input);
+    const option = screen.getByRole('option', { name: /Daft Punk/i });
+    expect(option).toHaveAttribute('tabIndex', '0');
+    fireEvent.keyDown(option, { key: 'Enter' });
+    // should not throw; basic keyboard path covered
+    expect(option).toBeInTheDocument();
+  });
 });

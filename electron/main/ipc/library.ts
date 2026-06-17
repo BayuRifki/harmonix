@@ -39,10 +39,17 @@ export function registerLibraryHandlers(getMainWindow: () => BrowserWindow | nul
   ipcMain.handle('library:scan', async (evt, folder: string) => {
     const local = getLocalSource();
     const sender = BrowserWindow.fromWebContents(evt.sender);
-    const insertPromise = local.scanFolder(folder);
-    void insertPromise.then((count) => {
-      sender?.webContents.send('library:scan-complete', { folder, count });
-    });
+    local
+      .scanFolder(folder)
+      .then((count) => {
+        sender?.webContents.send('library:scan-complete', { folder, count });
+      })
+      .catch((err) => {
+        sender?.webContents.send('library:scan-error', {
+          folder,
+          error: (err as Error).message,
+        });
+      });
     return { folder, started: true };
   });
 

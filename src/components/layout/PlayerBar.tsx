@@ -42,10 +42,6 @@ function sourceLabel(source: string): string {
   return source;
 }
 
-interface PlayerBarProps {
-  isHomePage?: boolean;
-}
-
 interface ArtworkProps {
   url: string;
   alt: string;
@@ -126,7 +122,7 @@ function VolumeIcon({ volume }: { volume: number }): JSX.Element {
   return <Volume2 size={16} />;
 }
 
-export function PlayerBar({ isHomePage = false }: PlayerBarProps): JSX.Element {
+export function PlayerBar(): JSX.Element {
   const navigate = useSafeNavigate();
   const currentTrack = usePlayerStore((s) => s.currentTrack);
   const volume = usePlayerStore((s) => s.volume);
@@ -301,20 +297,18 @@ export function PlayerBar({ isHomePage = false }: PlayerBarProps): JSX.Element {
           )}
         </div>
 
-        {/* Center: Transport controls + seek - HIDDEN on Home page */}
-        {!isHomePage && (
-          <div className="flex flex-col items-center gap-1 w-1/3">
-            <TransportControls variant="compact" />
-            {error && (
-              <p className="text-xs text-red-400 bg-red-500/10 px-2 py-0.5 rounded animate-scale-in">
-                {error}
-              </p>
-            )}
-          </div>
-        )}
+        {/* Center: Transport controls + seek */}
+        <div className="flex flex-col items-center gap-1 w-1/3">
+          <TransportControls variant="compact" />
+          {error && (
+            <p className="text-xs text-red-400 bg-red-500/10 px-2 py-0.5 rounded animate-scale-in">
+              {error}
+            </p>
+          )}
+        </div>
 
         {/* Right: Volume + Queue */}
-        <div className={`flex items-center gap-2 ${isHomePage ? 'w-2/3' : 'w-1/3'} justify-end`}>
+        <div className="flex items-center gap-2 w-1/3 justify-end">
           <button
             type="button"
             onClick={() => setQueueOpen(true)}

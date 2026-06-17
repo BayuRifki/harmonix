@@ -137,6 +137,7 @@ export interface HarmonixApi {
     getStats(): Promise<LibraryStats>;
     playTrack(trackId: string): Promise<StreamInfo>;
     onScanComplete(handler: (event: ScanCompleteEvent) => void): () => void;
+    onScanError(handler: (event: { folder: string; error: string }) => void): () => void;
   };
   sources: {
     list(): Promise<SourceRegistration[]>;
@@ -339,6 +340,13 @@ const api: HarmonixApi = {
       };
       ipcRenderer.on('library:scan-complete', listener);
       return () => ipcRenderer.removeListener('library:scan-complete', listener);
+    },
+    onScanError: (handler) => {
+      const listener = (_e: Electron.IpcRendererEvent, payload: { folder: string; error: string }): void => {
+        handler(payload);
+      };
+      ipcRenderer.on('library:scan-error', listener);
+      return () => ipcRenderer.removeListener('library:scan-error', listener);
     },
   },
   sources: {
