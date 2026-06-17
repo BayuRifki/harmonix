@@ -210,10 +210,17 @@ export function TopBar(): JSX.Element {
                           key={h}
                           role="option"
                           aria-selected={false}
-                          className="group flex items-center gap-2 px-3 py-2 hover:bg-zinc-800/60 cursor-pointer"
+                          tabIndex={0}
+                          className="group flex items-center gap-2 px-3 py-2 hover:bg-zinc-800/60 cursor-pointer outline-none focus:bg-zinc-800/60"
                           onMouseDown={(e) => {
                             e.preventDefault();
                             runSearch(h);
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              runSearch(h);
+                            }
                           }}
                         >
                           <Search size={12} className="text-zinc-600 shrink-0" aria-hidden />

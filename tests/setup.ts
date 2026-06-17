@@ -161,6 +161,7 @@ export function installMockWindowApi(opts: MockWindowApiOptions = {}): {
       getStats: async () => ({ trackCount: 0, albumCount: 0, artistCount: 0 }),
       playTrack: async () => ({ url: 'http://test', protocol: 'http' }),
       onScanComplete: () => () => undefined,
+      onScanError: () => () => undefined,
       ...opts.library,
     },
     auth: {

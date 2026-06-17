@@ -32,7 +32,7 @@ interface LibraryState {
   setSearchQuery: (q: string) => void;
   setActiveTab: (tab: 'tracks' | 'albums' | 'artists') => void;
 
-  refresh: () => Promise<void>;
+  refresh: (opts?: { force?: boolean }) => Promise<void>;
   pickAndScan: () => Promise<void>;
   scanFolder: (folder: string) => Promise<void>;
   removeFolder: (folder: string) => Promise<void>;
@@ -70,14 +70,14 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
   setSearchQuery: (searchQuery) => set({ searchQuery }),
   setActiveTab: (activeTab) => set({ activeTab }),
 
-  refresh: async () => {
+  refresh: async (opts?: { force?: boolean }) => {
     // Skip when we've already populated the store. HomeView mounts
     // on every navigation back to `/` and previously re-issued the
     // full refresh (tracks/albums/artists/folders/stats = 5 IPC
     // round trips + ~5 MB of JSON to clone back into the V8 heap
     // each time). Refresh only happens on explicit user actions
     // (scan, remove, manual reload).
-    if (get().tracks.length > 0 || get().loading) return;
+    if (!opts?.force && (get().tracks.length > 0 || get().loading)) return;
     set({ loading: true });
     try {
       // 500 tracks is enough to fill any reasonable LibraryView
@@ -109,17 +109,17 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
     set({ scanning: true, scanProgress: { ...emptyProgress, done: false } });
     try {
       await window.api.library.scan(folder);
-      await get().refresh();
+      // scanning stays true until the main process finishes the scan
+      // and emits `library:scan-complete` (or `library:scan-error`).
     } catch (err) {
       console.error('[library] scan failed:', err);
-    } finally {
       set({ scanning: false });
     }
   },
 
   removeFolder: async (folder: string) => {
     await window.api.library.removeFolder(folder);
-    await get().refresh();
+    await get().refresh({ force: true });
   },
 
   startScanProgressPolling: () => {
@@ -168,3 +168,18 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
     };
   },
 }));
+
+if (typeof window !== 'undefined' && window.api?.library?.onScanComplete) {
+  window.api.library.onScanComplete(() => {
+    const store = useLibraryStore.getState();
+    store.setScanning(false);
+    void store.refresh({ force: true });
+  });
+}
+
+if (typeof window !== 'undefined' && window.api?.library?.onScanError) {
+  window.api.library.onScanError(({ error }) => {
+    useLibraryStore.getState().setScanning(false);
+    useToastStore.getState().error(`Scan failed: ${error}`);
+  });
+}

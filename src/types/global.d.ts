@@ -140,6 +140,7 @@ export interface HarmonixApi {
     getStats(): Promise<LibraryStats>;
     playTrack(trackId: string): Promise<StreamInfo>;
     onScanComplete(handler: (event: ScanCompleteEvent) => void): () => void;
+    onScanError(handler: (event: { folder: string; error: string }) => void): () => void;
   };
   sources: {
     list(): Promise<SourceRegistration[]>;

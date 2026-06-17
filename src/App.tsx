@@ -268,7 +268,7 @@ function MainApp(): JSX.Element {
           </main>
           {showRightRail && <RightRail />}
         </div>
-        <PlayerBar isHomePage={isHome} />
+        <PlayerBar />
         <ToastContainer />
         <CommandPalette />
         <KeyboardHelpOverlay />
