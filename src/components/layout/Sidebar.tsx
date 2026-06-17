@@ -360,38 +360,17 @@ export function Sidebar(): JSX.Element {
 
         {recentsToShow.length > 0 && (
           <div className="mt-4 pt-3 border-t border-zinc-800/40">
-            <div
-              role="button"
-              tabIndex={0}
-              onClick={() => toggleSection(RECENTS_SECTION_KEY)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  toggleSection(RECENTS_SECTION_KEY);
-                }
-              }}
-              aria-expanded={!recentsCollapsed}
-              aria-controls="sidebar-recents-section"
-              className="w-full flex items-center justify-between px-3 mb-1.5 group cursor-pointer"
-            >
-              <p className="text-[10px] uppercase tracking-wider text-zinc-600 font-medium inline-flex items-center gap-1.5">
+            <div className="flex items-center justify-between px-3 mb-1.5">
+              <button
+                type="button"
+                id="sidebar-recents-header"
+                onClick={() => toggleSection(RECENTS_SECTION_KEY)}
+                aria-expanded={!recentsCollapsed}
+                aria-controls="sidebar-recents-section"
+                className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-zinc-600 font-medium hover:text-zinc-400 transition-colors focus-ring rounded"
+              >
                 <Clock size={10} aria-hidden />
                 Recents
-              </p>
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  tabIndex={0}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    clearRecents();
-                  }}
-                  className="p-0.5 rounded text-zinc-600 hover:text-zinc-300 transition-colors focus-ring"
-                  aria-label="Clear recents"
-                  title="Clear recents"
-                >
-                  <X size={11} />
-                </button>
                 <ChevronDown
                   size={12}
                   className={`text-zinc-600 transition-transform duration-150 ${
@@ -399,7 +378,16 @@ export function Sidebar(): JSX.Element {
                   }`}
                   aria-hidden
                 />
-              </div>
+              </button>
+              <button
+                type="button"
+                onClick={() => clearRecents()}
+                className="p-0.5 rounded text-zinc-600 hover:text-zinc-300 transition-colors focus-ring"
+                aria-label="Clear recents"
+                title="Clear recents"
+              >
+                <X size={11} />
+              </button>
             </div>
             {!recentsCollapsed && (
               <div id="sidebar-recents-section" className="space-y-0.5">
@@ -420,32 +408,28 @@ export function Sidebar(): JSX.Element {
         )}
 
         <div className="mt-4 pt-3 border-t border-zinc-800/60">
-          <div
-            role="button"
-            tabIndex={0}
-            onClick={() => toggleSection(PLAYLISTS_SECTION_KEY)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                toggleSection(PLAYLISTS_SECTION_KEY);
-              }
-            }}
-            aria-expanded={!playlistsCollapsed}
-            aria-controls="sidebar-playlists-section"
-            className="w-full flex items-center justify-between px-3 mb-2 focus-ring rounded cursor-pointer"
-          >
-            <p className="text-[10px] uppercase tracking-wider text-zinc-600 font-medium">
-              Your Playlists
-            </p>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center justify-between px-3 mb-2">
               <button
                 type="button"
-                tabIndex={0}
+                id="sidebar-playlists-header"
+                onClick={() => toggleSection(PLAYLISTS_SECTION_KEY)}
+                aria-expanded={!playlistsCollapsed}
+                aria-controls="sidebar-playlists-section"
+                className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-zinc-600 font-medium hover:text-zinc-400 transition-colors focus-ring rounded"
+              >
+                Your Playlists
+                <ChevronDown
+                  size={12}
+                  className={`text-zinc-600 transition-transform duration-150 ${
+                    playlistsCollapsed ? '-rotate-90' : ''
+                  }`}
+                  aria-hidden
+                />
+              </button>
+              <button
+                type="button"
                 disabled={creating}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  void handleCreatePlaylist();
-                }}
+                onClick={() => void handleCreatePlaylist()}
                 className="p-0.5 rounded text-zinc-500 hover:text-brand-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-ring"
                 aria-label="Create playlist"
                 title="Create playlist"
@@ -453,15 +437,7 @@ export function Sidebar(): JSX.Element {
               >
                 <Plus size={14} />
               </button>
-              <ChevronDown
-                size={12}
-                className={`text-zinc-600 transition-transform duration-150 ${
-                  playlistsCollapsed ? '-rotate-90' : ''
-                }`}
-                aria-hidden
-              />
             </div>
-          </div>
           {!playlistsCollapsed && (
             <div id="sidebar-playlists-section">
               {visiblePlaylists.length === 0 ? (

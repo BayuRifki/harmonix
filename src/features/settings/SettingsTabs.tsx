@@ -93,7 +93,9 @@ export function SettingsTabs({ activeTab }: SettingsTabsProps = {}): JSX.Element
               key={tab.id}
               to={`/settings/${tab.path}`}
               role="tab"
+              id={`settings-tab-${tab.id}`}
               aria-selected={isActive}
+              aria-controls={`settings-tabpanel-${tab.id}`}
               data-testid={`settings-tab-${tab.id}`}
               className={({ isActive: navActive }): string =>
                 [
@@ -165,6 +167,7 @@ export function SettingsTabs({ activeTab }: SettingsTabsProps = {}): JSX.Element
        */}
       <div
         role="tabpanel"
+        id="settings-tabpanel-appearance"
         aria-labelledby="settings-tab-appearance"
         hidden={resolvedTab !== 'appearance'}
       >
@@ -172,13 +175,19 @@ export function SettingsTabs({ activeTab }: SettingsTabsProps = {}): JSX.Element
           <AppearanceTab />
         </div>
       </div>
-      <div role="tabpanel" aria-labelledby={`settings-tab-audio`} hidden={resolvedTab !== 'audio'}>
+      <div
+        role="tabpanel"
+        id="settings-tabpanel-audio"
+        aria-labelledby={`settings-tab-audio`}
+        hidden={resolvedTab !== 'audio'}
+      >
         <div data-testid="settings-tab-content-audio">
           <AudioTab />
         </div>
       </div>
       <div
         role="tabpanel"
+        id="settings-tabpanel-shortcuts"
         aria-labelledby={`settings-tab-shortcuts`}
         hidden={resolvedTab !== 'shortcuts'}
       >
@@ -188,6 +197,7 @@ export function SettingsTabs({ activeTab }: SettingsTabsProps = {}): JSX.Element
       </div>
       <div
         role="tabpanel"
+        id="settings-tabpanel-performance"
         aria-labelledby={`settings-tab-performance`}
         hidden={resolvedTab !== 'performance'}
       >
@@ -197,6 +207,7 @@ export function SettingsTabs({ activeTab }: SettingsTabsProps = {}): JSX.Element
       </div>
       <div
         role="tabpanel"
+        id="settings-tabpanel-sources"
         aria-labelledby={`settings-tab-sources`}
         hidden={resolvedTab !== 'sources'}
       >

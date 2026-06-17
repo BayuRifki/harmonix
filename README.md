@@ -164,7 +164,7 @@ Most music players lock you into a single ecosystem. Harmonix breaks that wall:
 | Build     | Vite + electron-vite | 5 / 2                      |
 | Bundler   | esbuild              | 0.28 (pinned via override) |
 | Audio     | Web Audio API        | native                     |
-| Local DB  | sql.js (SQLite WASM) | 1.12                       |
+| Local DB  | better-sqlite3       | 12 (native, rebuilt for Electron/Node) |
 | YT Music  | youtubei.js + yt-dlp | 17 / ext.                  |
 | Packaging | electron-builder     | 25                         |
 | Testing   | Vitest + Playwright  | 2 / 1.48                   |
@@ -203,6 +203,8 @@ npm run dist:linux # Linux
 
 > **Memory note**: The dev/build/preview scripts pre-allocate a Node.js V8 heap of 8 GB. This matches the main process runtime config (`HARMONIX_MAX_HEAP_MB=6144` in `electron/main/index.ts`) plus a generous buffer for the build pipeline. If you need to lower it, edit the script flags in `package.json` or set `HARMONIX_MAX_HEAP_MB` in `.env` — the minimum safe value is ~4 GB for full builds.
 
+> **Native module note**: The local database uses `better-sqlite3`, a native addon compiled against a specific ABI. It is rebuilt automatically — `postinstall` (`electron-builder install-app-deps`) wires it for Electron, and `predev`/`prebuild`/`pretest` run `@electron/rebuild` / `npm rebuild better-sqlite3`. You usually don't need to do anything. If you switch Node versions or hit a `NODE_MODULE_VERSION` mismatch, run `npm run rebuild:electron` (for the app) or `npm run rebuild:native` (for the test runner).
+
 ---
 
 ## Project Structure
@@ -219,7 +221,7 @@ harmonix/
 ├── electron/              # Electron main process
 │   ├── main/              # Main process entry, IPC, sources, DB
 │   │   ├── sources/       # SourceAdapter implementations (one per source)
-│   │   ├── db/            # SQL.js repository layer
+│   │   ├── db/            # better-sqlite3 repository layer (native module, rebuilt for Electron/Node)
 │   │   └── ipc/           # IPC handlers
 │   └── preload/           # contextBridge preload script
 ├── src/                   # React renderer

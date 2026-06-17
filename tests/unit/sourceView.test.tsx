@@ -55,12 +55,20 @@ function renderWithId(id: string): void {
 
 describe('SourceView', () => {
   beforeEach(() => {
-    useSourcesStore.setState({ registrations: [], loading: false });
+    useSourcesStore.setState({ registrations: [], loading: false, hasFetched: true });
   });
 
-  it('shows not found for unknown source id', () => {
+  it('shows loading skeleton before first fetch completes', () => {
     installMockWindowApi();
-    useSourcesStore.setState({ registrations: [reg({ id: 'spotify', name: 'Spotify' })] });
+    useSourcesStore.setState({ registrations: [], hasFetched: false });
+    renderWithId('spotify');
+    expect(screen.getByTestId('source-loading')).toBeInTheDocument();
+    expect(screen.queryByText(/Source not found/i)).not.toBeInTheDocument();
+  });
+
+  it('shows not found for unknown source id after fetch', () => {
+    installMockWindowApi();
+    useSourcesStore.setState({ registrations: [reg({ id: 'spotify', name: 'Spotify' })], hasFetched: true });
     renderWithId('nonexistent');
     expect(screen.getByText(/Source not found/i)).toBeInTheDocument();
   });

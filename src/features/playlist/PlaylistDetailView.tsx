@@ -56,43 +56,43 @@ function TrackRow({
         onDragOver(position);
       }}
       onDrop={() => onDrop(position)}
-      onClick={() => onPlay(position)}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          onPlay(position);
-        }
-      }}
-      role="button"
-      tabIndex={0}
       onMouseEnter={() => setHovering(true)}
       onMouseLeave={() => setHovering(false)}
       className={`flex items-center gap-3 px-3 py-2 rounded border-b border-zinc-900 cursor-grab ${
         isCurrent ? 'bg-zinc-900' : ''
       } ${isDragOver ? 'border-t-2 border-t-brand-500' : ''} ${hovering ? 'bg-zinc-900/60' : ''}`}
     >
-      <span className="w-6 text-xs text-zinc-500 text-right tabular-nums">
+      <span className="w-6 text-xs text-zinc-500 text-right tabular-nums shrink-0">
         {isCurrent && isPlaying ? '▶' : position + 1}
       </span>
-      <div className="min-w-0 flex-1">
-        <p className="text-sm text-zinc-100 truncate">{track.title}</p>
-        <p className="text-xs text-zinc-500 truncate">
-          {track.artists.map((a) => a.name).join(', ') || 'Unknown'}
-          {track.album && ` · ${track.album.title}`}
-        </p>
-      </div>
-      <code className="text-[10px] text-zinc-500 bg-zinc-800 px-1.5 py-0.5 rounded">
+      {/* Primary action: play this track */}
+      <button
+        type="button"
+        onClick={() => onPlay(position)}
+        className="flex items-center gap-0 min-w-0 flex-1 text-left focus-ring rounded -ml-0.5 pl-0.5 py-0.5 hover:bg-zinc-800/60 transition-colors"
+        aria-label={`Play ${track.title} by ${track.artists.map((a) => a.name).join(', ')}`}
+      >
+        <div className="min-w-0 flex-1">
+          <p className="text-sm text-zinc-100 truncate">{track.title}</p>
+          <p className="text-xs text-zinc-500 truncate">
+            {track.artists.map((a) => a.name).join(', ') || 'Unknown'}
+            {track.album && ` · ${track.album.title}`}
+          </p>
+        </div>
+      </button>
+      <code className="text-[10px] text-zinc-500 bg-zinc-800 px-1.5 py-0.5 rounded shrink-0">
         {track.source}
       </code>
-      <span className="text-xs text-zinc-500 tabular-nums w-10 text-right">
+      <span className="text-xs text-zinc-500 tabular-nums w-10 text-right shrink-0">
         {formatDuration(track.durationMs)}
       </span>
+      {/* Secondary actions: separate sibling buttons */}
       <button
         type="button"
         onClick={() => onShowInsights(track)}
-        className={`text-zinc-500 hover:text-brand-400 text-sm px-2 ${
+        className={`text-zinc-500 hover:text-brand-400 text-sm px-2 shrink-0 ${
           hovering ? 'opacity-100' : 'opacity-0'
-        } transition`}
+        } transition focus-ring rounded`}
         title="Show track insights"
         aria-label={`Show insights for ${track.title}`}
       >
@@ -101,9 +101,9 @@ function TrackRow({
       <button
         type="button"
         onClick={() => onRemove(position)}
-        className={`text-zinc-500 hover:text-red-400 text-sm px-2 ${
+        className={`text-zinc-500 hover:text-red-400 text-sm px-2 shrink-0 ${
           hovering ? 'opacity-100' : 'opacity-0'
-        } transition`}
+        } transition focus-ring rounded`}
         title="Remove from playlist"
         aria-label="Remove from playlist"
       >

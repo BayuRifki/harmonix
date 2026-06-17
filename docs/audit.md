@@ -1,6 +1,6 @@
 # Harmonix Audit
 
-Date: 2026-06-16
+Date: 2026-06-17
 
 ## Baseline
 
@@ -13,43 +13,56 @@ Date: 2026-06-16
 
 ### Bugs
 
-1. ~~Sidebar mount refreshes can overwrite already-hydrated state~~
-   - File: `src/components/layout/Sidebar.tsx`
-   - Fixed: mount-time refreshes guarded by empty-state checks + single-run `useRef` guard.
+1. Reality check: previously reported high-priority bugs are now fixed in the current codebase
+   - Verified fixes:
+     - `src/features/settings/SettingsTabs.tsx` now has proper `id` / `aria-controls` / `aria-labelledby` wiring for tabs and tabpanels.
+     - `src/App.tsx` now includes `path="*"` catch-all routes plus `RouteNotFound` recovery UI.
+     - `src/features/source/SourceView.tsx` now defers the `not found` state behind `hasFetched` and shows a loading state first.
+     - `README.md` now documents `better-sqlite3` and native rebuild expectations correctly.
+   - Conclusion:
+     - These items should remain in audit history as resolved work, not as active findings.
 
 ### UI/UX Optimization Opportunities
 
-1. Home `Because you listened` is improved, but still history-driven rather than a distinct recommendation engine
-   - Files:
-     - `src/features/home/HomeView.tsx`
-     - `src/components/recommendations/ForYouSection.tsx`
-   - Uses `ForYouSection` plus empty-state CTAs, but item selection still comes from recent listening history.
-   - This is acceptable for now; a distinct recommendation engine would require additional backend or API integration.
-
-2. ~~Search row actions remain hover-heavy~~
-   - File: `src/features/search/SearchView.tsx`
-   - Fixed: row actions (`Insights`, `Play now`, `TrackRowMenu`) use `opacity-50` on small screens and only hide (`opacity-0`) on `sm` breakpoints and up.
-
-3. ~~SourceView playlist rows need better scanning affordance~~
-   - File: `src/features/source/SourceView.tsx`
-   - Fixed: playlist rows now include a `ListMusic` icon, hover border highlight, and the Play button uses a `Play` icon + hover background.
-
-4. ~~Sidebar still crowded at the top level~~
-   - Files:
-     - `src/components/layout/Sidebar.tsx`
-   - Fixed: nav items are now grouped under section labels (`Browse`, `Collection`, `Tools`).
-
-5. ~~Slider affordances in Now Playing~~
-   - File: `src/features/nowPlaying/NowPlayingView.tsx`
-   - Fixed: thumbs are now larger (`w-3.5 h-3.5`) with a `brand-500` border and shadow.
+1. Reality check: previously reported UI/UX issues are now fixed in the current codebase
+   - Verified fixes:
+     - `src/App.tsx` now renders `id="main-content"` in the `/now-playing` branch, so the skip link works there too.
+     - `src/components/layout/Sidebar.tsx` now uses real sibling buttons for disclosure and actions instead of nested interactive wrappers.
+     - `src/features/playlist/PlaylistDetailView.tsx` now separates the primary play action from secondary row actions.
+     - `src/components/layout/PlayerBar.tsx` now supports focus-driven expansion in addition to hover and pinning.
+   - Conclusion:
+     - These should also be treated as resolved items, not active optimization gaps.
 
 ### Testing / Technical Debt
 
-1. ~~Mount-time refresh side effects~~
-   - Fixed: Sidebar mount effect now only refreshes when data is missing and only once per component lifetime.
+1. Current checks are healthy, but the test command should be re-verified after the next fixes land
+   - Current local verification from this audit pass:
+     - `npm run lint` -> pass
+     - `npm run typecheck` -> pass
+     - `npm run build` -> pass
+   - Note:
+     - `npm run test` previously passed per baseline, but was not re-captured cleanly during this pass because the shell output surfaced native rebuild warning noise before final results.
+   - Recommendation:
+     - Re-run `npm run test` after addressing the open findings and append the fresh final count to this document.
 
-2. ~~`better-sqlite3` native-module ABI mismatch~~
-   - Fixed: ran `npm rebuild better-sqlite3` to recompile against the current Node runtime.
+2. Documentation and code have drifted apart in a few important onboarding areas
+   - Files:
+     - `README.md`
+     - `docs/audit.md`
+   - Evidence:
+     - This was true earlier in the audit cycle, but the highest-impact README drift has now been corrected.
+     - Remaining debt is mainly about keeping audit conclusions synchronized with the fast-moving codebase.
+   - Recommendation:
+     - Treat docs freshness as part of release-readiness, especially when native modules and platform-specific setup are involved.
+
+3. Test coverage does not yet appear to explicitly lock every verified regression
+   - Evidence from quick grep:
+     - `tests/unit/sourceView.test.tsx` covers the new `source-loading` state.
+     - No obvious focused tests were found for `RouteNotFound`, skip-link parity on `/now-playing`, or Settings tab ARIA linkage.
+   - Impact:
+     - The fixes exist now, but some could regress silently without targeted tests.
+   - Recommendation:
+     - Add focused unit/integration coverage for route fallback rendering, skip-link target parity, and Settings tab semantics.
 
 ## Work Completed So Far
 
@@ -175,14 +188,10 @@ Date: 2026-06-16
 
 ### Still Open
 
-None — all actionable audit findings and recommended next priorities have been addressed.
+1. Sync audit/reporting documents quickly when the codebase changes, so resolved items are not left marked as open.
+2. Add targeted regression tests for the recently fixed route, accessibility, and hydration issues.
 
-### Recommended Next Priorities (All Addressed)
+### Recommended Next Priorities
 
-1. ✅ Replace Home `Because you listened` with recommendation logic — done via `ForYouSection`
-2. ✅ Reduce Sidebar mount-time eager refreshes — done with hydration guard + single-run `useRef`
-3. ✅ Improve Search action discoverability on touch — done with reduced-opacity fallback
-4. ✅ Improve SourceView playlist-row scanability — done with icons and hover states
-5. ✅ Revisit Sidebar IA grouping — done with `Browse` / `Collection` / `Tools` sections
-6. ✅ Make Now Playing slider handles more prominent — done with larger brand-bordered thumbs
-7. ✅ Fix `better-sqlite3` ABI mismatch — done with `npm rebuild better-sqlite3`
+1. Add targeted tests for `RouteNotFound`, skip-link parity, and Settings tab semantics.
+2. Keep `docs/audit.md` and `README.md` aligned with reality after each bug-fix batch.

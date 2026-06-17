@@ -7,6 +7,7 @@ import { usePlayerStore } from '@/stores/playerStore';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { TrackRowMenu } from '@/components/player/TrackRowMenu';
+import { RouteFallback } from '@/components/a11y/RouteFallback';
 import type { Playlist, Track, SourceRegistration, SourceCapabilities } from '@/types/global';
 
 const CAPABILITY_LABELS: Record<keyof SourceCapabilities, string> = {
@@ -106,6 +107,7 @@ export function SourceView(): JSX.Element {
   const { id = '' } = useParams<{ id: string }>();
   const navigate = useSafeNavigate();
   const registrations = useSourcesStore((s) => s.registrations);
+  const hasFetched = useSourcesStore((s) => s.hasFetched);
   const refresh = useSourcesStore((s) => s.refresh);
   const loadUserPlaylists = useSourcesStore((s) => s.loadUserPlaylists);
   const loadLikedTracks = useSourcesStore((s) => s.loadLikedTracks);
@@ -119,8 +121,14 @@ export function SourceView(): JSX.Element {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (registrations.length === 0) void refresh();
-  }, [registrations.length, refresh]);
+    // Defer the "not found" decision until the first source refresh
+    // has completed. On a cold start (direct deep link like
+    // /source/spotify) `registrations` is still empty, so `source`
+    // resolves to undefined and we'd otherwise flash a hard error
+    // before hydration lands. We trigger refresh when either the
+    // store has never fetched OR the list is unexpectedly empty.
+    if (!hasFetched || registrations.length === 0) void refresh();
+  }, [hasFetched, registrations.length, refresh]);
 
   const source = registrations.find((r) => r.id === id);
 
@@ -160,6 +168,18 @@ export function SourceView(): JSX.Element {
       cancelled = true;
     };
   }, [source, loadUserPlaylists, loadLikedTracks]);
+
+  if (!source && !hasFetched) {
+    // Cold start: registrations haven't hydrated yet. Show a loading
+    // state instead of a misleading "Source not found" — a valid
+    // source may simply not be loaded yet.
+    return (
+      <div className="p-8 max-w-4xl" data-testid="source-loading">
+        <div className="h-8 w-40 rounded bg-zinc-800/60 animate-pulse-soft mb-4" />
+        <RouteFallback variant="page" />
+      </div>
+    );
+  }
 
   if (!source) {
     return (

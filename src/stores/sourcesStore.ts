@@ -7,6 +7,14 @@ const VIRTUAL_IDS = new Set(['local', 'demo']);
 interface SourcesState {
   registrations: SourceRegistration[];
   loading: boolean;
+  /**
+   * Whether the first `refresh()` has completed (success OR failure).
+   * Distinguishes "cold start, never fetched" from "fetched and
+   * genuinely empty" — `loading` alone can't, because it is transient
+   * (false again once a fetch resolves). Views that need to defer a
+   * "not found" state until hydration completes read this flag.
+   */
+  hasFetched: boolean;
 
   refresh: () => Promise<void>;
   setEnabled: (id: string, enabled: boolean) => Promise<void>;
@@ -28,6 +36,7 @@ interface SourcesState {
 export const useSourcesStore = create<SourcesState>((set, get) => ({
   registrations: [],
   loading: false,
+  hasFetched: false,
 
   refresh: async () => {
     set({ loading: true });
@@ -44,7 +53,7 @@ export const useSourcesStore = create<SourcesState>((set, get) => ({
     } catch (err) {
       console.error('[sources] refresh failed:', err);
     } finally {
-      set({ loading: false });
+      set({ loading: false, hasFetched: true });
     }
   },
 

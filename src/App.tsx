@@ -25,6 +25,7 @@ import { QueueAnnouncer } from '@/components/a11y/QueueAnnouncer';
 import { SkipToContent } from '@/components/a11y/SkipToContent';
 import { RouteChangeIndicator } from '@/components/a11y/RouteLoader';
 import { RouteFallback } from '@/components/a11y/RouteFallback';
+import { RouteNotFound } from '@/components/a11y/RouteNotFound';
 import { KeyboardHelpOverlay } from '@/components/keyboard/KeyboardHelpOverlay';
 import { GlobalDndProvider } from '@/components/dnd/GlobalDndProvider';
 
@@ -135,11 +136,12 @@ function MainApp(): JSX.Element {
         <SkipToContent />
         <PlayerAnnouncer />
         <YtMusicDisclaimer />
-        <div className="flex-1 overflow-hidden">
+        <main id="main-content" className="flex-1 overflow-hidden">
           <Routes location={location}>
             <Route path="/now-playing" element={<NowPlayingView />} />
+            <Route path="*" element={<RouteNotFound />} />
           </Routes>
-        </div>
+        </main>
         <ToastContainer />
         <CommandPalette />
         <KeyboardHelpOverlay />
@@ -262,6 +264,14 @@ function MainApp(): JSX.Element {
                   />
                   <Route path="/now-playing" element={<NowPlayingView />} />
                   <Route path="/mini" element={<MiniPlayerView />} />
+                  <Route
+                    path="*"
+                    element={
+                      <PageTransition>
+                        <RouteNotFound />
+                      </PageTransition>
+                    }
+                  />
                 </Routes>
               </Suspense>
             </AnimatePresence>

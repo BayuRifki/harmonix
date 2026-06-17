@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSafeNavigate } from '@/hooks/useSafeNavigate';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useShallow } from 'zustand/react/shallow';
@@ -171,27 +171,54 @@ export function PlayerBar(): JSX.Element {
   const queueOpen = useUiStore((s) => s.queueDrawerOpen);
   const setQueueOpen = useUiStore((s) => s.setQueueDrawerOpen);
   const [hoverExpanded, setHoverExpanded] = useState(false);
-  const isExpanded = playerBarPinned || hoverExpanded;
+  const [focusExpanded, setFocusExpanded] = useState(false);
+  const isExpanded = playerBarPinned || hoverExpanded || focusExpanded;
+  const wrapperRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!playerBarPinned) {
       setHoverExpanded(false);
+      setFocusExpanded(false);
     }
   }, [playerBarPinned, currentTrack?.id]);
 
   useEffect(() => {
     if (!isExpanded) return undefined;
     const onKey = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape' && !playerBarPinned) setHoverExpanded(false);
+      if (e.key === 'Escape' && !playerBarPinned) {
+        setHoverExpanded(false);
+        setFocusExpanded(false);
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [isExpanded, playerBarPinned]);
 
+  const handleFocus = useCallback((): void => {
+    if (!playerBarPinned) setFocusExpanded(true);
+  }, [playerBarPinned]);
+
+  const handleBlur = useCallback((): void => {
+    if (playerBarPinned) return;
+    // Collapse when focus leaves the entire wrapper.
+    // requestAnimationFrame ensures relatedTarget has resolved.
+    requestAnimationFrame(() => {
+      if (
+        wrapperRef.current &&
+        !wrapperRef.current.contains(document.activeElement)
+      ) {
+        setFocusExpanded(false);
+      }
+    });
+  }, [playerBarPinned]);
+
   return (
     <div
+      ref={wrapperRef}
       onMouseEnter={() => !playerBarPinned && setHoverExpanded(true)}
       onMouseLeave={() => !playerBarPinned && setHoverExpanded(false)}
+      onFocus={handleFocus}
+      onBlur={handleBlur}
       className="fixed bottom-0 left-0 right-0 z-50"
       data-testid="player-bar-wrapper"
     >
