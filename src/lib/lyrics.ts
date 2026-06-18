@@ -94,12 +94,46 @@ export async function fetchLyrics(query: LyricsQuery, signal?: AbortSignal): Pro
   if (!query.trackName || !query.artistName) {
     return { source: 'none', trackName: query.trackName, artistName: query.artistName };
   }
+  const exact = await fetchLyricsExact(query, signal);
+  if (exact.source !== 'none') return exact;
+  // Fall back to a fuzzy `/search` lookup. LRCLib's `/get` is strict —
+  // it requires an exact duration match and exact track/artist names.
+  // A real-world track often differs in case, punctuation, or by a
+  // few seconds, so a title-based search is the pragmatic next step.
+  return fetchLyricsSearch(query, signal);
+}
+
+function buildResultFromRecord(rec: Record<string, unknown>, query: LyricsQuery): LyricsResult {
+  const syncedRaw = typeof rec.syncedLyrics === 'string' ? rec.syncedLyrics : '';
+  const plainRaw = typeof rec.plainLyrics === 'string' ? rec.plainLyrics : '';
+  const instrumental = rec.instrumental === true;
+  const trackName = typeof rec.trackName === 'string' ? rec.trackName : query.trackName;
+  const artistName = typeof rec.artistName === 'string' ? rec.artistName : query.artistName;
+  const albumName = typeof rec.albumName === 'string' ? rec.albumName : undefined;
+  const durationSec = typeof rec.duration === 'number' ? rec.duration : undefined;
+  const result: LyricsResult = {
+    source: 'lrclib',
+    trackName,
+    artistName,
+    ...(albumName ? { albumName } : {}),
+    ...(durationSec ? { durationMs: durationSec * 1000 } : {}),
+    ...(instrumental ? { instrumental: true } : {}),
+  };
+  if (syncedRaw) {
+    const lines = parseLrc(syncedRaw);
+    if (lines.length > 0) result.synced = lines;
+  }
+  if (plainRaw) result.plain = plainRaw;
+  return result;
+}
+
+async function fetchLyricsExact(query: LyricsQuery, signal?: AbortSignal): Promise<LyricsResult> {
   const params = new URLSearchParams({
     track_name: query.trackName,
     artist_name: query.artistName,
   });
   if (query.albumName) params.set('album_name', query.albumName);
-  if (query.durationMs) params.set('duration:number', String(Math.round(query.durationMs / 1000)));
+  if (query.durationMs) params.set('duration', String(Math.round(query.durationMs / 1000)));
 
   const url = `${LRC_BASE}/get?${params.toString()}`;
   let res: Response;
@@ -123,28 +157,54 @@ export async function fetchLyrics(query: LyricsQuery, signal?: AbortSignal): Pro
     return { source: 'none', trackName: query.trackName, artistName: query.artistName };
   }
   const rec = body as Record<string, unknown>;
-  const syncedRaw = typeof rec.syncedLyrics === 'string' ? rec.syncedLyrics : '';
-  const plainRaw = typeof rec.plainLyrics === 'string' ? rec.plainLyrics : '';
-  const instrumental = rec.instrumental === true;
-  const trackName = typeof rec.trackName === 'string' ? rec.trackName : query.trackName;
-  const artistName = typeof rec.artistName === 'string' ? rec.artistName : query.artistName;
-  const albumName = typeof rec.albumName === 'string' ? rec.albumName : undefined;
-  const durationSec = typeof rec.duration === 'number' ? rec.duration : undefined;
-  const result: LyricsResult = {
-    source: 'lrclib',
-    trackName,
-    artistName,
-    ...(albumName ? { albumName } : {}),
-    ...(durationSec ? { durationMs: durationSec * 1000 } : {}),
-    ...(instrumental ? { instrumental: true } : {}),
-  };
-  if (syncedRaw) {
-    const lines = parseLrc(syncedRaw);
-    if (lines.length > 0) result.synced = lines;
-  }
-  if (plainRaw) result.plain = plainRaw;
-  if (!result.synced && !result.plain && !result.instrumental) {
+  const built = buildResultFromRecord(rec, query);
+  if (!built.synced && !built.plain && !built.instrumental) {
     return { source: 'none', trackName: query.trackName, artistName: query.artistName };
   }
-  return result;
+  return built;
+}
+
+async function fetchLyricsSearch(query: LyricsQuery, signal?: AbortSignal): Promise<LyricsResult> {
+  const params = new URLSearchParams({
+    track_name: query.trackName,
+    artist_name: query.artistName,
+  });
+  if (query.albumName) params.set('album_name', query.albumName);
+
+  const url = `${LRC_BASE}/search?${params.toString()}`;
+  let res: Response;
+  try {
+    res = await fetchWithTimeout(url, { signal });
+  } catch {
+    return { source: 'none', trackName: query.trackName, artistName: query.artistName };
+  }
+
+  if (!res.ok) {
+    return { source: 'none', trackName: query.trackName, artistName: query.artistName };
+  }
+
+  let body: unknown;
+  try {
+    body = await res.json();
+  } catch {
+    return { source: 'none', trackName: query.trackName, artistName: query.artistName };
+  }
+  if (!Array.isArray(body) || body.length === 0) {
+    return { source: 'none', trackName: query.trackName, artistName: query.artistName };
+  }
+  // Prefer the first result that actually has synced lyrics. A search
+  // may return many candidates; if none have synced timing we still
+  // surface plain lyrics from the first usable hit before giving up.
+  const ranked = body
+    .filter((b): b is Record<string, unknown> => typeof b === 'object' && b !== null)
+    .sort((a, b) => {
+      const aSynced = typeof a.syncedLyrics === 'string' && a.syncedLyrics.length > 0 ? 0 : 1;
+      const bSynced = typeof b.syncedLyrics === 'string' && b.syncedLyrics.length > 0 ? 0 : 1;
+      return aSynced - bSynced;
+    });
+  for (const rec of ranked) {
+    const built = buildResultFromRecord(rec, query);
+    if (built.synced || built.plain || built.instrumental) return built;
+  }
+  return { source: 'none', trackName: query.trackName, artistName: query.artistName };
 }

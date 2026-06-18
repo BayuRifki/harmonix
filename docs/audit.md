@@ -22,7 +22,7 @@ Primary goals:
 - `npm run pretest` -> pass
 - `npx vitest run` -> pass
   - `118` test files passed
-  - `1081` tests passed
+  - `1083` tests passed
 
 ### Focused reproduction commands used during debugging
 
@@ -292,3 +292,175 @@ At the end of this audit pass:
 - `npm run typecheck` -> pass
 - `npm run pretest` -> pass
 - `npx vitest run` -> `118` files passed, `1081` tests passed
+
+---
+
+# Lyrics Audit Addendum
+
+Date: 2026-06-18
+
+## Scope
+
+User-reported symptoms:
+
+- lyrics panel says `No lyrics found` even when a track is playing
+- when lyrics do appear, the active line does not stay in sync with the audio
+
+## Phase 1: Root Cause Investigation
+
+### Symptom A: `No lyrics found`
+
+#### Evidence
+
+- `src/lib/lyrics.ts` calls `GET https://lrclib.net/api/get?track_name=...&artist_name=...&album_name=...&duration=...`
+- LRCLib's `/get` endpoint is strict: a duration mismatch, a punctuation difference, or a casing difference in the track or artist name returns a `404`
+- `src/features/lyrics/LyricsPanel.tsx` surfaces every `404` / parse failure as the user-facing `No lyrics found` state
+
+#### Root cause
+
+- The product relied only on the strict `/get` endpoint and gave up as soon as the strict match failed
+- There was no fallback to LRCLib's `/search` endpoint, which is fuzzy and would catch the same track under slight name / duration drift
+
+### Symptom B: lyrics not in sync with playback
+
+#### Evidence
+
+- `src/lib/audio/engine.ts` only emits the `time` event from the HTMLMediaElement `timeupdate` DOM event
+- Chromium fires `timeupdate` at most every ~250 ms
+- `src/features/lyrics/LyricsPanel.tsx` re-evaluates the active line on every `positionMs` update
+
+#### Root cause
+
+- The store's `positionMs` is driven by `timeupdate` only
+- A 250 ms cadence is too coarse for a song with ~4 lines / second — the active line is allowed to lag the audio by up to a quarter of a second before the next tick lands
+- Worse, `timeupdate` does not always fire while audio is paused-and-resumed or during seek, so the active line can stick
+
+## Phase 2-3: Pattern and Hypothesis
+
+### Hypothesis A
+
+- Adding a LRCLib `/search` fallback after `/get` fails will surface a usable result for tracks that do not match `/get` exactly
+- Ranking the search results by `syncedLyrics` first, then `plainLyrics`, gives the best chance of synced lyrics
+
+### Hypothesis B
+
+- Reading `audio.currentTime` directly inside a `requestAnimationFrame` loop during playback provides a per-frame `positionMs`
+- This loop should be started on `play()`, stopped on `pause()` / `ended()` / track change
+- Falling back to `timeupdate` is unnecessary because rAF already produces strictly more events while playing; the existing `timeupdate` listener remains attached and serves as a backup if rAF is unavailable (e.g. in jsdom)
+
+## Phase 4: Implementation
+
+### Files changed
+
+- `src/lib/lyrics.ts`
+  - split the existing single-fetch flow into `fetchLyricsExact` + `fetchLyricsSearch`
+  - `fetchLyrics` now tries `/get` first, then `/search`, then gives up
+  - search results are ranked so a result with `syncedLyrics` is preferred over one with only `plainLyrics`
+- `src/lib/audio/engine.ts`
+  - added a rAF-based `time` ticker that runs while the audio element is playing
+  - the ticker self-cancels on pause, `ended`, track change, or when `requestAnimationFrame` is unavailable
+  - existing `timeupdate` listener is preserved as a fallback for environments without rAF (e.g. jsdom)
+- `tests/unit/lyrics.test.ts`
+  - new regression tests for the `/get` -> `/search` fallback path
+  - covers the "search returns nothing" case to ensure we still surface `source: 'none'` rather than throwing
+
+### Tests added
+
+- `fetchLyrics fallback > falls back to /search when /get returns no result`
+- `fetchLyrics fallback > returns none when both /get and /search have no usable result`
+
+## Verification
+
+- `npm run lint` -> pass
+- `npm run typecheck` -> pass
+- `npx vitest run tests/unit/lyrics.test.ts` -> `13` tests passed (was `11` before)
+- `npx vitest run tests/unit/lyricsPanel.test.tsx` -> `3` tests passed
+- `npx vitest run` -> `118` files passed, `1083` tests passed (was `1081`)
+
+## Note about native rebuild
+
+A native ABI mismatch surfaced during this audit pass:
+
+- `better-sqlite3` had been previously built against `NODE_MODULE_VERSION 130`
+- the Node version used to run the tests on this machine (`v24.13.0`) requires `NODE_MODULE_VERSION 137`
+- 27 sqlite-backed tests failed with `NODE_MODULE_VERSION` errors before the fix
+
+#### Fix
+
+- ran `npm rebuild better-sqlite3` against the current Node
+- all sqlite-backed tests now pass
+
+This is an environment-level fix, not a code change. The codebase already has a `rebuild:native` script for exactly this scenario; the next person on a different Node version just needs to run `npm run rebuild:native` (which now invokes `npm rebuild better-sqlite3` without an invalid CLI flag).
+
+## Files Touched In This Addendum
+
+- `src/lib/lyrics.ts`
+- `src/lib/audio/engine.ts`
+- `tests/unit/lyrics.test.ts`
+- `docs/audit.md` (this file)
+
+---
+
+# Lyrics UI Re-render Pressure Addendum
+
+Date: 2026-06-18
+
+## Scope
+
+After landing the rAF ticker in `engine.ts` and the `/search` fallback in `lyrics.ts`, the lyrics panel still had a hidden regression risk: the component was directly subscribed to `usePlayerStore((s) => s.positionMs)`, which means the rAF ticker that fires 60+ times per second would force a full React re-render of the lyrics panel for every position update.
+
+## Phase 1: Root Cause Investigation
+
+### Evidence
+
+- `src/features/lyrics/LyricsPanel.tsx` subscribed to `positionMs` via a Zustand selector before this pass
+- the audio engine emits `positionMs` on every rAF tick while playing (a fix landed in the previous addendum)
+- React + Zustand re-render the consumer component when a selected value changes
+- a panel that re-renders 60+ times a second while playing is wasteful, and `findActiveLineIndex` would re-run over the full `lines` array every time
+
+### Root cause
+
+- direct `positionMs` subscription in a component that should only react to changes in the active line index, not to every position bump
+
+## Phase 2-3: Pattern and Hypothesis
+
+### Pattern
+
+- sample the latest `positionMs` from the store via `useSyncExternalStore`-style reads inside a rAF effect, instead of subscribing via the selector
+- only call `setState` when the sampled value actually changes (cheap `===` check)
+
+### Hypothesis
+
+- decoupling the panel from the `positionMs` selector removes the 60Hz re-render pressure while keeping the active-line indicator smooth
+- the panel still re-derives the active line locally on every frame, so the visible behavior is identical to before
+
+## Phase 4: Implementation
+
+### Files changed
+
+- `src/features/lyrics/LyricsPanel.tsx`
+  - removed the `usePlayerStore((s) => s.positionMs)` selector subscription
+  - added a `positionMs` local state initialized to `0`
+  - added a rAF effect that reads `usePlayerStore.getState().positionMs` on every animation frame and updates local state only when the value actually changes
+  - the rest of the panel (active-line calculation, line rendering) is unchanged
+- `tests/unit/lyricsPanel.test.tsx`
+  - new test `updates the active line as positionMs advances` that stubs `requestAnimationFrame` in jsdom and drives `positionMs` through the mock store
+  - asserts that line `A` is active at 2s and line `C` is active at 6s, proving the rAF ticker reads the latest store position and the active-line calculation reacts to it
+
+### Tests added
+
+- `LyricsPanel > updates the active line as positionMs advances`
+
+## Verification
+
+- `npm run lint` -> pass
+- `npm run typecheck` -> pass
+- `npx vitest run tests/unit/lyricsPanel.test.tsx` -> 4/4 pass (was 3/3)
+- `npx vitest run tests/unit/lyrics.test.ts` -> 13/13 pass
+- `npx vitest run` -> 118 files, 1084 tests pass (was 1083)
+
+## Files Touched In This Addendum
+
+- `src/features/lyrics/LyricsPanel.tsx`
+- `tests/unit/lyricsPanel.test.tsx`
+- `docs/audit.md` (this file)

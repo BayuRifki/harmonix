@@ -391,6 +391,7 @@ export class AudioEngine {
   }
 
   private cleanupCurrentAudio(): void {
+    this.stopRafTicker();
     if (this.currentAudio) {
       this.detachAudioListeners(this.currentAudio);
       this.currentAudio.pause();
@@ -474,6 +475,7 @@ export class AudioEngine {
     }
     if (!this.boundEnded) {
       this.boundEnded = (): void => {
+        this.stopRafTicker();
         this.setState('idle');
         this.emit('ended');
       };
@@ -486,13 +488,42 @@ export class AudioEngine {
     audio.addEventListener('error', this.handleAudioError);
   }
 
+  // rAF ticker used to drive the `time` event at the display refresh
+  // rate while audio is playing. The native HTMLMediaElement
+  // `timeupdate` event fires every ~250ms in Chromium, which is too
+  // coarse for synced lyrics (a 4-line/sec song would visibly lag
+  // behind the audio). We start a rAF loop on play and stop it on
+  // pause/ended/error so we don't burn CPU when the audio is idle.
+  private rafHandle: number | null = null;
+  private startRafTicker(): void {
+    if (this.rafHandle !== null || typeof requestAnimationFrame === 'undefined') return;
+    const tick = (): void => {
+      const a = this.currentAudio;
+      if (!a || a.paused || a.ended) {
+        this.rafHandle = null;
+        return;
+      }
+      this.emit('time', Math.round(a.currentTime * 1000), Math.round(a.duration * 1000));
+      this.rafHandle = requestAnimationFrame(tick);
+    };
+    this.rafHandle = requestAnimationFrame(tick);
+  }
+  private stopRafTicker(): void {
+    if (this.rafHandle !== null && typeof cancelAnimationFrame !== 'undefined') {
+      cancelAnimationFrame(this.rafHandle);
+    }
+    this.rafHandle = null;
+  }
+
   async play(): Promise<void> {
     if (!this.currentAudio) return;
     if (this.ctx?.state === 'suspended') await this.ctx.resume();
     await this.currentAudio.play();
+    this.startRafTicker();
   }
 
   pause(): void {
+    this.stopRafTicker();
     this.currentAudio?.pause();
   }
 

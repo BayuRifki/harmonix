@@ -52,15 +52,39 @@ export function LyricsPanel({
   collapsedByDefault = false,
 }: LyricsPanelProps): JSX.Element {
   const currentTrack = usePlayerStore((s) => s.currentTrack);
-  const positionMs = usePlayerStore((s) => s.positionMs);
   const seek = usePlayerStore((s) => s.seek);
+  // We intentionally do NOT subscribe to `positionMs` here. The store
+  // emits a fresh `positionMs` on every rAF tick (60Hz+) once audio is
+  // playing, and re-rendering this whole component at that cadence is
+  // wasteful for a 200-line lyrics list. Instead, we sample the latest
+  // position through a `useSyncExternalStore`-style rAF loop, which
+  // re-renders at the display refresh rate but only reads the store
+  // value (no re-subscription on every change).
   const [result, setResult] = useState<LyricsResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState(collapsedByDefault);
   const [retryNonce, setRetryNonce] = useState(0);
+  const [positionMs, setPositionMs] = useState(0);
   const abortRef = useRef<AbortController | null>(null);
   const lastFetchKeyRef = useRef<string | null>(null);
+
+  // Sample `positionMs` from the store on every animation frame. This
+  // keeps the active-line indicator smooth without re-rendering the
+  // whole component for every unrelated store mutation. When audio is
+  // paused the loop still runs but reads a stable value, so there is
+  // no visual churn.
+  useEffect(() => {
+    if (typeof requestAnimationFrame === 'undefined') return;
+    let raf = 0;
+    const tick = (): void => {
+      const next = usePlayerStore.getState().positionMs;
+      setPositionMs((prev) => (prev === next ? prev : next));
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, []);
 
   const trackKey = useMemo(() => {
     if (!currentTrack) return null;

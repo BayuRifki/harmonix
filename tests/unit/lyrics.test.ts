@@ -1,5 +1,7 @@
-import { describe, it, expect } from 'vitest';
-import { parseLrcString, findActiveLineIndex } from '@/lib/lyrics';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { parseLrcString, findActiveLineIndex, fetchLyrics } from '@/lib/lyrics';
+
+const realFetch = globalThis.fetch;
 
 describe('lyrics', () => {
   it('parses standard [mm:ss] timestamps', () => {
@@ -56,5 +58,51 @@ describe('lyrics', () => {
   it('findActiveLineIndex picks the line at exactly its time', () => {
     const lines = parseLrcString('[00:01.00]A\n[00:03.00]B');
     expect(findActiveLineIndex(lines, 3000)).toBe(1);
+  });
+});
+
+describe('fetchLyrics fallback', () => {
+  afterEach(() => {
+    globalThis.fetch = realFetch;
+  });
+
+  it('falls back to /search when /get returns no result', async () => {
+    const getSpy = vi.fn(async () => new Response('Not Found', { status: 404 }));
+    const searchSpy = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify([
+            {
+              trackName: 'X',
+              artistName: 'Y',
+              duration: 200,
+              syncedLyrics: '[00:01.00]Hello\n[00:02.00]World',
+            },
+          ]),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        ),
+    );
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === 'string' ? input : input.toString();
+      return url.includes('/api/get') ? getSpy() : searchSpy();
+    }) as unknown as typeof fetch;
+
+    const result = await fetchLyrics({
+      trackName: 'X',
+      artistName: 'Y',
+      durationMs: 200_000,
+    });
+    expect(getSpy).toHaveBeenCalledTimes(1);
+    expect(searchSpy).toHaveBeenCalledTimes(1);
+    expect(result.source).toBe('lrclib');
+    expect(result.synced?.length).toBe(2);
+  });
+
+  it('returns none when both /get and /search have no usable result', async () => {
+    globalThis.fetch = vi.fn(
+      async () => new Response('[]', { status: 200 }),
+    ) as unknown as typeof fetch;
+    const result = await fetchLyrics({ trackName: 'X', artistName: 'Y' });
+    expect(result.source).toBe('none');
   });
 });
