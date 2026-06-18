@@ -1,197 +1,294 @@
 # Harmonix Audit
 
-Date: 2026-06-17
+Date: 2026-06-18
 
-## Baseline
+## Scope
+
+This audit pass focused on validating whether the previously reported issues were actually fixed in the current codebase, then resolving the remaining gaps that still showed up in real command output.
+
+Primary goals:
+
+- verify coding fixes against current runtime/test reality
+- verify UI/UX fixes against current component structure and behavior
+- trace warning-level issues to root cause before changing code
+- update this document so it reflects the current repo state instead of stale conclusions
+
+## Commands Run
+
+### Final verification results
 
 - `npm run lint` -> pass
 - `npm run typecheck` -> pass
-- `npm run test` -> 115 test files passed, 1072 tests passed
-- Test stderr is clean (no `act(...)` or React Router future-flag warnings)
+- `npm run pretest` -> pass
+- `npx vitest run` -> pass
+  - `118` test files passed
+  - `1081` tests passed
 
-## Latest Findings
+### Focused reproduction commands used during debugging
 
-### Bugs
+- `npx vitest run tests/unit/settingsTabs.test.tsx`
+- `npx vitest run tests/unit/sourceView.test.tsx`
+- `npm config get build-from-source`
 
-1. Reality check: previously reported high-priority bugs are now fixed in the current codebase
-   - Verified fixes:
-     - `src/features/settings/SettingsTabs.tsx` now has proper `id` / `aria-controls` / `aria-labelledby` wiring for tabs and tabpanels.
-     - `src/App.tsx` now includes `path="*"` catch-all routes plus `RouteNotFound` recovery UI.
-     - `src/features/source/SourceView.tsx` now defers the `not found` state behind `hasFetched` and shows a loading state first.
-     - `README.md` now documents `better-sqlite3` and native rebuild expectations correctly.
-   - Conclusion:
-     - These items should remain in audit history as resolved work, not as active findings.
+## Executive Summary
 
-### UI/UX Optimization Opportunities
+### Reality check
 
-1. Reality check: previously reported UI/UX issues are now fixed in the current codebase
-   - Verified fixes:
-     - `src/App.tsx` now renders `id="main-content"` in the `/now-playing` branch, so the skip link works there too.
-     - `src/components/layout/Sidebar.tsx` now uses real sibling buttons for disclosure and actions instead of nested interactive wrappers.
-     - `src/features/playlist/PlaylistDetailView.tsx` now separates the primary play action from secondary row actions.
-     - `src/components/layout/PlayerBar.tsx` now supports focus-driven expansion in addition to hover and pinning.
-   - Conclusion:
-     - These should also be treated as resolved items, not active optimization gaps.
+Most of the previously reported product-level bugs are fixed in the current codebase.
 
-### Testing / Technical Debt
+Confirmed as fixed during this audit:
 
-1. Current checks are healthy, but the test command should be re-verified after the next fixes land
-   - Current local verification from this audit pass:
-     - `npm run lint` -> pass
-     - `npm run typecheck` -> pass
-     - `npm run build` -> pass
-   - Note:
-     - `npm run test` previously passed per baseline, but was not re-captured cleanly during this pass because the shell output surfaced native rebuild warning noise before final results.
-   - Recommendation:
-     - Re-run `npm run test` after addressing the open findings and append the fresh final count to this document.
+- `src/features/settings/SettingsTabs.tsx` correctly wires tab semantics with `id`, `aria-controls`, and `aria-labelledby`
+- `src/App.tsx` includes catch-all routing and `RouteNotFound` fallback behavior
+- `src/features/source/SourceView.tsx` defers the not-found state until source hydration completes
+- `src/App.tsx` includes `id="main-content"` in the `/now-playing` branch, preserving skip-link parity
+- earlier UI behavior improvements documented in this repo remain present
 
-2. Documentation and code have drifted apart in a few important onboarding areas
-   - Files:
-     - `README.md`
-     - `docs/audit.md`
-   - Evidence:
-     - This was true earlier in the audit cycle, but the highest-impact README drift has now been corrected.
-     - Remaining debt is mainly about keeping audit conclusions synchronized with the fast-moving codebase.
-   - Recommendation:
-     - Treat docs freshness as part of release-readiness, especially when native modules and platform-specific setup are involved.
+However, the repo was not fully "fixed based on reality" at the start of this pass because real command output still surfaced three active issues:
 
-3. Test coverage does not yet appear to explicitly lock every verified regression
-   - Evidence from quick grep:
-     - `tests/unit/sourceView.test.tsx` covers the new `source-loading` state.
-     - No obvious focused tests were found for `RouteNotFound`, skip-link parity on `/now-playing`, or Settings tab ARIA linkage.
-   - Impact:
-     - The fixes exist now, but some could regress silently without targeted tests.
-   - Recommendation:
-     - Add focused unit/integration coverage for route fallback rendering, skip-link target parity, and Settings tab semantics.
+1. `tests/setup.ts` did not neutralize jsdom's throwing `window.scrollTo`
+2. `tests/unit/sourceView.test.tsx` still produced React `act(...)` warning noise because mount-driven async effects were not being flushed deliberately in the test
+3. `package.json` still used an npm rebuild flag that emitted a CLI warning on this environment
 
-## Work Completed So Far
+Those three items are now fixed in this audit pass.
 
-### Earlier fixes already implemented
+## Root Cause Investigation
 
-- Lint/typecheck baseline cleaned.
-- Similar tracks no longer dead-click in Now Playing.
-- Queue actions added via `TrackRowMenu`:
-  - `Play now`
-  - `Play next`
-  - `Add to queue`
-- Home dead-end improved with:
-  - greeting
-  - jump-back-in
-  - search/library CTAs
-  - recent items
-- Search/source rows normalized to non-shuffle `play now` behavior.
-- Search source filter wired from `/source/:id` -> `/search?source=...`.
-- Source limitations now show explanatory banners + actions.
-- Sidebar `Explore` vs `Discover` ambiguity reduced with selective hints.
-- Duplicate queue actions now show toast feedback.
+### 1. `window.scrollTo` warning in Settings tests
 
-## Priority Status Check
+#### Symptom
 
-### Implemented
+Running:
 
-1. Home recents CTA mismatch fixed
-   - `src/features/home/HomeView.tsx`
-   - `Recently played` CTA now routes to `/history`.
+- `npx vitest run tests/unit/settingsTabs.test.tsx`
 
-2. Search source-filter URL sync hardened
-   - `src/features/search/SearchView.tsx`
-   - input `onChange` now only updates local query state
-   - URL sync remains centralized in the preserving effect
+produced this stderr stack trace before the tests passed:
 
-3. RightRail up-next rows converted to real button semantics
-   - `src/components/layout/RightRail.tsx`
-   - primary row action now uses a real `<button>`
+- `Error: Not implemented: window.scrollTo`
+- stack included `jsdom/browser/Window.js`
+- stack included `motion-dom/.../KeyframesResolver.ts`
 
-4. Search helper copy added
-   - `src/features/search/SearchView.tsx`
-   - now explains:
-     - row click = play now
-     - `+` menu = queue actions
+#### Evidence
 
-5. Now Playing close behavior now has a fallback route
-   - `src/features/nowPlaying/NowPlayingView.tsx`
-   - back when history exists, otherwise `/`
+- `tests/setup.ts` already stubbed `scrollIntoView`
+- `tests/setup.ts` did not reliably override `window.scrollTo`
+- jsdom exposes a `window.scrollTo` function that exists but throws `not implemented`
+- the previous conditional stub only replaced `scrollTo` when it was missing, not when it was present-but-throwing
 
-6. Source capabilities now use user-facing labels
-   - `src/features/source/SourceView.tsx`
-   - raw capability keys replaced by `CAPABILITY_LABELS`
+#### Root cause
 
-7. Search empty-state copy now adapts to active source filters
-   - `src/features/search/SearchView.tsx`
-   - filtered empty state now explains the active source scope
-   - includes a `Clear source filter` action
+Shared test setup assumed "missing API" instead of "present API that throws in jsdom".
 
-8. Now Playing similar-track behavior is now explained visually
-   - `src/features/nowPlaying/NowPlayingView.tsx`
-   - helper copy explains queue-jump vs play-now behavior
-   - `In queue` badge added on matching items
+Framer Motion's layout measurement path touched `window.scrollTo`, which made otherwise-passing tests emit noisy stderr.
 
-9. Queue duplicate detection strengthened
-   - `src/components/player/TrackRowMenu.tsx`
-   - `src/stores/playerStore.ts`
-   - duplicate check now uses `id + source` in both UI menu and store insert
+#### Fix applied
 
-10. RightRail quick actions expanded
-    - `src/components/layout/RightRail.tsx`
-    - empty-state actions now include `Open library`, `Search`, and `Discover`
+- `tests/setup.ts`
+  - now overrides `window.scrollTo` unconditionally with a no-op stub
 
-11. Now Playing sliders now expose always-visible thumbs
-    - `src/features/nowPlaying/NowPlayingView.tsx`
-    - seek and volume controls now show a visible thumb at all times
+#### Result
 
-12. React Router future-flag warnings silenced in test suite
-    - `tests/setup.ts`
-    - `console.warn` filter drops React Router future-flag noise
+- rerunning `npx vitest run tests/unit/settingsTabs.test.tsx` no longer emits the `window.scrollTo` error
 
-13. Source-specific deep links for settings actions
-    - `src/features/source/SourceView.tsx`
-    - Spotify/SoundCloud playback actions now route to `/settings/sources`
+### 2. React `act(...)` warning in `SourceView` tests
 
-14. External-link behavior covered by focused test
-    - `tests/unit/sourceView.test.tsx`
-    - test verifies `window.open` is called with `_blank` and `noopener` for Deezer
+#### Symptom
 
-15. Cross-source duplicate identity verified in tests
-    - `tests/unit/playerStoreQueue.test.tsx`
-    - test confirms same `id` with different `source` is treated as distinct
+Running:
 
-16. Home `Because you listened` now uses `ForYouSection`
-    - `src/features/home/HomeView.tsx`
-    - `src/components/recommendations/ForYouSection.tsx`
-    - uses hybrid recommendation logic instead of raw history slice
-    - empty-state CTAs added: `Search now`, `Open Library`, `Browse sources`
+- `npx vitest run tests/unit/sourceView.test.tsx`
 
-17. Sidebar mount refreshes now guarded by hydration state + single-run guard
-    - `src/components/layout/Sidebar.tsx`
-    - refresh only triggers when data is missing, and only once per component lifetime
+previously produced repeated warnings:
 
-18. Search row actions now touch-friendly
-    - `src/features/search/SearchView.tsx`
-    - `src/components/player/TrackRowMenu.tsx`
-    - actions show at reduced opacity on small screens instead of fully hidden
+- `Warning: An update to SourceView inside a test was not wrapped in act(...)`
 
-19. SourceView playlist rows improved scanability
-    - `src/features/source/SourceView.tsx`
-    - `ListMusic` icon added, hover border, Play button with icon
+#### Evidence
 
-20. Sidebar nav items grouped by category
-    - `src/components/layout/Sidebar.tsx`
-    - groups: `Browse`, `Collection`, `Tools`
+- `src/features/source/SourceView.tsx` has mount-driven async effects:
+  - source hydration refresh effect
+  - playlists / liked tracks loading effect
+- `tests/unit/sourceView.test.tsx` rendered the component and immediately asserted in some cases without any explicit effect flush point
+- the warning reproduced even though assertions passed, which indicates test lifecycle mismatch rather than confirmed product failure
 
-21. Now Playing slider handles made more prominent
-    - `src/features/nowPlaying/NowPlayingView.tsx`
-    - larger thumbs with `brand-500` border and shadow
+#### Root cause
 
-22. `better-sqlite3` ABI mismatch resolved
-    - `npm rebuild better-sqlite3` recompiled native module for current Node runtime
-    - repository tests (`playlistRepository`, `eqRepository`, `trackRepository`) now pass
+The problem was in the test harness, not in `SourceView` production logic.
 
-### Still Open
+The tests were allowing async state updates triggered by `useEffect` to settle outside an awaited `act(...)` boundary.
 
-1. Sync audit/reporting documents quickly when the codebase changes, so resolved items are not left marked as open.
-2. Add targeted regression tests for the recently fixed route, accessibility, and hydration issues.
+#### Fix applied
 
-### Recommended Next Priorities
+- `tests/unit/sourceView.test.tsx`
+  - kept synchronous render where immediate loading-state assertion is required
+  - added a dedicated `flushEffects()` helper using awaited `act(...)`
+  - updated tests that depend on post-effect state to await `flushEffects()` after render
 
-1. Add targeted tests for `RouteNotFound`, skip-link parity, and Settings tab semantics.
-2. Keep `docs/audit.md` and `README.md` aligned with reality after each bug-fix batch.
+#### Result
+
+- rerunning `npx vitest run tests/unit/sourceView.test.tsx` passes cleanly without the prior `act(...)` warning noise
+
+### 3. npm native rebuild warning
+
+#### Symptom
+
+Running the test path through npm previously surfaced:
+
+- `npm warn Unknown cli config "--build-from-source"`
+
+#### Evidence
+
+- `package.json` had:
+  - `"rebuild:native": "npm rebuild better-sqlite3 --build-from-source=false"`
+- this warning reproduced via the `pretest` chain
+- `npm config get build-from-source` returned `undefined` in this environment, reinforcing that the current CLI was not treating that flag as intended
+
+#### Root cause
+
+The script depended on a CLI flag shape that is not valid for the npm version in this environment.
+
+The rebuild itself succeeded; the warning was script-level technical debt.
+
+#### Fix applied
+
+- `package.json`
+  - changed `rebuild:native` from `npm rebuild better-sqlite3 --build-from-source=false`
+  - to `npm rebuild better-sqlite3`
+
+#### Result
+
+- `npm run pretest` now completes cleanly without the previous warning
+
+## Files Changed In This Audit Pass
+
+### `tests/setup.ts`
+
+- added unconditional `window.scrollTo` no-op stub
+- purpose: eliminate false-negative stderr from jsdom + Framer Motion interaction
+
+### `tests/unit/sourceView.test.tsx`
+
+- introduced explicit post-render effect flushing via `flushEffects()`
+- aligned immediate-loading assertion with synchronous first paint
+- purpose: remove `act(...)` warnings without masking the real behavior being tested
+
+### `package.json`
+
+- simplified native rebuild command to `npm rebuild better-sqlite3`
+- purpose: remove invalid npm CLI flag usage
+
+## Current Findings
+
+### Resolved in this pass
+
+1. Test env `scrollTo` noise fixed
+   - file: `tests/setup.ts`
+   - status: resolved
+
+2. `SourceView` test `act(...)` noise fixed
+   - file: `tests/unit/sourceView.test.tsx`
+   - status: resolved
+
+3. npm native rebuild warning fixed
+   - file: `package.json`
+   - status: resolved
+
+### Previously reported items confirmed as still fixed
+
+1. Settings tab semantics remain correct
+   - file: `src/features/settings/SettingsTabs.tsx`
+   - status: remains fixed
+
+2. App route fallback remains present
+   - file: `src/App.tsx`
+   - status: remains fixed
+
+3. Source hydration / loading gate remains correct
+   - file: `src/features/source/SourceView.tsx`
+   - status: remains fixed
+
+4. Skip-link parity for `/now-playing` remains present
+   - file: `src/App.tsx`
+   - status: remains fixed
+
+## Remaining Technical Debt
+
+These are not newly broken regressions from this audit pass, but they are still worth tracking.
+
+### 1. Some tests intentionally emit stderr as part of their assertions
+
+Examples from `npx vitest run` output:
+
+- proxy recovery tests log expected failure states
+- Spotify SDK / Widevine tests log expected error paths
+- scanner tests log expected missing-directory errors
+
+This is acceptable when the test is explicitly asserting degraded behavior, but it means "stderr completely clean" is no longer a reliable blanket statement for the whole suite.
+
+Recommendation:
+
+- distinguish between expected diagnostic stderr and unexpected warning noise in future audit notes
+
+### 2. Visual UI/UX fixes are still only partially verified by automated tests
+
+The codebase has good structural coverage for several UI fixes, but automated tests still do not fully prove real-window layout quality inside Electron.
+
+Examples:
+
+- Settings overflow improvement is verified structurally, not with real viewport measurement
+- route/accessibility states are covered more than before, but not every visual interaction is proven end-to-end
+
+Recommendation:
+
+- add selective Playwright or screenshot-based checks for critical layouts if this becomes a release gate
+
+### 3. Audit docs can drift behind the codebase quickly
+
+This file had stale conclusions when this pass started:
+
+- old test counts
+- old statement claiming clean stderr without current evidence
+- outdated "still open" items mixed with already-resolved items
+
+Recommendation:
+
+- treat `docs/audit.md` as a living verification log, not a one-time report
+
+## UI/UX Notes
+
+### Confirmed strengths in current code
+
+- `src/features/settings/SettingsView.tsx` and `src/features/settings/SettingsTabs.tsx` now present a more controlled tabbed settings flow instead of a long stacked page
+- `src/features/home/HomeView.tsx` provides stronger restart paths through greeting, resume, search, library, and recommendation CTAs
+- `src/features/source/SourceView.tsx` presents source limitations with clearer explanatory banners and actions
+
+### Remaining caution
+
+No new high-confidence UI/UX bug was reproduced during this pass, but visual polish claims should still be treated carefully unless verified in a real Electron window.
+
+## Historical Notes Kept For Context
+
+The following earlier improvements remain relevant and still appear present in the codebase:
+
+- similar tracks no longer dead-click in Now Playing
+- queue actions exist via `TrackRowMenu`
+- search/source rows use normalized `play now` behavior
+- `/source/:id` deep-links into `/search?source=...`
+- duplicate queue actions show toast feedback
+- home recommendation area uses `ForYouSection`
+- sidebar refresh behavior is guarded against redundant mount refreshes
+
+## Final Status
+
+At the end of this audit pass:
+
+- previously reported major app-level fixes are confirmed present
+- remaining warning-level issues reproduced from real commands are fixed
+- verification commands are green
+- this document now reflects current reality instead of the earlier stale state
+
+## Verification Snapshot
+
+- `npm run lint` -> pass
+- `npm run typecheck` -> pass
+- `npm run pretest` -> pass
+- `npx vitest run` -> `118` files passed, `1081` tests passed

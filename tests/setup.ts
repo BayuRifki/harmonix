@@ -22,6 +22,8 @@ if (typeof globalThis !== 'undefined' && typeof window !== 'undefined') {
   if (typeof proto['scrollIntoView'] !== 'function') {
     proto['scrollIntoView'] = function scrollIntoView(): void {};
   }
+
+  w['scrollTo'] = function scrollTo(): void {};
 }
 
 // Mock HTMLCanvasElement.getContext for jsdom (which doesn't implement Canvas API)

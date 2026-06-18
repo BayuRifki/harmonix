@@ -41,15 +41,19 @@ function reg(overrides: Partial<Registration> & { id: string; name: string }): R
 }
 
 function renderWithId(id: string): void {
-  act(() => {
-    render(
-      <MemoryRouter initialEntries={[`/source/${id}`]}>
-        <Routes>
-          <Route path="/source/:id" element={<SourceView />} />
-          <Route path="/" element={<div>Home</div>} />
-        </Routes>
-      </MemoryRouter>,
-    );
+  render(
+    <MemoryRouter initialEntries={[`/source/${id}`]}>
+      <Routes>
+        <Route path="/source/:id" element={<SourceView />} />
+        <Route path="/" element={<div>Home</div>} />
+      </Routes>
+    </MemoryRouter>,
+  );
+}
+
+async function flushEffects(): Promise<void> {
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 0));
   });
 }
 
@@ -58,18 +62,23 @@ describe('SourceView', () => {
     useSourcesStore.setState({ registrations: [], loading: false, hasFetched: true });
   });
 
-  it('shows loading skeleton before first fetch completes', () => {
+  it('shows loading skeleton before first fetch completes', async () => {
     installMockWindowApi();
     useSourcesStore.setState({ registrations: [], hasFetched: false });
     renderWithId('spotify');
     expect(screen.getByTestId('source-loading')).toBeInTheDocument();
     expect(screen.queryByText(/Source not found/i)).not.toBeInTheDocument();
+    await flushEffects();
   });
 
-  it('shows not found for unknown source id after fetch', () => {
+  it('shows not found for unknown source id after fetch', async () => {
     installMockWindowApi();
-    useSourcesStore.setState({ registrations: [reg({ id: 'spotify', name: 'Spotify' })], hasFetched: true });
+    useSourcesStore.setState({
+      registrations: [reg({ id: 'spotify', name: 'Spotify' })],
+      hasFetched: true,
+    });
     renderWithId('nonexistent');
+    await flushEffects();
     expect(screen.getByText(/Source not found/i)).toBeInTheDocument();
   });
 
@@ -77,25 +86,28 @@ describe('SourceView', () => {
     installMockWindowApi();
     useSourcesStore.setState({ registrations: [reg({ id: 'spotify', name: 'Spotify' })] });
     renderWithId('spotify');
+    await flushEffects();
     expect(screen.getByRole('heading', { name: 'Spotify' })).toBeInTheDocument();
     expect(screen.getByText('spotify')).toBeInTheDocument();
   });
 
-  it('shows auth indicator for authenticated sources', () => {
+  it('shows auth indicator for authenticated sources', async () => {
     installMockWindowApi();
     useSourcesStore.setState({
       registrations: [reg({ id: 'spotify', name: 'Spotify', authenticated: true })],
     });
     renderWithId('spotify');
+    await flushEffects();
     expect(screen.getByText(/signed in/)).toBeInTheDocument();
   });
 
-  it('shows warning when source is disabled', () => {
+  it('shows warning when source is disabled', async () => {
     installMockWindowApi();
     useSourcesStore.setState({
       registrations: [reg({ id: 'spotify', name: 'Spotify', enabled: false })],
     });
     renderWithId('spotify');
+    await flushEffects();
     expect(screen.getByText(/This source is disabled/)).toBeInTheDocument();
   });
 
@@ -178,7 +190,7 @@ describe('SourceView', () => {
     });
   });
 
-  it('shows capabilities section with all enabled flags', () => {
+  it('shows capabilities section with all enabled flags', async () => {
     installMockWindowApi();
     useSourcesStore.setState({
       registrations: [
@@ -199,6 +211,7 @@ describe('SourceView', () => {
       ],
     });
     renderWithId('audius');
+    await flushEffects();
     expect(screen.getByText('What this source supports')).toBeInTheDocument();
     expect(screen.getByText('Search')).toBeInTheDocument();
     expect(screen.getByText('Stream')).toBeInTheDocument();

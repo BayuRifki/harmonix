@@ -32,7 +32,7 @@
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md,css}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md,css}\"",
     "typecheck": "tsc --noEmit -p tsconfig.test.json && tsc --noEmit -p tsconfig.main.json",
-    "rebuild:native": "npm rebuild better-sqlite3 --build-from-source=false",
+    "rebuild:native": "npm rebuild better-sqlite3",
     "pretest": "npm run rebuild:native",
     "test": "vitest run",
     "test:watch": "vitest",
