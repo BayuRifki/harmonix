@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { EqPreset, EqCustomPreset } from '@/types/global';
 import { equalizer } from '@/lib/audio/equalizer';
+import { spatializer } from '@/lib/audio/spatializer';
 import { BUILTIN_PRESETS, FLAT_GAINS, clampGains, getBuiltinPreset } from '@/lib/audio/presets';
 
 interface EqualizerState {
@@ -8,6 +9,7 @@ interface EqualizerState {
   customPresets: EqCustomPreset[];
   activePreset: string | null;
   currentGains: number[];
+  spatializerIntensity: number;
   loaded: boolean;
   error: string | null;
 
@@ -15,6 +17,7 @@ interface EqualizerState {
   applyPreset: (name: string) => Promise<void>;
   setBandGain: (index: number, gainDb: number) => Promise<void>;
   setAllGains: (gains: number[]) => Promise<void>;
+  setSpatializerIntensity: (val: number) => void;
   reset: () => Promise<void>;
   saveCustom: (name: string) => Promise<void>;
   deleteCustom: (name: string) => Promise<void>;
@@ -62,6 +65,7 @@ export const useEqualizerStore = create<EqualizerState>((set, get) => ({
   customPresets: [],
   activePreset: null,
   currentGains: [...FLAT_GAINS],
+  spatializerIntensity: 0,
   loaded: false,
   error: null,
 
@@ -116,9 +120,15 @@ export const useEqualizerStore = create<EqualizerState>((set, get) => ({
     schedulePersist({ activePreset: null, currentGains: clamped });
   },
 
+  setSpatializerIntensity: (val) => {
+    spatializer.setIntensity(val);
+    set({ spatializerIntensity: val });
+  },
+
   reset: async () => {
     applyGainsToEngine(FLAT_GAINS);
-    set({ currentGains: [...FLAT_GAINS], activePreset: 'Flat' });
+    spatializer.setIntensity(0);
+    set({ currentGains: [...FLAT_GAINS], activePreset: 'Flat', spatializerIntensity: 0 });
     schedulePersist({ activePreset: 'Flat', currentGains: [...FLAT_GAINS] });
   },
 

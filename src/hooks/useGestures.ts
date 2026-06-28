@@ -131,7 +131,10 @@ export function useGestures(options: UseGesturesOptions = {}): void {
     const onWheel = (e: WheelEvent): void => {
       if (isInteractiveTarget(e.target)) return;
       if (e.ctrlKey || e.metaKey) return;
-      if (Math.abs(e.deltaY) < 10) return;
+      if (Math.abs(e.deltaY) >= 10) {
+        if (e.deltaY > 0) options.onSwipeDown?.();
+        else options.onSwipeUp?.();
+      }
       if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
         if (e.deltaX > 50) options.onSwipeRight?.();
         else if (e.deltaX < -50) options.onSwipeLeft?.();

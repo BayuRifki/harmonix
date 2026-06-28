@@ -143,7 +143,6 @@ function SeekBar({
 }: SeekBarProps): JSX.Element {
   const [hover, setHover] = useState(false);
 
-  const trackHeight = size === 'lg' ? 'h-1.5' : 'h-1.5';
   const thumbSize = size === 'lg' ? 'h-3.5 w-3.5' : 'h-2.5 w-2.5';
 
   return (
@@ -152,14 +151,16 @@ function SeekBar({
     >
       <span className="w-10 text-right">{formatTime(positionMs)}</span>
       <div
-        className={`flex-1 relative ${trackHeight} rounded-full bg-zinc-800 overflow-hidden cursor-pointer`}
+        className="flex-1 relative py-2 cursor-pointer"
         onMouseEnter={() => setHover(true)}
         onMouseLeave={() => setHover(false)}
       >
-        <div
-          className="h-full bg-gradient-to-r from-brand-600 to-brand-400 rounded-full transition-[width] duration-100"
-          style={{ width: `${progress}%` }}
-        />
+        <div className={`h-1.5 rounded-full bg-zinc-800 overflow-hidden relative w-full`}>
+          <div
+            className="h-full bg-gradient-to-r from-brand-600 to-brand-400 rounded-full transition-[width] duration-100"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
         <input
           type="range"
           min={0}
@@ -167,11 +168,11 @@ function SeekBar({
           value={positionMs}
           onChange={(e) => onSeek(Number(e.target.value))}
           disabled={disabled}
-          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
+          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed z-10"
           aria-label="Seek"
         />
         <div
-          className={`absolute ${thumbSize} rounded-full bg-brand-400 shadow border border-white/30 top-1/2 -translate-y-1/2 pointer-events-none transition-opacity duration-150 ${
+          className={`absolute ${thumbSize} rounded-full bg-brand-400 shadow border border-white/30 top-1/2 -translate-y-1/2 pointer-events-none transition-opacity duration-150 z-20 ${
             hover ? 'opacity-100' : 'opacity-0'
           }`}
           style={{ left: `calc(${progress}% - ${size === 'lg' ? '7px' : '5px'})` }}

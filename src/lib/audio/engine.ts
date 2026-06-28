@@ -1,4 +1,5 @@
 import { equalizer } from './equalizer';
+import { spatializer } from './spatializer';
 
 type PlaybackState = 'idle' | 'loading' | 'playing' | 'paused' | 'error';
 
@@ -61,10 +62,18 @@ export class AudioEngine {
         this.gainNode = this.ctx.createGain();
         try {
           equalizer.connect(this.gainNode, this.ctx.destination);
+
+          // Spatializer sits at the very end of the chain, post-EQ
+          // We hijack the equalizer's output and route it through spatializer
+          const eqOutput = equalizer.getEqOutputNode();
+          if (eqOutput) {
+            eqOutput.disconnect(); // Disconnect from destination
+            spatializer.connect(eqOutput, this.ctx.destination, this.ctx);
+          }
         } catch (eqErr) {
           // eslint-disable-next-line no-console
           console.warn(
-            '[audioEngine] equalizer.connect failed, continuing without EQ:',
+            '[audioEngine] equalizer/spatializer connect failed, continuing without FX:',
             (eqErr as Error).message,
           );
         }
@@ -575,6 +584,11 @@ export class AudioEngine {
       }
     }
     this.sharedAnalysers.clear();
+    try {
+      spatializer.disconnect();
+    } catch {
+      // ignore
+    }
     try {
       equalizer.disconnect();
     } catch {

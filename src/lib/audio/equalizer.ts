@@ -29,6 +29,15 @@ export class Equalizer {
     return this.input;
   }
 
+  /**
+   * Returns the final audio node in the EQ chain (the last band filter)
+   * before it goes to the destination. Useful for inserting FX after the EQ.
+   */
+  getEqOutputNode(): AudioNode | null {
+    if (this.filters.length === 0) return null;
+    return this.filters[this.filters.length - 1];
+  }
+
   connect(input: AudioNode, output: AudioNode): void {
     if (this.isConnected()) {
       this.disconnect();

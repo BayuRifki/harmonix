@@ -13,11 +13,13 @@ export function EqualizerView(): JSX.Element {
   const custom = useEqualizerStore((s) => s.customPresets);
   const activePreset = useEqualizerStore((s) => s.activePreset);
   const currentGains = useEqualizerStore((s) => s.currentGains);
+  const spatializerIntensity = useEqualizerStore((s) => s.spatializerIntensity);
   const loaded = useEqualizerStore((s) => s.loaded);
   const error = useEqualizerStore((s) => s.error);
   const load = useEqualizerStore((s) => s.load);
   const applyPreset = useEqualizerStore((s) => s.applyPreset);
   const setBandGain = useEqualizerStore((s) => s.setBandGain);
+  const setSpatializerIntensity = useEqualizerStore((s) => s.setSpatializerIntensity);
   const reset = useEqualizerStore((s) => s.reset);
   const saveCustom = useEqualizerStore((s) => s.saveCustom);
   const deleteCustom = useEqualizerStore((s) => s.deleteCustom);
@@ -33,7 +35,7 @@ export function EqualizerView(): JSX.Element {
   if (error) {
     return (
       <div className="p-8">
-        <h1 className="text-2xl font-bold text-white mb-2">Equalizer</h1>
+        <h1 className="text-2xl font-bold text-white mb-2">Equalizer & FX</h1>
         <p className="text-red-400 text-sm">Failed to load EQ state: {error}</p>
       </div>
     );
@@ -42,7 +44,7 @@ export function EqualizerView(): JSX.Element {
   if (!loaded) {
     return (
       <div className="p-8">
-        <h1 className="text-2xl font-bold text-white mb-2">Equalizer</h1>
+        <h1 className="text-2xl font-bold text-white mb-2">Equalizer & FX</h1>
         <Skeleton variant="text" lines={2} />
       </div>
     );
@@ -63,10 +65,10 @@ export function EqualizerView(): JSX.Element {
 
   return (
     <div className="p-8">
-      <h1 className="text-2xl font-bold text-white mb-2">Equalizer</h1>
+      <h1 className="text-2xl font-bold text-white mb-2">Equalizer & FX</h1>
       <p className="text-zinc-400 mb-6 text-sm">
-        10-band parametric EQ for local and YouTube Music playback. Settings persist across
-        sessions.
+        10-band parametric EQ and spatializer for local and YouTube Music playback. Settings persist
+        across sessions.
       </p>
 
       <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6 mb-4">
@@ -188,11 +190,39 @@ export function EqualizerView(): JSX.Element {
             <div className="w-12 shrink-0" />
           </div>
         </div>
+
+        {/* Spatializer FX section */}
+        <div className="mt-8 border-t border-zinc-800 pt-6">
+          <h3 className="text-sm font-medium text-white mb-4">Spatializer</h3>
+          <div className="flex items-center gap-4 max-w-sm">
+            <span className="text-xs text-zinc-500 w-8 text-right">Dry</span>
+            <div className="flex-1 relative h-2 bg-zinc-800 rounded-full">
+              <div
+                className="absolute left-0 top-0 bottom-0 bg-brand-500 rounded-full pointer-events-none"
+                style={{ width: `${spatializerIntensity * 100}%` }}
+              />
+              <input
+                type="range"
+                min={0}
+                max={1}
+                step={0.01}
+                value={spatializerIntensity}
+                onChange={(e) => setSpatializerIntensity(Number(e.target.value))}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                aria-label="Spatializer intensity"
+              />
+            </div>
+            <span className="text-xs text-zinc-500 w-8">Wide</span>
+            <div className="text-xs text-zinc-400 tabular-nums w-12">
+              {Math.round(spatializerIntensity * 100)}%
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4 text-xs text-zinc-400">
         <p className="mb-1">
-          <span className="text-zinc-300 font-semibold">Note:</span> The equalizer applies to{' '}
+          <span className="text-zinc-300 font-semibold">Note:</span> The equalizer and FX apply to{' '}
           <span className="text-white">local files</span> and{' '}
           <span className="text-white">YouTube Music</span> streams that Harmonix plays through the
           Web Audio API.

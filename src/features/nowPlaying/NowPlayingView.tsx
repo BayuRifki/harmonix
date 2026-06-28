@@ -336,32 +336,32 @@ export function NowPlayingView(): JSX.Element {
             )}
 
             <div className="w-full max-w-2xl mt-8">
-              <div className="flex items-center gap-3 text-xs text-zinc-300 tabular-nums">
+              <div className="flex items-center gap-3 text-xs text-zinc-300 tabular-nums w-full">
                 <span className="w-12 text-right">{formatTime(positionMs)}</span>
-                <div className="flex-1 h-1.5 rounded-full bg-white/10 overflow-hidden relative">
-                  <div
-                    className="h-full bg-gradient-to-r from-brand-500 to-accent-400 rounded-full transition-[width] duration-100"
-                    style={{ width: `${progress}%` }}
+                <div className="flex-1 relative py-2 group/slider">
+                  <div className="h-1.5 rounded-full bg-white/10 overflow-hidden relative w-full">
+                    <div
+                      className="h-full bg-gradient-to-r from-brand-500 to-accent-400 rounded-full transition-[width] duration-100"
+                      style={{ width: `${progress}%` }}
+                    />
+                    <CrossfadeIndicator durationMs={durationMs} />
+                  </div>
+                  <input
+                    type="range"
+                    min={0}
+                    max={durationMs || 0}
+                    value={positionMs}
+                    onChange={(e) => void seek(Number(e.target.value))}
+                    disabled={!hasTrack}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10 disabled:cursor-not-allowed"
+                    aria-label="Seek"
                   />
-                  <CrossfadeIndicator durationMs={durationMs} />
+                  <div
+                    className="absolute top-1/2 -translate-y-1/2 w-3.5 h-3.5 bg-white rounded-full shadow-md border-2 border-brand-500 pointer-events-none transition-opacity duration-200 z-20"
+                    style={{ left: `calc(${Math.min(100, progress)}% - 7px)` }}
+                  />
                 </div>
                 <span className="w-12">{formatTime(durationMs)}</span>
-              </div>
-              <div className="relative w-full h-2 -mt-3.5 group/slider">
-                <input
-                  type="range"
-                  min={0}
-                  max={durationMs || 0}
-                  value={positionMs}
-                  onChange={(e) => void seek(Number(e.target.value))}
-                  disabled={!hasTrack}
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                  aria-label="Seek"
-                />
-                <div
-                  className="absolute top-1/2 -translate-y-1/2 w-3.5 h-3.5 bg-white rounded-full shadow-md border-2 border-brand-500 pointer-events-none transition-opacity duration-200"
-                  style={{ left: `calc(${Math.min(100, progress)}% - 7px)` }}
-                />
               </div>
             </div>
 
@@ -443,25 +443,27 @@ export function NowPlayingView(): JSX.Element {
                   <Volume2 size={18} />
                 )}
               </button>
-              <div className="relative flex-1 h-1.5 rounded-full bg-white/10 overflow-hidden group/slider">
-                <div
-                  className="h-full bg-zinc-300 rounded-full"
-                  style={{ width: `${volume * 100}%` }}
+              <div className="flex-1 relative py-2 group/slider">
+                <div className="h-1.5 rounded-full bg-white/10 overflow-hidden relative w-full">
+                  <div
+                    className="h-full bg-zinc-300 rounded-full"
+                    style={{ width: `${volume * 100}%` }}
+                  />
+                </div>
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  value={volume * 100}
+                  onChange={(e) => setVolume(Number(e.target.value) / 100)}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                  aria-label="Volume"
                 />
                 <div
-                  className="absolute top-1/2 -translate-y-1/2 w-3.5 h-3.5 bg-white rounded-full shadow-md border-2 border-brand-500 pointer-events-none transition-opacity duration-200"
+                  className="absolute top-1/2 -translate-y-1/2 w-3.5 h-3.5 bg-white rounded-full shadow-md border-2 border-brand-500 pointer-events-none transition-opacity duration-200 z-20"
                   style={{ left: `calc(${volume * 100}% - 7px)` }}
                 />
               </div>
-              <input
-                type="range"
-                min={0}
-                max={100}
-                value={volume * 100}
-                onChange={(e) => setVolume(Number(e.target.value) / 100)}
-                className="absolute inset-y-0 left-0 w-48 h-6 opacity-0 cursor-pointer z-10"
-                aria-label="Volume"
-              />
             </div>
           </div>
 
