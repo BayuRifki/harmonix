@@ -22,6 +22,8 @@ files:
   - 'dist-electron/**/*'
   - 'package.json'
   - 'LICENSE'
+  - 'resources/icon.png'
+  - 'resources/icon.ico'
   - '!**/*.{md,markdown}'
   - '!**/{.eslintrc,.prettierrc,.editorconfig,.gitignore}'
 

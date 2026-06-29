@@ -44,6 +44,7 @@ export function createMainWindow(): BrowserWindow {
     minHeight: 600,
     show: false,
     backgroundColor: '#0a0a0a',
+    icon: join(__dirname, '../../resources/icon.png'),
     autoHideMenuBar: true,
     webPreferences: {
       preload: join(__dirname, '../preload/index.mjs'),
@@ -117,6 +118,7 @@ export function createMiniPlayerWindow(options: MiniPlayerCreateOptions = {}): B
     skipTaskbar: true,
     frame: false,
     transparent: false,
+    icon: join(__dirname, '../../resources/icon.png'),
     backgroundColor: '#0a0a0a',
     alwaysOnTop: options.alwaysOnTop ?? false,
     show: false,
