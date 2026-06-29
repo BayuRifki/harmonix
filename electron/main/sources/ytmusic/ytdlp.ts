@@ -21,10 +21,13 @@ export function setElectronAppForYtDlp(app: App): void {
 
 function candidates(): string[] {
   const appPath = electronApp ? electronApp.getAppPath() : process.cwd();
-  return [
+  const isPackaged = electronApp ? electronApp.isPackaged : false;
+  const isDev = !isPackaged;
+  const resourcesDir = isDev ? join(appPath, 'resources') : join(process.resourcesPath ?? '');
+    return [
     process.env.YT_DLP_PATH ?? '',
-    join(appPath, 'resources', 'yt-dlp'),
-    join(appPath, 'resources', 'yt-dlp.exe'),
+    join(resourcesDir, 'yt-dlp'),
+    join(resourcesDir, 'yt-dlp.exe'),
     join(process.resourcesPath ?? '', 'yt-dlp'),
     join(process.resourcesPath ?? '', 'yt-dlp.exe'),
     'yt-dlp',
